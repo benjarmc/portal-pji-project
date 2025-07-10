@@ -1,0 +1,153 @@
+<wizard-header />
+<div class="wizard-container">
+  <!-- Barra de progreso -->
+  <div class="wizard-progress d-flex justify-content-center align-items-center mb-4">
+    <div *ngFor="let step of steps; let i = index" class="wizard-progress-step" [class.active]="i <= currentStep">
+      <span class="dot"></span>
+      <span *ngIf="i < steps.length - 1" class="line"></span>
+    </div>
+  </div>
+
+  <!-- Contenido dinámico del paso -->
+  <div class="wizard-step-content">
+    <ng-container [ngSwitch]="steps[currentStep].key">
+      <div *ngSwitchCase="'welcome'">
+        <h2>Bienvenida al cotizador</h2>
+        <button class="btn btn-accent mt-3" (click)="nextStep()">Iniciar cotización</button>
+      </div>
+      <div *ngSwitchCase="'main-data'">
+        <h2>Datos principales</h2>
+        <form [formGroup]="mainDataForm" (ngSubmit)="nextStep()" class="main-data-form">
+          <div class="row mb-3">
+            <div class="col-md-6 mb-3">
+              <label>Nombre</label>
+              <input type="text" class="form-control" formControlName="nombre" [class.is-invalid]="mainDataForm.get('nombre')?.invalid && mainDataForm.get('nombre')?.touched">
+              <div class="invalid-feedback" *ngIf="mainDataForm.get('nombre')?.invalid && mainDataForm.get('nombre')?.touched">Nombre requerido</div>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label>Teléfono</label>
+              <input type="text" class="form-control" formControlName="telefono" [class.is-invalid]="mainDataForm.get('telefono')?.invalid && mainDataForm.get('telefono')?.touched">
+              <div class="invalid-feedback" *ngIf="mainDataForm.get('telefono')?.invalid && mainDataForm.get('telefono')?.touched">Teléfono inválido</div>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label>Correo</label>
+              <input type="email" class="form-control" formControlName="correo" [class.is-invalid]="mainDataForm.get('correo')?.invalid && mainDataForm.get('correo')?.touched">
+              <div class="invalid-feedback" *ngIf="mainDataForm.get('correo')?.invalid && mainDataForm.get('correo')?.touched">Correo inválido</div>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label>Código Postal</label>
+              <input type="text" class="form-control" formControlName="codigoPostal" [class.is-invalid]="mainDataForm.get('codigoPostal')?.invalid && mainDataForm.get('codigoPostal')?.touched">
+              <div class="invalid-feedback" *ngIf="mainDataForm.get('codigoPostal')?.invalid && mainDataForm.get('codigoPostal')?.touched">Código postal inválido</div>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6 mb-3">
+              <label>Plan seleccionado</label>
+              <input type="text" class="form-control" formControlName="plan" readonly>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label>Complementos adicionales</label>
+              <div *ngFor="let comp of complementos">
+                <input type="checkbox" [value]="comp" (change)="onComplementoChange($event, comp)"> {{ comp }}
+              </div>
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-secondary" (click)="prevStep()">Atrás</button>
+            <button type="submit" class="btn btn-accent">Continuar y pagar</button>
+          </div>
+        </form>
+      </div>
+      <div *ngSwitchCase="'payment'">
+        <h2>Pago de servicios</h2>
+        <div class="stripe-mockup my-4 p-4 bg-white rounded shadow-sm">
+          <div class="d-flex mb-3">
+            <button class="btn btn-outline-primary me-2 active"><i class="pi pi-credit-card"></i> Tarjeta</button>
+            <button class="btn btn-outline-secondary me-2"><i class="pi pi-google"></i> Google Pay</button>
+            <button class="btn btn-outline-secondary"><i class="pi pi-building"></i> Cuenta bancaria</button>
+          </div>
+          <input type="text" class="form-control mb-2" placeholder="Número de tarjeta">
+          <div class="d-flex gap-2 mb-2">
+            <input type="text" class="form-control" placeholder="MM / YY">
+            <input type="text" class="form-control" placeholder="CVC">
+          </div>
+          <input type="text" class="form-control mb-2" placeholder="Nombre del titular">
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-secondary" (click)="prevStep()">Atrás</button>
+          <button class="btn btn-accent" (click)="nextStep()">Realizar pago</button>
+        </div>
+      </div>
+      <div *ngSwitchCase="'validation'">
+        <ng-container [ngSwitch]="validationStatus">
+          <div *ngSwitchCase="'pending'" class="text-center">
+            <div class="spinner-border text-accent mb-3" role="status"></div>
+            <h3>Se está validando la identidad<br><span class="highlight">en plataforma externa.</span></h3>
+          </div>
+          <div *ngSwitchCase="'success'" class="text-center">
+            <i class="pi pi-check-circle" style="font-size: 3rem; color: #A8CF41;"></i>
+            <h3><span class="highlight">Validación exitosa</span></h3>
+            <button class="btn btn-accent mt-3" (click)="nextStep()">Siguiente paso</button>
+          </div>
+          <div *ngSwitchCase="'intermediate'" class="text-center">
+            <i class="pi pi-exclamation-triangle" style="font-size: 3rem; color: #A8CF41;"></i>
+            <h3>No es posible continuar con este proceso,<br>pero puedes seleccionar otro paquete compatible.</h3>
+            <div class="row justify-content-center mt-4 mb-3">
+              <div class="col-md-4 mb-3" *ngFor="let plan of alternativePlans">
+                <div class="card h-100 shadow-sm">
+                  <div class="card-body">
+                    <h5 class="card-title">{{ plan.name }}</h5>
+                    <p class="card-text">{{ plan.desc }}</p>
+                    <button class="btn btn-accent w-100 mt-2" (click)="selectAlternativePlan(plan.key)">Seleccionar plan</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button class="btn btn-secondary mt-2" (click)="goToStart()">Salir</button>
+          </div>
+          <div *ngSwitchCase="'failed'" class="text-center">
+            <i class="pi pi-times-circle" style="font-size: 3rem; color: #A8CF41;"></i>
+            <h3>No es posible realizar el proceso en estos momentos.</h3>
+            <button class="btn btn-accent mt-3" (click)="goToStart()">Salir</button>
+          </div>
+        </ng-container>
+      </div>
+      <div *ngSwitchCase="'contract'">
+        <h2>Prototipo de contrato</h2>
+        <div class="contract-preview bg-white p-4 rounded shadow-sm mb-4">
+          <iframe [src]="pdfSrc" width="100%" height="500px" style="border:none;"></iframe>
+        </div>
+        <form [formGroup]="contractForm" (ngSubmit)="nextStep()">
+          <div class="mb-3">
+            <label class="fw-bold">Cláusulas adicionales</label>
+            <div class="row">
+              <div class="col-md-6" *ngFor="let clau of clausulas">
+                <input type="checkbox" [value]="clau" (change)="onClausulaChange($event, clau)"> {{ clau }}
+              </div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label>Requerimientos adicionales</label>
+            <textarea class="form-control" formControlName="requerimientos" rows="2"></textarea>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-secondary" (click)="prevStep()">Atrás</button>
+            <button type="submit" class="btn btn-accent">Continuar y firmar</button>
+          </div>
+        </form>
+      </div>
+      <div *ngSwitchCase="'sign'">
+        <div class="text-center">
+          <i class="pi pi-send" style="font-size: 3rem; color: #A8CF41;"></i>
+          <h3 class="mt-3"><span class="highlight">Gracias por tu confianza,</span> te compartimos por correo el contrato para la firma de todos los involucrados.</h3>
+          <button class="btn btn-accent mt-4" (click)="nextStep()">Finalizar</button>
+        </div>
+      </div>
+      <div *ngSwitchCase="'finish'">
+        <h2>¡Gracias por tu confianza!</h2>
+        <button class="btn btn-accent mt-3" (click)="goToStep(0)">Volver al inicio</button>
+      </div>
+    </ng-container>
+  </div>
+</div>
+<wizard-footer />

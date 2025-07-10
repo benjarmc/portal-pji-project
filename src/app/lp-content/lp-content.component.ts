@@ -1,0 +1,53 @@
+import { Component } from '@angular/core';
+import { Router } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { LpHeaderComponent } from '../lp-header/lp-header.component';
+import { LpFooterComponent } from '../lp-footer/lp-footer.component';
+
+@Component({
+  selector: 'app-lp-content',
+  standalone: true,
+  imports: [
+    CommonModule,
+    LpHeaderComponent,
+    LpFooterComponent
+  ],
+  templateUrl: './lp-content.component.html',
+  styleUrls: ['./lp-content.component.css']
+})
+export class LpContentComponent {
+  faqOpenIndex: number | null = 0;
+
+  faqs = [
+    {
+      question: '¿Qué pasa si mi inquilino no paga la renta?',
+      answer: 'Iniciamos de inmediato el proceso legal para recuperar rentas y, si es necesario, desocupar el inmueble. Nuestro equipo de abogados se encarga de todo.'
+    },
+    {
+      question: '¿La firma electrónica es legal?',
+      answer: 'Sí, la firma electrónica tiene validez legal y es utilizada en todos nuestros procesos.'
+    },
+    {
+      question: '¿Cuánto tarda la contratación?',
+      answer: 'El proceso es inmediato y 100% digital. En minutos puedes tener tu póliza.'
+    }
+  ];
+
+  constructor(private router: Router) {}
+
+  toggleFaq(index: number) {
+    this.faqOpenIndex = this.faqOpenIndex === index ? null : index;
+  }
+
+  scrollToPlans() {
+    const plansSection = document.getElementById('lp-plans-section');
+    if (plansSection) {
+      plansSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
+  startWizard(plan: string) {
+    console.log('Iniciando wizard con plan:', plan);
+    this.router.navigate(['/cotizador'], { queryParams: { plan } });
+  }
+}

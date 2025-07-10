@@ -1,0 +1,21 @@
+@import url('bootstrap/dist/css/bootstrap.min.css');
+@import url('primeicons/primeicons.css');
+
+/* Paleta de colores global en CSS */
+:root {
+  --color-primary: #1D4C2C;
+  --color-black: #000000;
+  --color-white: #FFFFFF;
+  --color-accent: #A8CF41;
+  --color-bg-light: #F9F9F9;
+  --color-gray: #C5C5C5;
+  --color-gray-light: #B0B0B0;
+  --color-black-50: rgba(0, 0, 0, 0.5);
+  --font-family-base: 'Inter', Arial, Helvetica, sans-serif;
+}
+
+body {
+  font-family: var(--font-family-base);
+  background: var(--color-white);
+  color: var(--color-black);
+} 

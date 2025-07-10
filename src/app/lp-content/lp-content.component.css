@@ -1,0 +1,130 @@
+@import url('../../styles.css');
+
+.lp-hero {
+  min-height: 60vh;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  color: var(--color-white);
+}
+.lp-hero-content {
+  background: rgba(29, 76, 44, 0.5);
+  padding: 3rem 2rem;
+  border-radius: 1.5rem;
+  max-width: 600px;
+  margin: 2rem auto;
+}
+.lp-hero-content h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.lp-hero-content .highlight {
+  color: var(--color-accent);
+}
+.lp-hero-content p {
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+}
+.lp-hero-content .btn-accent {
+  background: var(--color-accent);
+  color: var(--color-white);
+  border: none;
+  transition: background 0.2s;
+}
+.lp-hero-content .btn-accent:hover {
+  background: #8bbf2e;
+}
+
+.lp-steps .highlight {
+  color: var(--color-accent);
+}
+.lp-step-icon {
+  background: var(--color-accent);
+  color: var(--color-white);
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 2rem;
+  margin: 0 auto 1rem auto;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.lp-steps h5 {
+  font-weight: 700;
+  margin-top: 1rem;
+}
+
+.lp-plans {
+  background: var(--color-bg-light);
+}
+.lp-plans .highlight {
+  color: var(--color-accent);
+}
+.lp-plan-card {
+  background: var(--color-white);
+  border-radius: 1rem;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+  transition: box-shadow 0.2s;
+}
+.lp-plan-card h5 {
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+.lp-plan-card .badge {
+  font-size: 0.8rem;
+  background: var(--color-accent) !important;
+  color: var(--color-white) !important;
+}
+.lp-plan-card ul {
+  padding-left: 1.2rem;
+  margin-bottom: 1rem;
+}
+.lp-plan-card ul li {
+  font-size: 1rem;
+  margin-bottom: 0.3rem;
+}
+.lp-plan-card .btn-accent {
+  background: var(--color-accent);
+  color: var(--color-white);
+  border: none;
+  transition: background 0.2s;
+}
+.lp-plan-card .btn-accent:hover {
+  background: #8bbf2e;
+}
+.lp-plan-card:hover {
+  box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+}
+
+.lp-faq {
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+.lp-faq .highlight {
+  color: var(--color-accent);
+}
+.lp-faq-item {
+  background: transparent;
+  border-radius: 0.5rem;
+  padding: 1rem 0;
+}
+.lp-faq-question {
+  font-weight: 600;
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.lp-faq-question .faq-toggle {
+  font-size: 1.5rem;
+  color: var(--color-accent);
+}
+.lp-faq-answer {
+  font-size: 1rem;
+  margin-top: 0.5rem;
+  color: var(--color-white);
+} 
