@@ -1,0 +1,20 @@
+<div class="payment-step">
+  <h2>Pago de servicios</h2>
+  <div class="stripe-mockup my-4 p-4 bg-white rounded shadow-sm">
+    <div class="d-flex mb-3">
+      <button class="btn btn-outline-primary me-2 active"><i class="pi pi-credit-card"></i> Tarjeta</button>
+      <button class="btn btn-outline-secondary me-2"><i class="pi pi-google"></i> Google Pay</button>
+      <button class="btn btn-outline-secondary"><i class="pi pi-building"></i> Cuenta bancaria</button>
+    </div>
+    <input type="text" class="form-control mb-2" placeholder="Número de tarjeta">
+    <div class="d-flex gap-2 mb-2">
+      <input type="text" class="form-control" placeholder="MM / YY">
+      <input type="text" class="form-control" placeholder="CVC">
+    </div>
+    <input type="text" class="form-control mb-2" placeholder="Nombre del titular">
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-secondary" (click)="onPrevious()">Atrás</button>
+    <button class="btn btn-accent" (click)="onNext()">Realizar pago</button>
+  </div>
+</div> 

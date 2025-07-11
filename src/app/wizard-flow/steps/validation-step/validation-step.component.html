@@ -1,0 +1,37 @@
+<div class="validation-step">
+  <ng-container [ngSwitch]="validationStatus">
+    <div *ngSwitchCase="'pending'" class="text-center">
+      <div class="spinner-border text-accent mb-3" role="status"></div>
+      <h3>Se está validando la identidad<br><span class="highlight">en plataforma externa.</span></h3>
+    </div>
+    
+    <div *ngSwitchCase="'success'" class="text-center">
+      <i class="pi pi-check-circle" style="font-size: 3rem; color: #A8CF41;"></i>
+      <h3><span class="highlight">Validación exitosa</span></h3>
+      <button class="btn btn-accent mt-3" (click)="onNext()">Siguiente paso</button>
+    </div>
+    
+    <div *ngSwitchCase="'intermediate'" class="text-center">
+      <i class="pi pi-exclamation-triangle" style="font-size: 3rem; color: #A8CF41;"></i>
+      <h3>No es posible continuar con este proceso,<br>pero puedes seleccionar otro paquete compatible.</h3>
+      <div class="row justify-content-center mt-4 mb-3">
+        <div class="col-md-4 mb-3" *ngFor="let plan of alternativePlans">
+          <div class="card h-100 shadow-sm">
+            <div class="card-body">
+              <h5 class="card-title">{{ plan.name }}</h5>
+              <p class="card-text">{{ plan.desc }}</p>
+              <button class="btn btn-accent w-100 mt-2" (click)="onSelectPlan(plan.key)">Seleccionar plan</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-secondary mt-2" (click)="onGoToStart()">Salir</button>
+    </div>
+    
+    <div *ngSwitchCase="'failed'" class="text-center">
+      <i class="pi pi-times-circle" style="font-size: 3rem; color: #A8CF41;"></i>
+      <h3>No es posible realizar el proceso en estos momentos.</h3>
+      <button class="btn btn-accent mt-3" (click)="onGoToStart()">Salir</button>
+    </div>
+  </ng-container>
+</div> 
