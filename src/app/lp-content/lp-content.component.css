@@ -1,4 +1,4 @@
-@import url('../../styles.css');
+@import url("../../styles.css");
 
 .lp-hero {
   min-height: 60vh;
@@ -9,9 +9,17 @@
   justify-content: center;
   position: relative;
   color: var(--color-white);
+
+  background-color: rgba(
+    29,
+    76,
+    44,
+    0.5
+  ); /* Color de overlay verde semi-transparente */
+  background-image: url("../../assets/hero-bg.jpg"); /* Imagen de fondo */
+  background-blend-mode: multiply; /* Esto mezcla el color con la imagen */
 }
 .lp-hero-content {
-  background: rgba(29, 76, 44, 0.5);
   padding: 3rem 2rem;
   border-radius: 1.5rem;
   max-width: 600px;
@@ -38,29 +46,147 @@
 .lp-hero-content .btn-accent:hover {
   background: #8bbf2e;
 }
-
-.lp-steps .highlight {
-  color: var(--color-accent);
+.lp-hero .btn-accent .bi-arrow-right {
+  color: #1d4c2c;
+  margin: 5px;
 }
-.lp-step-icon {
-  background: var(--color-accent);
-  color: var(--color-white);
-  width: 64px;
-  height: 64px;
-  display: flex;
-  align-items: center;
+
+/** LP Steps */
+/* Estilo del título */
+.highlight {
+  color: #7cc142; /* Verde vibrante */
+}
+
+/* Íconos dentro de un fondo verde claro */
+.step-icon {
+  background-color: #a8cf41;
+  color: #1d4c2c;
+  font-size: 1.8rem;
+  padding: 18px;
+  border-radius: 12px;
+  display: inline-flex;
   justify-content: center;
-  border-radius: 50%;
-  font-size: 2rem;
-  margin: 0 auto 1rem auto;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-.lp-steps h5 {
-  font-weight: 700;
-  margin-top: 1rem;
+  align-items: center;
+  width: 56px;
+  height: 56px;
 }
 
+/* Línea horizontal detrás de los íconos */
+.steps-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.step-line {
+  position: absolute;
+  top: 28px; /* Altura del centro de íconos */
+  left: 0;
+  right: 0;
+  height: 5px;
+  margin: 0 auto;
+  max-width: 650px;
+  background-color: #a8cf41;
+  z-index: 0;
+}
+
+@media (max-width: 768px) {
+  .steps-wrapper h5 {
+    font-size: 1rem;
+  }
+  .step-line {
+    max-width: 500px;
+  }
+}
+
+.step {
+  position: relative;
+  z-index: 1; /* Para que el ícono esté por encima de la línea */
+  max-width: 260px;
+}
+
+/** LP Plans */
 .lp-plans {
+  /* background-color: var(--bs-light); */ /* Ya se aplica con bg-light en HTML */
+  padding-top: 5rem;
+  padding-bottom: 5rem;
+}
+
+.lp-plans h2 {
+  font-size: 2.5rem; /* Tamaño del título principal */
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.lp-plans h2 .highlight {
+  color: var(--color-accent); /* Tu verde claro */
+}
+
+.lp-plans > .container > p {
+  /* Subtítulo "Planes claros, sin sorpresas" */
+  font-size: 1.1rem;
+  color: #6c757d;
+  margin-bottom: 3rem; /* Ajusta el espacio para separar del inicio de las tarjetas */
+}
+
+.lp-plan-card {
+  background-color: #f9f9f9;
+  border-radius: 1.5rem;
+  box-shadow: 5px 10px 15px rgb(111 98 98 / 80%);
+  transition: all 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  justify-content: space-between;
+  padding: 1.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  min-height: 500px;
+  min-width: 300px;
+}
+
+.lp-plan-card h5 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.lp-card-description {
+  margin: 3.5rem 0;
+}
+
+.lp-card-description p {
+  font-size: 1rem;
+  font-weight: 400;
+  color: #000000;
+  line-height: 100%;
+  letter-spacing: 0;
+}
+
+.lp-plans-cto-button {
+  background-color: #a8cf41;
+  color: #ffffff;
+  max-width: 299px;
+  max-height: 64px;
+  border-radius: 0.5rem;
+}
+.lp-plans-cto-button i {
+  color: #1d4c2c;
+}
+.lp-plans-cto-button:hover {
+  background-color: #1d4c2c;
+  color: #ffffff;
+}
+.lp-plans-cto-button:hover i {
+  color: #ffffff;
+}
+
+/* Media Queries para responsividad */
+
+/*.lp-plans {
   background: var(--color-bg-light);
 }
 .lp-plans .highlight {
@@ -69,7 +195,7 @@
 .lp-plan-card {
   background: var(--color-white);
   border-radius: 1rem;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
   transition: box-shadow 0.2s;
 }
 .lp-plan-card h5 {
@@ -99,9 +225,10 @@
   background: #8bbf2e;
 }
 .lp-plan-card:hover {
-  box-shadow: 0 4px 24px rgba(0,0,0,0.12);
-}
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+}*/
 
+/*FAQ*/
 .lp-faq {
   background: var(--color-primary);
   color: var(--color-white);
@@ -127,4 +254,4 @@
   font-size: 1rem;
   margin-top: 0.5rem;
   color: var(--color-white);
-} 
+}
