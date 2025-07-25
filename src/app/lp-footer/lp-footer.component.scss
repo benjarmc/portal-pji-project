@@ -1,0 +1,182 @@
+/* Footer (lp-footer) */
+.lp-footer {
+    background-color: #F8F9FA;
+    /* Gris muy claro, casi blanco */
+    color: #495057;
+    /* Color de texto general (gris oscuro) */
+    padding: 60px 16px 40px 16px;
+    /* Padding superior, horizontal, inferior */
+    border-top: 1px solid #e0e0e0;
+    /* Línea superior sutil */
+}
+
+.lp-footer-main {
+    margin-bottom: 40px;
+    /* Espacio entre las columnas y el texto inferior */
+}
+
+.lp-footer-title {
+    font-size: 1rem;
+    /* Tamaño de fuente para los títulos de sección */
+    font-weight: 700;
+    color: #92B428;
+    /* Verde/amarillo brillante para los títulos */
+    text-transform: uppercase;
+    /* Mayúsculas */
+    margin-bottom: 1rem;
+}
+
+/* Estilos para los enlaces de navegación */
+.lp-footer-links {
+    padding-left: 0;
+    /* Elimina el padding por defecto de ul */
+}
+
+.lp-footer-links li {
+    margin-bottom: 0.5rem;
+    /* Espacio entre los ítems de la lista */
+}
+
+.lp-footer-links a {
+    color: #495057;
+    /* Color gris oscuro para los enlaces */
+    text-decoration: none;
+    font-size: 0.95rem;
+    transition: color 0.3s ease;
+}
+
+.lp-footer-links a:hover {
+    color: #92B428;
+    /* Verde/amarillo al hover */
+}
+
+/* Estilos para la sección de contacto */
+.lp-footer-contact {
+    padding-left: 0;
+    /* Elimina el padding por defecto de ul */
+}
+
+.lp-footer-contact li {
+    color: #495057;
+    /* Color gris oscuro para el texto de contacto */
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+    /* Espacio entre los ítems de contacto */
+}
+
+.lp-footer-icon {
+    font-size: 1.1rem;
+    /* Tamaño de los iconos de contacto */
+    color: #495057;
+    /* Color gris oscuro para los iconos */
+    min-width: 20px;
+    /* Asegura un ancho mínimo para la alineación */
+}
+
+/* Estilos para el placeholder del logo */
+.lp-footer-logo-placeholder {
+    width: 100px;
+    /* Ancho del placeholder */
+    height: 100px;
+    /* Alto del placeholder */
+    background-color: #D3D3D3;
+    /* Gris claro para el fondo del logo */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #888;
+    /* Color del texto "Logo" */
+    font-size: 0.9rem;
+    border-radius: 8px;
+    /* Bordes ligeramente redondeados */
+    margin-bottom: 1.5rem;
+    /* Espacio debajo del logo */
+}
+
+/* Estilos para los iconos de redes sociales */
+.lp-footer-social i {
+    font-size: 1.5rem;
+    /* Tamaño de los iconos de redes sociales */
+    color: #495057;
+    /* Color gris oscuro para los iconos */
+    transition: color 0.3s ease;
+}
+
+.lp-social-icon-link:hover i {
+    color: #92B428;
+    /* Verde/amarillo al hover */
+}
+
+/* Estilos para el texto inferior (Lorem ipsum) */
+.lp-footer-text-bottom {
+    font-size: 0.85rem;
+    color: #6c757d;
+    /* Gris más claro para el texto legal */
+    line-height: 1.6;
+    margin-bottom: 0;
+    /* Elimina el margen inferior por defecto del párrafo */
+}
+
+/* ------------------------------------------------------------------------- */
+/* Media Queries para Responsividad */
+/* ------------------------------------------------------------------------- */
+@media (max-width: 767.98px) {
+
+    /* Móviles */
+    .lp-footer-main {
+        text-align: center;
+        /* Centra el texto de las columnas en móvil */
+    }
+
+    .lp-footer-links,
+    .lp-footer-contact {
+        text-align: center;
+        /* Centra los enlaces y contacto en móvil */
+        margin-bottom: 1.5rem;
+    }
+
+    .lp-footer-logo-placeholder {
+        margin-left: auto;
+        /* Centra el logo en móvil */
+        margin-right: auto;
+    }
+
+    .lp-footer-social {
+        justify-content: center !important;
+        /* Centra los iconos sociales en móvil */
+    }
+
+    .lp-footer-text-bottom {
+        text-align: center !important;
+        /* Centra el texto inferior en móvil */
+    }
+}
+
+@media (max-width: 575.98px) {
+
+    /* Móviles muy pequeños */
+    .lp-footer {
+        padding: 40px 10px 20px 10px;
+    }
+
+    .lp-footer-title {
+        font-size: 0.9rem;
+    }
+
+    .lp-footer-links a,
+    .lp-footer-contact li {
+        font-size: 0.9rem;
+    }
+
+    .lp-footer-icon {
+        font-size: 1rem;
+    }
+
+    .lp-footer-social i {
+        font-size: 1.3rem;
+    }
+
+    .lp-footer-text-bottom {
+        font-size: 0.8rem;
+    }
+}
