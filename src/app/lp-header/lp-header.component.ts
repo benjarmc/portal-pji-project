@@ -6,17 +6,19 @@ import {
   OnInit,
   PLATFORM_ID,
 } from '@angular/core';
+import { SharedModule } from '../shared/shared/shared.module';
 
 @Component({
   selector: 'app-lp-header',
-  imports: [],
+  imports: [SharedModule],
   templateUrl: './lp-header.component.html',
   styleUrl: './lp-header.component.scss',
 })
 export class LpHeaderComponent implements OnInit {
+  isOpen: boolean = false;
   isNavbarShrunk: boolean = false;
 
-  constructor(@Inject(PLATFORM_ID) private platformId: Object) {}
+  constructor(@Inject(PLATFORM_ID) private platformId: Object) { }
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
@@ -46,9 +48,7 @@ export class LpHeaderComponent implements OnInit {
     }
   }
 
-  toggleNavbarShrink() {
-    if (window.scrollY > 100) {
-      this.isNavbarShrunk = !this.isNavbarShrunk;
-    }
+  toggleMenu(): void {
+    this.isOpen = !this.isOpen;
   }
 }
