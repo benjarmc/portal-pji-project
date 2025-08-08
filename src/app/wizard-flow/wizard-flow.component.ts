@@ -10,6 +10,7 @@ import { PaymentStepComponent } from './steps/payment-step/payment-step.componen
 import { ValidationStepComponent } from './steps/validation-step/validation-step.component';
 import { ContractStepComponent } from './steps/contract-step/contract-step.component';
 import { FinishStepComponent } from './steps/finish-step/finish-step.component';
+import { SeoService } from '../services/seo.service';
 
 @Component({
   selector: 'app-wizard-flow',
@@ -44,13 +45,23 @@ export class WizardFlowComponent implements OnInit {
 
   validationStatus: 'pending' | 'success' | 'intermediate' | 'failed' = 'pending';
 
-  constructor(private route: ActivatedRoute) {}
+  constructor(
+    private route: ActivatedRoute,
+    private seoService: SeoService
+  ) {}
 
   ngOnInit() {
     console.log('Wizard iniciado');
+    this.seoService.setCotizadorSEO();
+    
     this.route.queryParamMap.subscribe(params => {
       this.selectedPlan = params.get('plan');
       console.log('Plan seleccionado:', this.selectedPlan);
+      
+      // Actualizar SEO según el plan seleccionado
+      if (this.selectedPlan) {
+        this.seoService.setPolicySEO(this.selectedPlan as 'juridica' | 'investigacion' | 'proteccion');
+      }
     });
   }
 
@@ -59,7 +70,7 @@ export class WizardFlowComponent implements OnInit {
     if (this.steps[this.currentStep].key === 'validation') {
       console.log('Entrando al paso de validación');
       this.validationStatus = 'pending';
-      this.simulateValidation();
+      // this.simulateValidation(); // Comentado para probar VDID
     }
   }
 

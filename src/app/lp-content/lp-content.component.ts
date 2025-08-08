@@ -1,8 +1,9 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { LpHeaderComponent } from '../lp-header/lp-header.component';
 import { LpFooterComponent } from '../lp-footer/lp-footer.component';
+import { SeoService } from '../services/seo.service';
 
 @Component({
   selector: 'app-lp-content',
@@ -15,7 +16,7 @@ import { LpFooterComponent } from '../lp-footer/lp-footer.component';
   templateUrl: './lp-content.component.html',
   styleUrls: ['./lp-content.component.css']
 })
-export class LpContentComponent {
+export class LpContentComponent implements OnInit {
   faqOpenIndex: number | null = 0;
 
   faqs = [
@@ -33,7 +34,14 @@ export class LpContentComponent {
     }
   ];
 
-  constructor(private router: Router) {}
+  constructor(
+    private router: Router,
+    private seoService: SeoService
+  ) {}
+
+  ngOnInit(): void {
+    this.seoService.setHomePageSEO();
+  }
 
   toggleFaq(index: number) {
     this.faqOpenIndex = this.faqOpenIndex === index ? null : index;

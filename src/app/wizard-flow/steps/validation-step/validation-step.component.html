@@ -3,6 +3,24 @@
     <div *ngSwitchCase="'pending'" class="text-center">
       <div class="spinner-border text-accent mb-3" role="status"></div>
       <h3>Se está validando la identidad<br><span class="highlight">en plataforma externa.</span></h3>
+      
+      <!-- Botón para mostrar integración VDID -->
+      <div class="mt-4">
+        <button 
+          class="btn btn-outline-primary" 
+          (click)="toggleVdidIntegration()">
+          {{ showVdidIntegration ? 'Ocultar' : 'Mostrar' }} Verificación de Identidad
+        </button>
+      </div>
+      
+      <!-- Componente de integración VDID -->
+      <div *ngIf="showVdidIntegration" class="mt-4">
+        <app-vdid-integration
+          [publicKey]="vdidPublicKey"
+          (verificationStarted)="onVerificationStarted($event)"
+          (verificationCompleted)="onVerificationCompleted($event)">
+        </app-vdid-integration>
+      </div>
     </div>
     
     <div *ngSwitchCase="'success'" class="text-center">

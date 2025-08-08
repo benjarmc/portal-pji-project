@@ -3,7 +3,15 @@ import { provideRouter } from '@angular/router';
 
 import { routes } from './app.routes';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
+import { VdidService } from './services/vdid.service';
+import { SeoService } from './services/seo.service';
 
 export const appConfig: ApplicationConfig = {
-  providers: [provideZoneChangeDetection({ eventCoalescing: true }), provideRouter(routes), provideClientHydration(withEventReplay())]
+  providers: [
+    provideZoneChangeDetection({ eventCoalescing: true }), 
+    provideRouter(routes), 
+    provideClientHydration(withEventReplay()),
+    VdidService,
+    SeoService
+  ]
 };

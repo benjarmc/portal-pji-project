@@ -1,5 +1,7 @@
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { VdidIntegrationComponent } from '../../../components/vdid-integration/vdid-integration.component';
+import { environment } from '../../../../environments/environment';
 
 export interface AlternativePlan {
   key: string;
@@ -10,7 +12,7 @@ export interface AlternativePlan {
 @Component({
   selector: 'app-validation-step',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, VdidIntegrationComponent],
   templateUrl: './validation-step.component.html',
   styleUrls: ['./validation-step.component.scss']
 })
@@ -26,6 +28,10 @@ export class ValidationStepComponent implements OnInit {
     { key: 'total', name: 'Protección Total', desc: 'Máxima protección legal y financiera.' }
   ];
 
+  // Propiedades para VDID
+  showVdidIntegration = false;
+  vdidPublicKey = environment.sdkConfig?.apiKey || '';
+
   ngOnInit() {
     // La validación se maneja desde el componente padre
   }
@@ -40,5 +46,20 @@ export class ValidationStepComponent implements OnInit {
 
   onGoToStart() {
     this.goToStart.emit();
+  }
+
+  // Métodos para VDID
+  toggleVdidIntegration() {
+    this.showVdidIntegration = !this.showVdidIntegration;
+  }
+
+  onVerificationStarted(uuid: string) {
+    console.log('Verificación iniciada con UUID:', uuid);
+    // Aquí puedes agregar lógica adicional cuando se inicia la verificación
+  }
+
+  onVerificationCompleted(result: any) {
+    console.log('Verificación completada:', result);
+    // Aquí puedes agregar lógica adicional cuando se completa la verificación
   }
 } 
