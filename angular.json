@@ -52,7 +52,7 @@
             "server": "src/main.server.ts",
             "prerender": true,
             "ssr": {
-              "entry": "src/server.ts"
+              "entry": "server.ts"
             }
           },
           "configurations": {
@@ -133,25 +133,19 @@
           "builder": "@angular-devkit/build-angular:server",
           "options": {
             "outputPath": "dist/portal-pji-project/server",
-            "main": "src/main.server.ts",
-            "tsConfig": "tsconfig.server.json"
+            "main": "server.ts",
+            "tsConfig": "tsconfig.app.json"
           },
           "configurations": {
             "production": {
-              "outputHashing": "all",
-              "fileReplacements": [
-                {
-                  "replace": "src/environments/environment.ts",
-                  "with": "src/environments/environment.prod.ts"
-                }
-              ],
+              "outputHashing": "media",
               "sourceMap": false,
               "optimization": true
             },
             "development": {
-              "optimization": false,
+              "outputHashing": "media",
               "sourceMap": true,
-              "extractLicenses": false
+              "optimization": false
             }
           },
           "defaultConfiguration": "production"

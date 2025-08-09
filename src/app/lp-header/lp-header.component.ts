@@ -1,4 +1,4 @@
-import { isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser, CommonModule } from '@angular/common';
 import {
   Component,
   HostListener,
@@ -6,11 +6,11 @@ import {
   OnInit,
   PLATFORM_ID,
 } from '@angular/core';
-import { SharedModule } from '../shared/shared/shared.module';
 
 @Component({
   selector: 'app-lp-header',
-  imports: [SharedModule],
+  standalone: true,
+  imports: [CommonModule],
   templateUrl: './lp-header.component.html',
   styleUrl: './lp-header.component.scss',
 })

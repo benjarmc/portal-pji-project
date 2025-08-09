@@ -8,8 +8,8 @@ import { SeoService } from './services/seo.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideZoneChangeDetection({ eventCoalescing: true }), 
-    provideRouter(routes), 
+    provideZoneChangeDetection({ eventCoalescing: true }),
+    provideRouter(routes),
     provideClientHydration(withEventReplay()),
     VdidService,
     SeoService

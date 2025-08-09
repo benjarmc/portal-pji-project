@@ -3,26 +3,17 @@ import { CommonEngine, isMainModule } from '@angular/ssr/node';
 import express from 'express';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import bootstrap from './main.server';
+import bootstrap from './src/main.server';
 
 const serverDistFolder = dirname(fileURLToPath(import.meta.url));
-const browserDistFolder = resolve(serverDistFolder, '../browser');
-const indexHtml = join(serverDistFolder, 'index.server.html');
+const browserDistFolder = resolve(serverDistFolder, 'dist/portal-pji-project/browser');
+const indexHtml = join(serverDistFolder, 'index.html');
 
 const app = express();
 const commonEngine = new CommonEngine();
 
-/**
- * Example Express Rest API endpoints can be defined here.
- * Uncomment and define endpoints as necessary.
- *
- * Example:
- * ```ts
- * app.get('/api/**', (req, res) => {
- *   // Handle API request
- * });
- * ```
- */
+app.set('view engine', 'html');
+app.set('views', browserDistFolder);
 
 /**
  * Serve static files from /browser
@@ -57,11 +48,13 @@ app.get('**', (req, res, next) => {
  * Start the server if this module is the main entry point.
  * The server listens on the port defined by the `PORT` environment variable, or defaults to 4000.
  */
-if (isMainModule(import.meta.url)) {
+function run(): void {
   const port = process.env['PORT'] || 4000;
-  app.listen(port, () => {
+
+  // Start up the Node server
+  const server = app.listen(port, () => {
     console.log(`Node Express server listening on http://localhost:${port}`);
   });
 }
 
-export default app;
+run();

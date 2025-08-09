@@ -52,16 +52,17 @@ export class WizardFlowComponent implements OnInit {
 
   ngOnInit() {
     console.log('Wizard iniciado');
-    this.seoService.setCotizadorSEO();
+    
+    this.seoService.setPageSeo({
+      title: 'Cotizador - Protección Jurídica Inmobiliaria',
+      description: 'Cotiza y contrata tu póliza de protección jurídica inmobiliaria de forma rápida y segura.',
+      keywords: 'cotizador, póliza jurídica, protección inmobiliaria, contrato digital',
+      type: 'website'
+    });
     
     this.route.queryParamMap.subscribe(params => {
       this.selectedPlan = params.get('plan');
       console.log('Plan seleccionado:', this.selectedPlan);
-      
-      // Actualizar SEO según el plan seleccionado
-      if (this.selectedPlan) {
-        this.seoService.setPolicySEO(this.selectedPlan as 'juridica' | 'investigacion' | 'proteccion');
-      }
     });
   }
 

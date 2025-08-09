@@ -8,10 +8,8 @@
     ]
   },
   "files": [
-    "src/main.server.ts",
-    "src/server.ts"
+    "server.ts"
   ],
   "angularCompilerOptions": {
-    "entryModule": "./src/app/app.config#AppConfig"
   }
 }

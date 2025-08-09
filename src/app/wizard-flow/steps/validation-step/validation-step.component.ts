@@ -30,7 +30,7 @@ export class ValidationStepComponent implements OnInit {
 
   // Propiedades para VDID
   showVdidIntegration = false;
-  vdidPublicKey = environment.sdkConfig?.apiKey || '';
+  vdidPublicKey = environment.vdid.publicKey;
 
   ngOnInit() {
     // La validación se maneja desde el componente padre

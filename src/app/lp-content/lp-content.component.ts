@@ -39,8 +39,13 @@ export class LpContentComponent implements OnInit {
     private seoService: SeoService
   ) {}
 
-  ngOnInit(): void {
-    this.seoService.setHomePageSEO();
+  ngOnInit() {
+    this.seoService.setPageSeo({
+      title: 'Protección Jurídica Inmobiliaria - Seguros para Propietarios',
+      description: 'Protege tu inversión inmobiliaria con nuestras pólizas jurídicas digitales. Cobertura legal completa para propietarios de inmuebles en renta.',
+      keywords: 'seguro inmobiliario, protección jurídica, póliza digital, propietarios, renta, legal',
+      type: 'website'
+    });
   }
 
   toggleFaq(index: number) {
