@@ -22,4 +22,4 @@ COPY --from=builder /app/node_modules /app/node_modules
 EXPOSE 4000
 
 # Comando por defecto para iniciar el servidor SSR
-CMD ["node", "dist/portal-pji-project/server/server.mjs"]
+CMD ["node", "dist/portal-pji-project/server/main.js"]

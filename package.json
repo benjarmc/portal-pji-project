@@ -8,7 +8,7 @@
     "build:ssr": "ng build && ng run portal-pji-project:server",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "serve:ssr:portal-pji-project": "node dist/portal-pji-project/server/server.mjs"
+    "serve:ssr:portal-pji-project": "node dist/portal-pji-project/server/main.js"
   },
   "private": true,
   "dependencies": {
