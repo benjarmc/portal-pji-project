@@ -11,6 +11,8 @@ import { ValidationStepComponent } from './steps/validation-step/validation-step
 import { ContractStepComponent } from './steps/contract-step/contract-step.component';
 import { FinishStepComponent } from './steps/finish-step/finish-step.component';
 import { SeoService } from '../services/seo.service';
+import { WizardStateService, WizardState } from '../services/wizard-state.service';
+import { ContinueWizardModalComponent } from '../components/continue-wizard-modal/continue-wizard-modal.component';
 
 @Component({
   selector: 'app-wizard-flow',
@@ -23,7 +25,8 @@ import { SeoService } from '../services/seo.service';
     PaymentStepComponent,
     ValidationStepComponent,
     ContractStepComponent,
-    FinishStepComponent
+    FinishStepComponent,
+    ContinueWizardModalComponent
   ],
   templateUrl: './wizard-flow.component.html',
   styleUrls: ['./wizard-flow.component.scss']
@@ -32,6 +35,7 @@ export class WizardFlowComponent implements OnInit {
   selectedPlan: string | null = null;
   currentStep = 0;
   mainDataFormData: FormGroup | null = null;
+  showContinueModal = false;
 
   steps = [
     { key: 'welcome', label: 'Bienvenida' },
@@ -46,7 +50,8 @@ export class WizardFlowComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
-    private seoService: SeoService
+    private seoService: SeoService,
+    private wizardStateService: WizardStateService
   ) {}
 
   ngOnInit() {
@@ -59,14 +64,26 @@ export class WizardFlowComponent implements OnInit {
       type: 'website'
     });
     
+    // Restaurar estado del wizard si existe
+    this.restoreWizardState();
+    
     this.route.queryParamMap.subscribe(params => {
       this.selectedPlan = params.get('plan');
       console.log('Plan seleccionado:', this.selectedPlan);
+      
+      // Guardar plan seleccionado en el estado
+      if (this.selectedPlan) {
+        this.wizardStateService.saveState({ selectedPlan: this.selectedPlan });
+      }
     });
   }
 
   setCurrentStep(index: number) {
     this.currentStep = index;
+    
+    // Guardar estado actual
+    this.wizardStateService.saveState({ currentStep: index });
+    
     if (this.steps[this.currentStep].key === 'validation') {
       console.log('Entrando al paso de validación');
       this.validationStatus = 'pending';
@@ -94,6 +111,9 @@ export class WizardFlowComponent implements OnInit {
 
   nextStep() {
     if (this.currentStep < this.steps.length - 1) {
+      // Marcar paso actual como completado
+      this.wizardStateService.completeStep(this.currentStep);
+      
       this.setCurrentStep(this.currentStep + 1);
     }
   }
@@ -139,8 +159,52 @@ export class WizardFlowComponent implements OnInit {
   }
 
   closeWizard() {
-    // Navegar de vuelta a la página principal
+    // Limpiar estado al cerrar el wizard
+    this.wizardStateService.clearState();
     window.history.back();
+  }
+
+  /**
+   * Restaura el estado del wizard desde el almacenamiento
+   */
+  private restoreWizardState(): void {
+    if (this.wizardStateService.hasSavedState()) {
+      const savedState = this.wizardStateService.restoreWizard();
+      
+      // Restaurar datos del estado
+      this.currentStep = savedState.currentStep;
+      this.selectedPlan = savedState.selectedPlan;
+      
+      console.log('Estado del wizard restaurado:', savedState);
+      
+      // Mostrar mensaje de continuar (opcional)
+      this.showContinueMessage();
+    }
+  }
+
+  /**
+   * Muestra mensaje para continuar el wizard
+   */
+  private showContinueMessage(): void {
+    this.showContinueModal = true;
+  }
+
+  /**
+   * Maneja la decisión de continuar el wizard
+   */
+  onContinueWizard(): void {
+    this.showContinueModal = false;
+    // El estado ya está restaurado en restoreWizardState()
+  }
+
+  /**
+   * Maneja la decisión de reiniciar el wizard
+   */
+  onRestartWizard(): void {
+    this.showContinueModal = false;
+    this.wizardStateService.clearState();
+    this.currentStep = 0;
+    this.selectedPlan = null;
   }
 }
 

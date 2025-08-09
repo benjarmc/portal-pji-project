@@ -1,20 +1,123 @@
 <div class="payment-step">
-  <h2>Pago de servicios</h2>
-  <div class="stripe-mockup my-4 p-4 bg-white rounded shadow-sm">
-    <div class="d-flex mb-3">
-      <button class="btn btn-outline-primary me-2 active"><i class="pi pi-credit-card"></i> Tarjeta</button>
-      <button class="btn btn-outline-secondary me-2"><i class="pi pi-google"></i> Google Pay</button>
-      <button class="btn btn-outline-secondary"><i class="pi pi-building"></i> Cuenta bancaria</button>
+  <h2>Información de Pago</h2>
+  <p class="text-muted mb-4">Ingresa los datos de tu tarjeta de crédito o débito</p>
+  
+  <form #paymentForm="ngForm" (ngSubmit)="processPayment()" class="payment-form">
+    <!-- Device Data para detección de fraude -->
+    <input type="hidden" name="deviceDataId" [value]="deviceDataId">
+    
+    <div class="form-group mb-3">
+      <label for="cardNumber" class="form-label">Número de tarjeta</label>
+      <input 
+        type="text" 
+        id="cardNumber"
+        name="cardNumber"
+        [(ngModel)]="cardData.card_number"
+        (input)="validateCard()"
+        class="form-control" 
+        placeholder="1234 5678 9012 3456"
+        maxlength="19"
+        required>
+      <div class="card-type-indicator" *ngIf="cardType">
+        <i class="bi" [ngClass]="getCardIcon()"></i>
+        {{ cardType }}
+      </div>
+      <div class="invalid-feedback" *ngIf="cardErrors.number">
+        {{ cardErrors.number }}
+      </div>
     </div>
-    <input type="text" class="form-control mb-2" placeholder="Número de tarjeta">
-    <div class="d-flex gap-2 mb-2">
-      <input type="text" class="form-control" placeholder="MM / YY">
-      <input type="text" class="form-control" placeholder="CVC">
+
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <label for="expiryMonth" class="form-label">Mes de expiración</label>
+        <select 
+          id="expiryMonth"
+          name="expiryMonth"
+          [(ngModel)]="cardData.expiration_month"
+          (change)="validateCard()"
+          class="form-select"
+          required>
+          <option value="">MM</option>
+          <option *ngFor="let month of months" [value]="month.value">{{ month.label }}</option>
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label for="expiryYear" class="form-label">Año de expiración</label>
+        <select 
+          id="expiryYear"
+          name="expiryYear"
+          [(ngModel)]="cardData.expiration_year"
+          (change)="validateCard()"
+          class="form-select"
+          required>
+          <option value="">YY</option>
+          <option *ngFor="let year of years" [value]="year">{{ year }}</option>
+        </select>
+      </div>
     </div>
-    <input type="text" class="form-control mb-2" placeholder="Nombre del titular">
-  </div>
-  <div class="d-flex gap-2">
-    <button type="button" class="btn btn-secondary" (click)="onPrevious()">Atrás</button>
-    <button class="btn btn-accent" (click)="onNext()">Realizar pago</button>
-  </div>
+
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <label for="cvv" class="form-label">Código de seguridad (CVV)</label>
+        <input 
+          type="text" 
+          id="cvv"
+          name="cvv"
+          [(ngModel)]="cardData.cvv2"
+          (input)="validateCard()"
+          class="form-control" 
+          placeholder="123"
+          maxlength="4"
+          required>
+        <div class="invalid-feedback" *ngIf="cardErrors.cvv">
+          {{ cardErrors.cvv }}
+        </div>
+      </div>
+      <div class="col-md-6">
+        <label for="holderName" class="form-label">Nombre del titular</label>
+        <input 
+          type="text" 
+          id="holderName"
+          name="holderName"
+          [(ngModel)]="cardData.holder_name"
+          class="form-control" 
+          placeholder="Juan Pérez"
+          required>
+      </div>
+    </div>
+
+    <!-- Resumen del pago -->
+    <div class="payment-summary mb-4 p-3 bg-light rounded">
+      <h5>Resumen del pago</h5>
+      <div class="d-flex justify-content-between">
+        <span>Póliza seleccionada:</span>
+        <span class="fw-bold">{{ selectedPlan }}</span>
+      </div>
+      <div class="d-flex justify-content-between">
+        <span>Total a pagar:</span>
+        <span class="fw-bold text-success">${{ getPlanPrice() }}</span>
+      </div>
+    </div>
+
+    <!-- Mensajes de error/éxito -->
+    <div class="alert alert-danger" *ngIf="paymentError">
+      {{ paymentError }}
+    </div>
+    <div class="alert alert-success" *ngIf="paymentSuccess">
+      {{ paymentSuccess }}
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-secondary" (click)="onPrevious()">Atrás</button>
+      <button 
+        type="submit" 
+        class="btn btn-accent" 
+        [disabled]="!paymentForm.valid || isProcessing">
+        <span *ngIf="!isProcessing">Realizar pago</span>
+        <span *ngIf="isProcessing">
+          <i class="bi bi-arrow-clockwise spin"></i> Procesando...
+        </span>
+      </button>
+    </div>
+  </form>
 </div> 

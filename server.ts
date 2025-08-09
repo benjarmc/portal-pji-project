@@ -7,7 +7,7 @@ import bootstrap from './src/main.server';
 
 const serverDistFolder = dirname(fileURLToPath(import.meta.url));
 const browserDistFolder = resolve(serverDistFolder, 'dist/portal-pji-project/browser');
-const indexHtml = join(serverDistFolder, 'index.html');
+const indexHtml = join(browserDistFolder, 'index.html');
 
 const app = express();
 const commonEngine = new CommonEngine();
@@ -18,13 +18,40 @@ app.set('views', browserDistFolder);
 /**
  * Serve static files from /browser
  */
-app.get(
-  '**',
+app.use(
   express.static(browserDistFolder, {
     maxAge: '1y',
     index: 'index.html'
   }),
 );
+
+/**
+ * Handle specific static file requests to avoid 404 errors
+ */
+app.get(['/favicon.ico', '/assets/favicon.ico'], (req, res) => {
+  // Silently ignore favicon requests to avoid console errors
+  res.status(204).end();
+});
+
+app.get(['/assets/site.webmanifest', '/site.webmanifest'], (req, res) => {
+  // Silently ignore web manifest requests
+  res.status(204).end();
+});
+
+app.get(['/assets/favicon-16x16.png', '/favicon-16x16.png'], (req, res) => {
+  // Silently ignore favicon requests
+  res.status(204).end();
+});
+
+app.get(['/assets/favicon-32x32.png', '/favicon-32x32.png'], (req, res) => {
+  // Silently ignore favicon requests
+  res.status(204).end();
+});
+
+// Handle Chrome DevTools requests
+app.get('/es/.well-known/appspecific/com.chrome.devtools.json', (req, res) => {
+  res.status(204).end();
+});
 
 /**
  * Handle all other requests by rendering the Angular application.

@@ -1,0 +1,414 @@
+// Variables de colores del diseño Figma
+$primary-green: #A8CF41;
+$dark-green: #1D4C2C;
+$white: #FFFFFF;
+$light-gray: #F9F9F9;
+$black: #000000;
+$gray-light: #B0B0B0;
+
+// Hero Section
+.lp-hero {
+  min-height: 1080px;
+  background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), 
+              url('/assets/hero-bg.jpg') center/cover no-repeat;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lp-hero-content {
+  max-width: 943px;
+  text-align: center;
+  color: $white;
+  padding: 0 20px;
+}
+
+.lp-hero h1 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 70px;
+  line-height: 1.43em;
+  margin-bottom: 26px;
+  margin-top: 0;
+}
+
+.lp-hero p {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 32px;
+  line-height: 1.21em;
+  margin-bottom: 26px;
+  margin-top: 0;
+}
+
+.btn-accent {
+  background-color: $primary-green;
+  color: $white;
+  border: none;
+  border-radius: 20px;
+  padding: 22px 40px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 32px;
+  line-height: 1.21em;
+  box-shadow: 0px 10px 10px 0px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  &:hover {
+    background-color: #9bc23a;
+    transform: translateY(-2px);
+    box-shadow: 0px 15px 20px 0px rgba(0, 0, 0, 0.15);
+  }
+
+  i {
+    color: $dark-green;
+    font-size: 24px;
+  }
+}
+
+// Steps Section
+.lp-steps {
+  background-color: $dark-green;
+  color: $white;
+  padding: 80px 0;
+}
+
+.lp-steps h2 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 70px;
+  line-height: 1.43em;
+  margin-bottom: 26px;
+  margin-top: 0;
+}
+
+.lp-steps .text-secondary {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 32px;
+  line-height: 1.21em;
+  margin-bottom: 80px;
+  margin-top: 0;
+}
+
+.steps-wrapper {
+  position: relative;
+  max-width: 1085px;
+  margin: 0 auto;
+}
+
+.step {
+  flex: 1;
+  max-width: 355px;
+  position: relative;
+  z-index: 2;
+}
+
+.step-icon {
+  width: 115px;
+  height: 115px;
+  background-color: $primary-green;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 30px;
+  box-shadow: 0px 10px 10px 0px rgba(0, 0, 0, 0.1);
+
+  i {
+    font-size: 48px;
+    color: $dark-green;
+  }
+}
+
+.step h5 {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 32px;
+  line-height: 1.21em;
+  margin-bottom: 20px;
+  margin-top: 0;
+}
+
+.step p {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 24px;
+  line-height: 1.21em;
+  margin: 0;
+}
+
+.step-line {
+  position: absolute;
+  top: 57px;
+  left: 57px;
+  right: 57px;
+  height: 10px;
+  background-color: $primary-green;
+  border-radius: 5px;
+  z-index: 1;
+}
+
+// Plans Section
+.lp-plans {
+  background-color: $light-gray;
+  padding: 80px 0;
+}
+
+.lp-plans-title {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 70px;
+  line-height: 1.43em;
+  margin-bottom: 26px;
+  margin-top: 0;
+}
+
+.lp-plans-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 32px;
+  line-height: 1.21em;
+  margin-bottom: 80px;
+  margin-top: 0;
+}
+
+.lp-plan-card {
+  background-color: $white;
+  border-radius: 20px;
+  box-shadow: 0px 20px 20px 0px rgba(0, 0, 0, 0.1);
+  height: 100%;
+  transition: transform 0.3s ease;
+
+  &:hover {
+    transform: translateY(-5px);
+  }
+}
+
+.lp-plan-card-highlight {
+  border: 3px solid $primary-green;
+  position: relative;
+
+  &::before {
+    content: 'Más Popular';
+    position: absolute;
+    top: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: $primary-green;
+    color: $white;
+    padding: 5px 15px;
+    border-radius: 15px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+}
+
+.lp-plan-card-title {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 30px;
+  line-height: 1.21em;
+  margin-bottom: 30px;
+  margin-top: 0;
+  text-align: center;
+}
+
+.lp-card-description {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 24px;
+  line-height: 1.21em;
+  margin-bottom: 30px;
+
+  p {
+    margin-bottom: 15px;
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    li {
+      margin-bottom: 10px;
+      padding-left: 20px;
+      position: relative;
+
+      &::before {
+        content: '•';
+        position: absolute;
+        left: 0;
+        color: $primary-green;
+        font-weight: bold;
+      }
+    }
+  }
+}
+
+.lp-plans-cto-button {
+  background-color: $primary-green;
+  color: $white;
+  border: none;
+  border-radius: 20px;
+  padding: 15px 35px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 24px;
+  line-height: 1.21em;
+  box-shadow: 0px 10px 10px 0px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  width: 100%;
+  max-width: 299px;
+
+  &:hover {
+    background-color: #9bc23a;
+    transform: translateY(-2px);
+    box-shadow: 0px 15px 20px 0px rgba(0, 0, 0, 0.15);
+  }
+
+  i {
+    color: $dark-green;
+    font-size: 20px;
+  }
+}
+
+// FAQ Section
+.lp-faq {
+  background-color: $dark-green;
+  color: $white;
+  padding: 80px 0;
+}
+
+.lp-faq-title {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 70px;
+  line-height: 1.43em;
+  margin-bottom: 80px;
+  margin-top: 0;
+}
+
+.lp-faq-list {
+  max-width: 1217px;
+}
+
+.lp-faq-item {
+  margin-bottom: 30px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 20px;
+}
+
+.lp-faq-question {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 32px;
+  line-height: 1.21em;
+  cursor: pointer;
+  padding: 20px 0;
+  transition: color 0.3s ease;
+
+  &:hover {
+    color: $primary-green;
+  }
+}
+
+.lp-faq-toggle {
+  font-size: 24px;
+  transition: transform 0.3s ease;
+}
+
+.lp-faq-answer {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 24px;
+  line-height: 1.21em;
+  padding: 20px 0;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+// Responsive
+@media (max-width: 1200px) {
+  .lp-hero h1,
+  .lp-steps h2,
+  .lp-plans-title,
+  .lp-faq-title {
+    font-size: 50px;
+  }
+
+  .lp-hero p,
+  .lp-steps .text-secondary,
+  .lp-plans-subtitle {
+    font-size: 24px;
+  }
+
+  .btn-accent {
+    font-size: 24px;
+    padding: 18px 30px;
+  }
+}
+
+@media (max-width: 768px) {
+  .lp-hero {
+    min-height: 600px;
+  }
+
+  .lp-hero h1,
+  .lp-steps h2,
+  .lp-plans-title,
+  .lp-faq-title {
+    font-size: 36px;
+  }
+
+  .lp-hero p,
+  .lp-steps .text-secondary,
+  .lp-plans-subtitle {
+    font-size: 18px;
+  }
+
+  .btn-accent {
+    font-size: 18px;
+    padding: 15px 25px;
+  }
+
+  .step-icon {
+    width: 80px;
+    height: 80px;
+
+    i {
+      font-size: 32px;
+    }
+  }
+
+  .step h5 {
+    font-size: 24px;
+  }
+
+  .step p {
+    font-size: 18px;
+  }
+
+  .lp-plan-card-title {
+    font-size: 24px;
+  }
+
+  .lp-card-description {
+    font-size: 18px;
+  }
+
+  .lp-plans-cto-button {
+    font-size: 18px;
+  }
+
+  .lp-faq-question {
+    font-size: 24px;
+  }
+
+  .lp-faq-answer {
+    font-size: 18px;
+  }
+}

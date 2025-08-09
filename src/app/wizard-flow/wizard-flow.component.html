@@ -66,3 +66,12 @@
       [totalSteps]="steps.length" />
   </div>
 </div>
+
+<!-- Modal para continuar wizard -->
+<app-continue-wizard-modal
+  [show]="showContinueModal"
+  [currentStep]="currentStep"
+  [selectedPlan]="selectedPlan"
+  (continue)="onContinueWizard()"
+  (restart)="onRestartWizard()">
+</app-continue-wizard-modal>

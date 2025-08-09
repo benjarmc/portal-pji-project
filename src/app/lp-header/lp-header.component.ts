@@ -51,4 +51,16 @@ export class LpHeaderComponent implements OnInit {
   toggleMenu(): void {
     this.isOpen = !this.isOpen;
   }
+
+  scrollToSection(sectionId: string): void {
+    if (isPlatformBrowser(this.platformId)) {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        element.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }
+    }
+  }
 }
