@@ -1,4 +1,89 @@
+// Variables de colores
+$primary-green: #A8CF41;
+$dark-green: #1D4C2C;
+$white: #FFFFFF;
+$black: #000000;
+
 .welcome-step {
-  text-align: center;
-  padding: 2rem 0;
+  text-align: left;
+  padding: 0;
+  max-width: 769px;
+  margin: 0 auto;
+}
+
+.welcome-title {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 40px;
+  line-height: 2.5em;
+  color: $black;
+  margin-bottom: 18px;
+  margin-top: 0;
+}
+
+.welcome-description {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.21em;
+  color: $black;
+  margin-bottom: 19px;
+  margin-top: 0;
+}
+
+.start-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: $primary-green;
+  color: $white;
+  border: none;
+  border-radius: 10px;
+  padding: 13px 15px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 1.21em;
+  cursor: pointer;
+  box-shadow: 0px 5px 5px 0px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  width: 178px;
+  height: 46px;
+
+  &:hover {
+    background-color: #9bc23a;
+    transform: translateY(-2px);
+    box-shadow: 0px 7px 10px 0px rgba(0, 0, 0, 0.1);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.arrow-icon {
+  color: $dark-green;
+  transition: transform 0.3s ease;
+}
+
+.start-button:hover .arrow-icon {
+  transform: translateX(3px);
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .welcome-title {
+    font-size: 28px;
+    line-height: 1.4em;
+  }
+
+  .welcome-description {
+    font-size: 14px;
+  }
+
+  .start-button {
+    width: 100%;
+    max-width: 200px;
+  }
 } 

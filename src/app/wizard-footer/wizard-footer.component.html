@@ -1,9 +1,14 @@
-<footer class="wizard-footer d-flex justify-content-center align-items-center py-3 bg-light border-top">
-  <ul class="wizard-steps list-unstyled d-flex gap-3 mb-0">
-    <li class="step active"></li>
-    <li class="step"></li>
-    <li class="step"></li>
-    <li class="step"></li>
-    <li class="step"></li>
-  </ul>
-</footer>
+<div class="wizard-progress-container">
+  <div class="progress-line">
+    <div class="progress-fill" [style.width.%]="progressPercentage()"></div>
+  </div>
+  <div class="progress-steps">
+    <div 
+      *ngFor="let step of steps; let i = index" 
+      class="progress-step" 
+      [class.active]="i <= currentStep"
+      [class.completed]="i < currentStep">
+      <div class="step-dot"></div>
+    </div>
+  </div>
+</div>

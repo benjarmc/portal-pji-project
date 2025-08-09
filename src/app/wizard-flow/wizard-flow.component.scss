@@ -1,0 +1,150 @@
+// Variables de colores del diseño
+$primary-green: #A8CF41;
+$dark-green: #1D4C2C;
+$white: #FFFFFF;
+$light-gray: #C5C5C5;
+$black: #000000;
+
+// Fondo con imagen de ciudad
+.wizard-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.city-background {
+  position: absolute;
+  top: -358px;
+  left: -830px;
+  width: 3078px;
+  height: 2053px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-size: cover;
+  background-position: center;
+  opacity: 0.8;
+}
+
+// Contenedor principal del wizard
+.wizard-main-container {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+// Header con logo y botón cerrar
+.wizard-header {
+  position: absolute;
+  top: 39px;
+  left: 88px;
+  right: 88px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+}
+
+.logo-container {
+  width: 78px;
+  height: 78px;
+  background-color: $light-gray;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-placeholder {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  color: $black;
+}
+
+.close-button {
+  width: 39px;
+  height: 39px;
+  background: transparent;
+  border: none;
+  color: $primary-green;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color 0.3s ease;
+
+  &:hover {
+    background-color: rgba(168, 207, 65, 0.1);
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+// Contenido del wizard
+.wizard-content {
+  background-color: $white;
+  border-radius: 49px;
+  padding: 40px;
+  width: 100%;
+  max-width: 1154px;
+  min-height: 897px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  position: relative;
+  margin-top: 125px;
+}
+
+// Contenido de los pasos
+.wizard-step-content {
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+// Responsive
+@media (max-width: 1200px) {
+  .wizard-content {
+    max-width: 90%;
+    margin: 100px auto 0;
+    padding: 30px;
+  }
+}
+
+@media (max-width: 768px) {
+  .wizard-header {
+    top: 20px;
+    left: 20px;
+    right: 20px;
+  }
+
+  .logo-container {
+    width: 60px;
+    height: 60px;
+  }
+
+  .wizard-content {
+    max-width: 95%;
+    margin: 80px auto 0;
+    padding: 20px;
+    border-radius: 30px;
+  }
+
+  .city-background {
+    top: -200px;
+    left: -400px;
+    width: 2000px;
+    height: 1500px;
+  }
+}

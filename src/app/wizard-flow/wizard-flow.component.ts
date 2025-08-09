@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { FormGroup } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { WizardHeaderComponent } from '../wizard-header/wizard-header.component';
+
 import { WizardFooterComponent } from '../wizard-footer/wizard-footer.component';
 import { WelcomeStepComponent } from './steps/welcome-step/welcome-step.component';
 import { MainDataStepComponent } from './steps/main-data-step/main-data-step.component';
@@ -17,7 +17,6 @@ import { SeoService } from '../services/seo.service';
   standalone: true,
   imports: [
     CommonModule,
-    WizardHeaderComponent,
     WizardFooterComponent,
     WelcomeStepComponent,
     MainDataStepComponent,
@@ -137,6 +136,11 @@ export class WizardFlowComponent implements OnInit {
 
   getCurrentStepKey(): string {
     return this.steps[this.currentStep].key;
+  }
+
+  closeWizard() {
+    // Navegar de vuelta a la página principal
+    window.history.back();
   }
 }
 
