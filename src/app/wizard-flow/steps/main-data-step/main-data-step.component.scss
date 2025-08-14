@@ -1,3 +1,298 @@
+// Variables de colores
+$primary-green: #A8CF41;
+$dark-green: #1D4C2C;
+$white: #FFFFFF;
+$light-gray: #F5F5F5;
+$border-gray: #E0E0E0;
+$text-dark: #333333;
+$text-light: #666666;
+$error-red: #E74C3C;
+$success-green: #27AE60;
+
 .main-data-step {
-  padding: 1rem 0;
+  padding: 2rem 0;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.step-header {
+  text-align: center;
+  margin-bottom: 2rem;
+
+  h2 {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+    font-size: 32px;
+    color: $text-dark;
+    margin-bottom: 0.5rem;
+  }
+
+  p {
+    font-family: 'Inter', sans-serif;
+    font-size: 16px;
+    color: $text-light;
+    margin: 0;
+  }
+}
+
+.main-data-form {
+  .form-section {
+    background: $white;
+    border: 1px solid $border-gray;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+
+    h3 {
+      font-family: 'Poppins', sans-serif;
+      font-weight: 600;
+      font-size: 20px;
+      color: $text-dark;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid $primary-green;
+    }
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+
+    &.full-width {
+      grid-template-columns: 1fr;
+    }
+
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+
+    label {
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      font-size: 14px;
+      color: $text-dark;
+      margin-bottom: 0.5rem;
+    }
+
+    input, select {
+      padding: 0.75rem;
+      border: 2px solid $border-gray;
+      border-radius: 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      background: $white;
+
+      &:focus {
+        outline: none;
+        border-color: $primary-green;
+        box-shadow: 0 0 0 3px rgba(168, 207, 65, 0.1);
+      }
+
+      &.error {
+        border-color: $error-red;
+        box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+      }
+
+      &::placeholder {
+        color: $text-light;
+        opacity: 0.7;
+      }
+    }
+
+    select {
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+      background-position: right 0.5rem center;
+      background-repeat: no-repeat;
+      background-size: 1.5em 1.5em;
+      padding-right: 2.5rem;
+    }
+  }
+
+  .complementos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+  }
+
+  .complemento-item {
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 6px;
+      transition: background-color 0.2s ease;
+
+      &:hover {
+        background-color: $light-gray;
+      }
+
+      input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        accent-color: $primary-green;
+        cursor: pointer;
+      }
+
+      span {
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        color: $text-dark;
+      }
+    }
+  }
+
+  .plan-info {
+    background: $light-gray;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 0.5rem;
+
+    p {
+      margin: 0.25rem 0;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      color: $text-dark;
+
+      strong {
+        color: $primary-green;
+      }
+    }
+  }
+
+  .error-message {
+    color: $error-red;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    margin-top: 0.25rem;
+    padding-left: 0.5rem;
+  }
+
+  .error-section {
+    background: rgba(231, 76, 60, 0.1);
+    border: 1px solid $error-red;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+
+    .error-message {
+      color: $error-red;
+      font-size: 14px;
+      margin: 0;
+      padding: 0;
+    }
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid $border-gray;
+    gap: 1rem;
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      gap: 1rem;
+    }
+  }
+
+  .btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-icon {
+      flex-shrink: 0;
+    }
+
+    .spinning {
+      animation: spin 1s linear infinite;
+    }
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .btn-primary {
+    background-color: $primary-green;
+    color: $white;
+
+    &:hover:not(:disabled) {
+      background-color: darken($primary-green, 10%);
+      transform: translateY(-1px);
+    }
+  }
+
+  .btn-secondary {
+    background-color: transparent;
+    color: $text-dark;
+    border: 2px solid $border-gray;
+
+    &:hover:not(:disabled) {
+      border-color: $primary-green;
+      color: $primary-green;
+    }
+  }
+
+  .btn-outline-primary {
+    background-color: transparent;
+    color: $primary-green;
+    border: 2px solid $primary-green;
+
+    &:hover:not(:disabled) {
+      background-color: $primary-green;
+      color: $white;
+    }
+  }
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .main-data-step {
+    padding: 1rem 0;
+  }
+
+  .step-header h2 {
+    font-size: 24px;
+  }
+
+  .form-section {
+    padding: 1rem;
+  }
 } 

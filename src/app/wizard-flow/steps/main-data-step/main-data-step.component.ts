@@ -1,6 +1,19 @@
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, FormArray } from '@angular/forms';
+import { QuotationsService } from '../../../services/quotations.service';
+import { PlansService } from '../../../services/plans.service';
+import { WizardStateService } from '../../../services/wizard-state.service';
+import { CreateQuotationDto } from '../../../models/quotation.model';
+import { Plan } from '../../../models/plan.model';
+
+interface ComplementaryPlan {
+  id: string;
+  name: string;
+  price: number;
+  currency: string;
+  selected?: boolean;
+}
 
 @Component({
   selector: 'app-main-data-step',
@@ -13,54 +26,426 @@ export class MainDataStepComponent implements OnInit {
   @Input() selectedPlan: string | null = null;
   @Output() next = new EventEmitter<FormGroup>();
   @Output() previous = new EventEmitter<void>();
+  @Output() goToFinish = new EventEmitter<string>(); // Modificado para incluir el número de cotización
 
   mainDataForm: FormGroup;
-  complementos = [
-    'Complemento 1',
-    'Complemento 2',
-    'Complemento 3',
-    'Complemento 4',
-    'Complemento 5',
-    'Complemento 6'
-  ];
+  selectedPlanData: Plan | null = null;
+  isCreatingQuotation = false;
+  quotationError = '';
+  
+  // Array de complementos seleccionados
+  selectedComplementos: string[] = [];
 
-  constructor(private fb: FormBuilder) {
+  constructor(
+    private fb: FormBuilder,
+    private quotationsService: QuotationsService,
+    private plansService: PlansService,
+    private wizardStateService: WizardStateService
+  ) {
     this.mainDataForm = this.fb.group({
-      nombre: [''],
-      telefono: [''],
-      correo: [''],
-      codigoPostal: [''],
-      plan: [''],
-      complementos: this.fb.array([])
+      // Datos personales
+      nombre: ['', [Validators.required, Validators.minLength(2)]],
+      telefono: ['', [Validators.required, Validators.pattern(/^[0-9]{9,10}$/)]],
+      correo: ['', [Validators.required, Validators.email]],
+      
+      // Código postal del inmueble
+      codigoPostal: ['', [Validators.required, Validators.pattern(/^[0-9]{5}$/)]],
+      
+      // Plan
+      plan: ['', Validators.required]
     });
   }
 
   ngOnInit() {
+    console.log('MainDataStepComponent ngOnInit - selectedPlan:', this.selectedPlan);
+    
+    // Cargar estado guardado del usuario
+    this.loadSavedUserData();
+    
     if (this.selectedPlan) {
       this.mainDataForm.patchValue({ plan: this.selectedPlan });
+      this.loadPlanDetails();
+    } else {
+      console.log('No hay plan seleccionado');
     }
   }
 
-  onComplementoChange(event: any, complemento: string) {
-    const complementosArray = this.mainDataForm.get('complementos') as FormArray;
-    if (event.target.checked) {
-      complementosArray.push(this.fb.control(complemento));
+  /**
+   * Cargar datos del usuario guardados previamente
+   */
+  private loadSavedUserData(): void {
+    const savedState = this.wizardStateService.getState();
+    console.log('📋 Estado guardado del wizard:', savedState);
+    
+    if (savedState.userData && Object.keys(savedState.userData).length > 0) {
+      console.log('👤 Datos del usuario encontrados:', savedState.userData);
+      
+      // Cargar datos del usuario en el formulario
+      const userData = savedState.userData;
+      this.mainDataForm.patchValue({
+        nombre: userData.name || '',
+        correo: userData.email || '',
+        telefono: userData.phone || '',
+        codigoPostal: userData.postalCode || ''
+      });
+      
+      console.log('✅ Datos del usuario cargados en el formulario');
     } else {
-      const index = complementosArray.controls.findIndex(control => control.value === complemento);
-      if (index >= 0) {
-        complementosArray.removeAt(index);
+      console.log('⚠️ No hay datos del usuario guardados');
+    }
+  }
+
+  /**
+   * Cargar detalles del plan seleccionado con sus complementos
+   */
+  private loadPlanDetails(): void {
+    console.log('🔄 loadPlanDetails() llamado con selectedPlan:', this.selectedPlan);
+    if (this.selectedPlan) {
+      console.log('📡 Llamando a plansService.getPlanById...');
+      // Usar el endpoint que devuelve plan + complementos
+      this.plansService.getPlanById(this.selectedPlan).subscribe({
+        next: (response) => {
+          console.log('📥 Respuesta recibida:', response);
+          if (response.success && response.data) {
+            this.selectedPlanData = response.data;
+            console.log('✅ Plan cargado con complementos:', this.selectedPlanData);
+            console.log('🔗 Complementos disponibles:', this.selectedPlanData.complementaryPlans);
+            console.log('📊 selectedPlanData actualizado:', this.selectedPlanData);
+          } else {
+            console.warn('⚠️ Respuesta sin éxito:', response);
+          }
+        },
+        error: (error) => {
+          console.error('❌ Error cargando plan:', error);
+          // Fallback: intentar cargar solo el plan básico
+          this.loadBasicPlan();
+        }
+      });
+    } else {
+      console.warn('⚠️ No hay selectedPlan para cargar');
+    }
+  }
+
+  /**
+   * Cargar plan básico sin complementos (fallback)
+   */
+  private loadBasicPlan(): void {
+    if (this.selectedPlan) {
+      this.plansService.getPlanById(this.selectedPlan).subscribe({
+        next: (response) => {
+          if (response.success && response.data) {
+            this.selectedPlanData = response.data;
+            console.log('Plan básico cargado (sin complementos):', this.selectedPlanData);
+          }
+        },
+        error: (error) => {
+          console.error('Error cargando plan básico:', error);
+        }
+      });
+    }
+  }
+
+  onComplementoChange(event: any, complemento: ComplementaryPlan) {
+    if (event.target.checked) {
+      this.selectedComplementos.push(complemento.id);
+    } else {
+      const index = this.selectedComplementos.indexOf(complemento.id);
+      if (index > -1) {
+        this.selectedComplementos.splice(index, 1);
       }
     }
+    console.log('Complementos seleccionados:', this.selectedComplementos);
   }
 
-  onNext() {
-    console.log('onNext llamado en MainDataStepComponent');
-    console.log('Form value:', this.mainDataForm.value);
-    console.log('Emitiendo evento next con form data');
-    this.next.emit(this.mainDataForm);
+  getComplementaryPlans(): ComplementaryPlan[] {
+    console.log('🔍 getComplementaryPlans() llamado');
+    console.log('📊 selectedPlanData:', this.selectedPlanData);
+    console.log('🔗 selectedPlanData?.complementaryPlans:', this.selectedPlanData?.complementaryPlans);
+    
+    if (this.selectedPlanData?.complementaryPlans && this.selectedPlanData.complementaryPlans.length > 0) {
+      console.log('✅ Usando complementos de la API:', this.selectedPlanData.complementaryPlans);
+      return this.selectedPlanData.complementaryPlans.map(complement => ({
+        id: complement.id,
+        name: complement.name,
+        price: complement.price,
+        currency: complement.currency,
+        selected: false
+      }));
+    }
+    
+    // Si no hay complementos en la API, no mostrar ninguno
+    console.log('⚠️ No hay complementos disponibles en la API');
+    console.log('🔍 selectedPlanData es null o no tiene complementaryPlans');
+    return [];
+  }
+
+  getTotalPrice(): number {
+    let total = 0;
+    
+    // Siempre empezar con el precio del plan base
+    if (this.selectedPlanData) {
+      total += this.selectedPlanData.price;
+    }
+    
+    // Agregar precio de complementos seleccionados
+    const complementaryPlans = this.getComplementaryPlans();
+    complementaryPlans.forEach((complement) => {
+      if (this.selectedComplementos.includes(complement.id)) {
+        total += complement.price;
+      }
+    });
+    
+    return total;
+  }
+
+
+
+  async onNext() {
+    if (this.mainDataForm.valid) {
+      console.log('onNext llamado en MainDataStepComponent');
+      console.log('Form value:', this.mainDataForm.value);
+      
+      // Guardar estado del usuario antes de continuar
+      this.saveUserData();
+      
+      this.isCreatingQuotation = true;
+      this.quotationError = '';
+
+      try {
+        // Crear cotización en el backend
+        const quotationData = await this.createQuotation();
+        
+        if (quotationData) {
+          console.log('Cotización creada exitosamente:', quotationData);
+          // Emitir evento con los datos de la cotización (no solo el formulario)
+          this.next.emit(quotationData);
+        }
+      } catch (error: any) {
+        console.error('Error creando cotización:', error);
+        this.quotationError = error.message || 'Error creando cotización';
+      } finally {
+        this.isCreatingQuotation = false;
+      }
+    } else {
+      console.log('Formulario inválido');
+      this.markFormGroupTouched();
+    }
+  }
+
+  /**
+   * Guardar datos del usuario en el estado del wizard
+   */
+  private saveUserData(): void {
+    const formValue = this.mainDataForm.value;
+    const userData = {
+      name: formValue.nombre,
+      email: formValue.correo,
+      phone: formValue.telefono,
+      postalCode: formValue.codigoPostal
+    };
+    
+    console.log('💾 Guardando datos del usuario:', userData);
+    
+    // Guardar en el estado del wizard
+    this.wizardStateService.saveState({
+      userData: userData
+    });
+    
+    // Marcar este paso como completado
+    this.wizardStateService.completeStep(1);
+    
+    console.log('✅ Datos del usuario guardados en el estado');
+  }
+
+  /**
+   * Enviar cotización por correo electrónico
+   */
+  async sendQuotationByEmail(): Promise<void> {
+    if (this.mainDataForm.valid) {
+      console.log('📧 Enviando cotización por correo...');
+      
+      // Guardar estado del usuario antes de enviar
+      this.saveUserData();
+      
+      this.isCreatingQuotation = true;
+      this.quotationError = '';
+
+      try {
+        // Crear cotización primero
+        console.log('🔄 Paso 1: Creando cotización...');
+        const quotationData = await this.createQuotation();
+        console.log('📊 Cotización creada:', quotationData);
+        
+        // El backend devuelve quotationId, pero el modelo del frontend usa id
+        const quotationId = quotationData?.quotationId || quotationData?.id;
+        
+        if (quotationData && quotationId) {
+          console.log('✅ Cotización creada, enviando por correo...');
+          console.log('🆔 ID de cotización:', quotationId);
+          
+          // Enviar cotización por correo
+          console.log('📡 Paso 2: Llamando a sendQuotationEmail...');
+          this.quotationsService.sendQuotationEmail(quotationId).subscribe({
+            next: (response) => {
+              console.log('📥 Respuesta del envío:', response);
+              if (response.success) {
+                console.log('📧 Cotización enviada por correo exitosamente');
+                // Mostrar mensaje de éxito
+                this.quotationError = '';
+                // Emitir evento con el número de cotización
+                const quotationNumber = quotationData.quotationNumber || 'N/A';
+                this.goToFinish.emit(quotationNumber);
+              } else {
+                console.error('❌ Error enviando cotización por correo:', response.message);
+                this.quotationError = response.message || 'Error enviando cotización por correo';
+              }
+            },
+            error: (error) => {
+              console.error('❌ Error enviando cotización por correo:', error);
+              console.error('❌ Detalles del error:', error.error, error.status, error.message);
+              this.quotationError = 'Error enviando cotización por correo';
+            }
+          });
+        } else {
+          console.error('❌ No se pudo obtener ID de cotización:', quotationData);
+          this.quotationError = 'Error: No se pudo crear la cotización';
+        }
+      } catch (error: any) {
+        console.error('❌ Error creando cotización para envío por correo:', error);
+        this.quotationError = error.message || 'Error creando cotización';
+      } finally {
+        this.isCreatingQuotation = false;
+      }
+    } else {
+      console.log('Formulario inválido para envío por correo');
+      this.markFormGroupTouched();
+    }
+  }
+
+  /**
+   * Crear cotización en el backend
+   */
+  private async createQuotation(): Promise<any> {
+    const formValue = this.mainDataForm.value;
+    
+    // Validar que tengamos todos los campos requeridos
+    if (!this.selectedPlan) {
+      throw new Error('No se ha seleccionado un plan');
+    }
+
+    if (!formValue.nombre || !formValue.correo || !formValue.telefono || !formValue.codigoPostal) {
+      throw new Error('Todos los campos son obligatorios');
+    }
+
+    // Validar que el plan esté cargado
+    if (!this.selectedPlanData) {
+      throw new Error('Los datos del plan no están disponibles');
+    }
+
+    console.log('🔍 Validando datos antes de crear cotización...');
+    console.log('📋 Form value:', formValue);
+    console.log('🎯 Selected plan:', this.selectedPlan);
+    console.log('📊 Plan data:', this.selectedPlanData);
+
+    // Crear DTO simplificado con solo los campos disponibles
+    const quotationDto: CreateQuotationDto = {
+      planId: this.selectedPlan,
+      userData: {
+        name: formValue.nombre,
+        email: formValue.correo,
+        phone: formValue.telefono,
+        postalCode: formValue.codigoPostal
+      },
+      propertyData: {
+        address: 'Por definir', // Campo requerido pero no tenemos en el formulario
+        type: 'Inmueble', // Campo requerido pero no tenemos en el formulario
+        value: 0 // Campo requerido pero no tenemos en el formulario
+      },
+      notes: this.selectedComplementos.length > 0 ? `Complementos seleccionados: ${this.selectedComplementos.join(', ')}` : undefined,
+      additionalData: {
+        complementos: this.selectedComplementos,
+        planData: this.selectedPlanData ? {
+          name: this.selectedPlanData.name,
+          price: this.selectedPlanData.price,
+          currency: this.selectedPlanData.currency
+        } : undefined,
+        totalPrice: this.getTotalPrice()
+      }
+    };
+
+    console.log('📤 Enviando cotización:', quotationDto);
+
+    return new Promise((resolve, reject) => {
+      this.quotationsService.createQuotation(quotationDto).subscribe({
+        next: (response) => {
+          if (response.success && response.data) {
+            console.log('✅ Cotización creada exitosamente:', response.data);
+            // Crear objeto con datos completos para el componente de pago
+            const quotationData = {
+              ...response.data,
+              quotationAmount: this.getTotalPrice(), // Agregar monto total
+              quotationCurrency: this.selectedPlanData?.currency || 'MXN', // Agregar moneda
+              userId: response.data.userId, // Agregar userId del usuario creado
+              plan: {
+                name: this.selectedPlanData?.name || 'Póliza Jurídica Digital',
+                price: this.getTotalPrice()
+              }
+            };
+            console.log('📊 Datos completos de cotización para pago:', quotationData);
+            this.mainDataForm.patchValue({ quotationId: response.data.id });
+            resolve(quotationData); // Resolve with the enriched data
+          } else {
+            console.error('❌ Error en respuesta:', response);
+            reject(new Error(response.message || 'Error creando cotización'));
+          }
+        },
+        error: (error) => {
+          console.error('❌ Error HTTP:', error);
+          // Intentar obtener más detalles del error
+          let errorMessage = 'Error interno del servidor';
+          if (error.error && error.error.message) {
+            errorMessage = error.error.message;
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+          reject(new Error(errorMessage));
+        }
+      });
+    });
+  }
+
+  /**
+   * Marcar todos los campos del formulario como tocados para mostrar errores
+   */
+  private markFormGroupTouched(): void {
+    Object.keys(this.mainDataForm.controls).forEach(key => {
+      const control = this.mainDataForm.get(key);
+      if (control) {
+        control.markAsTouched();
+      }
+    });
   }
 
   onPrevious() {
     this.previous.emit();
+  }
+
+  /**
+   * Obtener mensaje de error para un campo específico
+   */
+  getErrorMessage(fieldName: string): string {
+    const field = this.mainDataForm.get(fieldName);
+    if (field && field.errors && field.touched) {
+      if (field.errors['required']) return 'Este campo es requerido';
+      if (field.errors['email']) return 'Email inválido';
+      if (field.errors['minlength']) return `Mínimo ${field.errors['minlength'].requiredLength} caracteres`;
+      if (field.errors['pattern']) {
+        if (fieldName === 'telefono') return 'Teléfono inválido (9-10 dígitos)';
+        if (fieldName === 'codigoPostal') return 'Código postal inválido (5 dígitos)';
+        return 'Formato inválido';
+      }
+      if (field.errors['min']) return `Valor mínimo: ${field.errors['min'].min}`;
+    }
+    return '';
   }
 } 

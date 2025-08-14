@@ -116,7 +116,17 @@ export class OpenPayService {
 
       window.OpenPay.token.create(cardData, 
         (response: any) => {
-          resolve(response.data);
+          // Verificar que la respuesta tenga todos los campos necesarios
+          if (response && response.data && response.data.id) {
+            // Asegurar que card_number sea un string válido
+            const tokenData = {
+              ...response.data,
+              card_number: response.data.card_number || '****'
+            };
+            resolve(tokenData);
+          } else {
+            reject(new Error('Respuesta inválida de OpenPay'));
+          }
         },
         (error: OpenPayErrorResponse) => {
           reject(error);

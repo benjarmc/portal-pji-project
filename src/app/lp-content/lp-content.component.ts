@@ -4,6 +4,8 @@ import { CommonModule } from '@angular/common';
 import { LpHeaderComponent } from '../lp-header/lp-header.component';
 import { LpFooterComponent } from '../lp-footer/lp-footer.component';
 import { SeoService } from '../services/seo.service';
+import { PlansService } from '../services/plans.service';
+import { Plan } from '../models/plan.model';
 
 @Component({
   selector: 'app-lp-content',
@@ -18,6 +20,8 @@ import { SeoService } from '../services/seo.service';
 })
 export class LpContentComponent implements OnInit {
   faqOpenIndex: number | null = 0;
+  plans: Plan[] = [];
+  loadingPlans = true;
 
   faqs = [
     {
@@ -36,7 +40,8 @@ export class LpContentComponent implements OnInit {
 
   constructor(
     private router: Router,
-    private seoService: SeoService
+    private seoService: SeoService,
+    private plansService: PlansService
   ) {}
 
   ngOnInit() {
@@ -45,6 +50,36 @@ export class LpContentComponent implements OnInit {
       description: 'Protege tu inversión inmobiliaria con nuestras pólizas jurídicas digitales. Cobertura legal completa para propietarios de inmuebles en renta.',
       keywords: 'seguro inmobiliario, protección jurídica, póliza digital, propietarios, renta, legal',
       type: 'website'
+    });
+    
+    this.loadPlans();
+  }
+
+  /**
+   * Carga los planes desde la base de datos
+   */
+  loadPlans() {
+    console.log('🔍 loadPlans() llamado');
+    this.loadingPlans = true;
+    
+    this.plansService.getPlans().subscribe({
+      next: (response) => {
+        console.log('📡 Respuesta del servicio:', response);
+        if (response.success && response.data && response.data.length > 0) {
+          this.plans = response.data;
+          console.log('✅ Planes cargados en landing page:', this.plans);
+          console.log('📊 Cantidad de planes:', this.plans.length);
+        } else {
+          console.log('⚠️ Respuesta sin datos o vacía:', response);
+          this.plans = [];
+        }
+        this.loadingPlans = false;
+      },
+      error: (error) => {
+        console.error('❌ Error al cargar planes:', error);
+        this.loadingPlans = false;
+        this.plans = [];
+      }
     });
   }
 
@@ -59,8 +94,15 @@ export class LpContentComponent implements OnInit {
     }
   }
 
-  startWizard(plan: string) {
-    console.log('Iniciando wizard con plan:', plan);
-    this.router.navigate(['/cotizador'], { queryParams: { plan } });
+  startWizard(planId: string) {
+    console.log('Iniciando wizard con plan ID:', planId);
+    this.router.navigate(['/cotizador'], { queryParams: { plan: planId } });
+  }
+
+  /**
+   * Verifica si un valor es un array
+   */
+  isArray(value: any): boolean {
+    return Array.isArray(value);
   }
 }

@@ -1,41 +1,219 @@
 <div class="main-data-step">
-  <h2>Datos principales</h2>
-  <form [formGroup]="mainDataForm" (ngSubmit)="onNext()" class="main-data-form">
-    <div class="row mb-3">
-      <div class="col-md-6 mb-3">
-        <label>Nombre completo</label>
-        <input type="text" class="form-control" formControlName="nombre" placeholder="Tu nombre completo">
+  <div class="step-header">
+    <h2>Datos Principales</h2>
+    <p>Completa la información necesaria para tu cotización</p>
+  </div>
+
+  <form [formGroup]="mainDataForm" class="main-data-form">
+    <!-- Datos Personales -->
+    <div class="form-section">
+      <h3>Datos Personales</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="nombre">Nombre Completo *</label>
+          <input 
+            type="text" 
+            id="nombre" 
+            formControlName="nombre" 
+            class="form-control"
+            placeholder="Ingresa tu nombre completo"
+          >
+          <div class="error-message" *ngIf="mainDataForm.get('nombre')?.invalid && mainDataForm.get('nombre')?.touched">
+            <span *ngIf="mainDataForm.get('nombre')?.errors?.['required']">El nombre es requerido</span>
+            <span *ngIf="mainDataForm.get('nombre')?.errors?.['minlength']">El nombre debe tener al menos 2 caracteres</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="telefono">Teléfono *</label>
+          <input 
+            type="tel" 
+            id="telefono" 
+            formControlName="telefono" 
+            class="form-control"
+            placeholder="Ej: 5512345678"
+          >
+          <div class="error-message" *ngIf="mainDataForm.get('telefono')?.invalid && mainDataForm.get('telefono')?.touched">
+            <span *ngIf="mainDataForm.get('telefono')?.errors?.['required']">El teléfono es requerido</span>
+            <span *ngIf="mainDataForm.get('telefono')?.errors?.['pattern']">Ingresa un teléfono válido de 9-10 dígitos</span>
+          </div>
+        </div>
       </div>
-      <div class="col-md-6 mb-3">
-        <label>Teléfono</label>
-        <input type="tel" class="form-control" formControlName="telefono" placeholder="+52 55 1234 5678">
-      </div>
-    </div>
-    <div class="row mb-3">
-      <div class="col-md-6 mb-3">
-        <label>Correo electrónico</label>
-        <input type="email" class="form-control" formControlName="correo" placeholder="tu@email.com">
-      </div>
-      <div class="col-md-6 mb-3">
-        <label>Código postal</label>
-        <input type="text" class="form-control" formControlName="codigoPostal" placeholder="12345">
-      </div>
-    </div>
-    <div class="row mb-3">
-      <div class="col-md-6 mb-3">
-        <label>Plan seleccionado</label>
-        <input type="text" class="form-control" formControlName="plan" readonly>
-      </div>
-      <div class="col-md-6 mb-3">
-        <label>Complementos adicionales</label>
-        <div *ngFor="let comp of complementos">
-          <input type="checkbox" [value]="comp" (change)="onComplementoChange($event, comp)"> {{ comp }}
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="correo">Correo Electrónico *</label>
+          <input 
+            type="email" 
+            id="correo" 
+            formControlName="correo" 
+            class="form-control"
+            placeholder="tu@email.com"
+          >
+          <div class="error-message" *ngIf="mainDataForm.get('correo')?.invalid && mainDataForm.get('correo')?.touched">
+            <span *ngIf="mainDataForm.get('correo')?.errors?.['required']">El correo es requerido</span>
+            <span *ngIf="mainDataForm.get('correo')?.errors?.['email']">Ingresa un correo válido</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="codigoPostal">Código Postal del Inmueble *</label>
+          <input 
+            type="text" 
+            id="codigoPostal" 
+            formControlName="codigoPostal" 
+            class="form-control"
+            placeholder="Ej: 12345"
+            maxlength="5"
+          >
+          <div class="error-message" *ngIf="mainDataForm.get('codigoPostal')?.invalid && mainDataForm.get('codigoPostal')?.touched">
+            <span *ngIf="mainDataForm.get('codigoPostal')?.errors?.['required']">El código postal es requerido</span>
+            <span *ngIf="mainDataForm.get('codigoPostal')?.errors?.['pattern']">Ingresa un código postal válido de 5 dígitos</span>
+          </div>
         </div>
       </div>
     </div>
-    <div class="d-flex gap-2">
-      <button type="button" class="btn btn-secondary" (click)="onPrevious()">Atrás</button>
-      <button type="submit" class="btn btn-accent">Continuar y pagar</button>
+
+    <!-- Plan Seleccionado -->
+    <div class="form-section" *ngIf="selectedPlanData">
+      <h3>Plan Seleccionado</h3>
+      <div class="plan-info">
+        <div class="plan-details">
+          <h4>{{ selectedPlanData.name }}</h4>
+          <p class="plan-description">{{ selectedPlanData.description }}</p>
+          <div class="plan-price">
+            <span class="currency">{{ selectedPlanData.currency }}</span>
+            <span class="amount">{{ selectedPlanData.price | number:'1.2-2' }}</span>
+            <span class="period">/mes</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Complementos -->
+    <div class="form-section">
+      <h3>Complementos Disponibles</h3>
+      <hr class="border-success mb-3">
+      <p class="text-muted mb-4">Selecciona los complementos que necesites para tu póliza</p>
+      
+      <!-- Debug info -->
+      <div class="alert alert-info mb-3" *ngIf="!selectedPlanData">
+        <small>🔄 Cargando datos del plan...</small>
+      </div>
+      
+      <!-- Grid de complementos -->
+      <div class="complementos-grid" *ngIf="getComplementaryPlans().length > 0">
+        <div class="complemento-item" *ngFor="let complemento of getComplementaryPlans()">
+          <div class="form-check d-flex align-items-center p-3 border rounded h-100">
+            <input 
+              class="form-check-input me-3" 
+              type="checkbox" 
+              [id]="'complement-' + complemento.id"
+              [checked]="selectedComplementos.includes(complemento.id)"
+              (change)="onComplementoChange($event, complemento)"
+            >
+            <label [for]="'complement-' + complemento.id" class="form-check-label mb-0 flex-grow-1">
+              <div class="complemento-name fw-bold">{{ complemento.name }}</div>
+              <div class="complemento-price text-primary fw-bold">{{ complemento.currency }} {{ complemento.price | number:'1.2-2' }}</div>
+            </label>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Mensaje si no hay complementos -->
+      <div class="alert alert-warning" *ngIf="getComplementaryPlans().length === 0 && selectedPlanData">
+        <small>⚠️ No hay complementos disponibles para este plan</small>
+      </div>
+      
+      <!-- Total de la cotización -->
+      <div class="mt-4 p-3 bg-light rounded">
+        <div class="d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">Total de la cotización:</h6>
+          <span class="h5 text-primary mb-0">{{ selectedPlanData?.currency || 'MXN' }} {{ getTotalPrice() | number:'1.2-2' }}</span>
+        </div>
+        <small class="text-muted">Plan base ({{ selectedPlanData?.currency || 'MXN' }} {{ selectedPlanData?.price || 0 }}) + complementos seleccionados</small>
+      </div>
+    </div>
+
+    <!-- Información del Tipo de Usuario -->
+    <div class="form-section" *ngIf="mainDataForm.get('tipoUsuario')?.value">
+      <h3>Información Adicional</h3>
+      <div class="user-type-info">
+        <div *ngIf="mainDataForm.get('tipoUsuario')?.value === 'arrendador'" class="info-box">
+          <h4>📋 Arrendador</h4>
+          <p>Como arrendador, la validación será para un tercero (inquilino) y su aval.</p>
+        </div>
+        
+        <div *ngIf="mainDataForm.get('tipoUsuario')?.value === 'arrendatario'" class="info-box">
+          <h4>🏠 Arrendatario</h4>
+          <p>Como arrendatario, la validación será para ti y tu aval.</p>
+        </div>
+        
+        <div *ngIf="mainDataForm.get('tipoUsuario')?.value === 'asesor'" class="info-box">
+          <h4>👨‍💼 Asesor Inmobiliario</h4>
+          <p>Como asesor, deberás incluir información del arrendador, arrendatario y aval.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error general -->
+    <div class="error-section" *ngIf="quotationError">
+      <div class="alert alert-danger">
+        {{ quotationError }}
+      </div>
+    </div>
+
+    <!-- Botones de acción -->
+    <div class="form-actions">
+      <button 
+        type="button" 
+        class="btn btn-secondary" 
+        (click)="onPrevious()"
+      >
+        Anterior
+      </button>
+      
+      <!-- CTA 1: Enviar cotización por correo -->
+      <button 
+        type="button" 
+        class="btn btn-outline-primary" 
+        [disabled]="mainDataForm.invalid || isCreatingQuotation"
+        (click)="sendQuotationByEmail()">
+        <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,13 2,6"/>
+        </svg>
+        <span *ngIf="!isCreatingQuotation">Enviar cotización por correo</span>
+        <span *ngIf="isCreatingQuotation">
+          <svg class="icon spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+            <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="2" fill="none"/>
+          </svg>
+          Enviando...
+        </span>
+      </button>
+      
+      <!-- CTA 2: Siguiente y Pagar -->
+      <button 
+        type="button" 
+        class="btn btn-primary" 
+        (click)="onNext()"
+        [disabled]="mainDataForm.invalid || isCreatingQuotation"
+      >
+        <span *ngIf="!isCreatingQuotation">
+          <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+            <line x1="1" y1="10" x2="23" y2="10"></line>
+          </svg>
+          Siguiente y Pagar
+        </span>
+        <span *ngIf="isCreatingQuotation">
+          <svg class="btn-icon spinning" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12a9 9 0 11-6.219-8.56"></path>
+          </svg>
+          Creando Cotización...
+        </span>
+      </button>
     </div>
   </form>
 </div> 

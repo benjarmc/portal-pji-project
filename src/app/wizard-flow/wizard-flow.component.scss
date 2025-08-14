@@ -29,7 +29,7 @@ $black: #000000;
 }
 
 // Contenedor principal del wizard
-.wizard-main-container {
+.wizard-flow {
   position: relative;
   width: 100%;
   min-height: 100vh;
@@ -40,7 +40,7 @@ $black: #000000;
   padding: 20px;
 }
 
-// Header con logo y botón cerrar
+// Header con indicadores de progreso
 .wizard-header {
   position: absolute;
   top: 39px;
@@ -48,47 +48,104 @@ $black: #000000;
   right: 88px;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   z-index: 10;
 }
 
-.logo-container {
-  width: 78px;
-  height: 78px;
-  background-color: $light-gray;
-  border-radius: 10px;
+.wizard-progress {
+  flex: 1;
+  text-align: center;
+}
+
+// Barra de progreso
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, $primary-green, $dark-green);
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+// Indicadores de pasos
+.step-indicators {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
+  gap: 10px;
 }
 
-.logo-placeholder {
-  font-family: 'Inter', sans-serif;
-  font-weight: 700;
-  font-size: 14px;
-  color: $black;
-}
-
-.close-button {
-  width: 39px;
-  height: 39px;
-  background: transparent;
-  border: none;
-  color: $primary-green;
+.step-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: background-color 0.3s ease;
+  transition: all 0.3s ease;
+  padding: 10px;
+  border-radius: 12px;
+  min-width: 80px;
 
   &:hover {
-    background-color: rgba(168, 207, 65, 0.1);
+    transform: translateY(-2px);
   }
 
-  svg {
-    width: 20px;
-    height: 20px;
+  .step-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.2);
+    color: $white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+    transition: all 0.3s ease;
+  }
+
+  .step-label {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    text-align: center;
+    line-height: 1.2;
+    transition: all 0.3s ease;
+  }
+
+  // Estado activo
+  &.active {
+    .step-number {
+      background-color: $primary-green;
+      color: $white;
+      box-shadow: 0 0 20px rgba(168, 207, 65, 0.5);
+    }
+
+    .step-label {
+      color: $white;
+      font-weight: 600;
+    }
+  }
+
+  // Estado completado
+  &.completed {
+    .step-number {
+      background-color: $dark-green;
+      color: $white;
+    }
+
+    .step-label {
+      color: rgba(255, 255, 255, 0.9);
+    }
   }
 }
 
@@ -113,12 +170,58 @@ $black: #000000;
   justify-content: center;
 }
 
+// Botón cerrar
+.close-button {
+  width: 39px;
+  height: 39px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: $white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: scale(1.1);
+  }
+
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
 // Responsive
 @media (max-width: 1200px) {
   .wizard-content {
     max-width: 90%;
     margin: 100px auto 0;
     padding: 30px;
+  }
+
+  .step-indicators {
+    gap: 5px;
+  }
+
+  .step-indicator {
+    min-width: 60px;
+    padding: 8px;
+
+    .step-number {
+      width: 28px;
+      height: 28px;
+      font-size: 12px;
+    }
+
+    .step-label {
+      font-size: 10px;
+    }
   }
 }
 
@@ -129,11 +232,6 @@ $black: #000000;
     right: 20px;
   }
 
-  .logo-container {
-    width: 60px;
-    height: 60px;
-  }
-
   .wizard-content {
     max-width: 95%;
     margin: 80px auto 0;
@@ -141,10 +239,50 @@ $black: #000000;
     border-radius: 30px;
   }
 
+  .step-indicators {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 15px;
+  }
+
+  .step-indicator {
+    min-width: 70px;
+
+    .step-number {
+      width: 24px;
+      height: 24px;
+      font-size: 11px;
+    }
+
+    .step-label {
+      font-size: 9px;
+    }
+  }
+
   .city-background {
     top: -200px;
     left: -400px;
     width: 2000px;
     height: 1500px;
+  }
+}
+
+@media (max-width: 480px) {
+  .step-indicators {
+    gap: 10px;
+  }
+
+  .step-indicator {
+    min-width: 60px;
+
+    .step-number {
+      width: 20px;
+      height: 20px;
+      font-size: 10px;
+    }
+
+    .step-label {
+      font-size: 8px;
+    }
   }
 }

@@ -166,6 +166,22 @@ $success-green: #28a745;
       border-color: #545b62;
     }
   }
+
+  &.btn-outline-primary {
+    background-color: transparent;
+    color: $primary-green;
+    border: 2px solid $primary-green;
+
+    &:hover:not(:disabled) {
+      background-color: $primary-green;
+      color: $white;
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
 }
 
 .spin {

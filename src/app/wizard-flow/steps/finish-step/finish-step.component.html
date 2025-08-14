@@ -1,7 +1,61 @@
-<div class="finish-step text-center">
-  <i class="pi pi-check-circle" style="font-size: 4rem; color: #A8CF41; margin-bottom: 1rem;"></i>
-  <h2>¡Gracias por tu confianza!</h2>
-  <p class="text-muted mb-4">Tu proceso de contratación se ha completado exitosamente.</p>
-  <p class="mb-4">Recibirás un correo de confirmación con todos los detalles de tu póliza.</p>
-  <button class="btn btn-accent mt-3" (click)="onGoToStart()">Volver al inicio</button>
+<div class="finish-step">
+  <div class="success-container">
+    <!-- Icono de éxito -->
+    <div class="success-icon">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22,4 12,14.01 9,11.01"/>
+      </svg>
+    </div>
+
+    <!-- Título principal -->
+    <h1 class="success-title">
+      <span *ngIf="quotationSentByEmail">¡Cotización Enviada!</span>
+      <span *ngIf="!quotationSentByEmail">¡Cotización Completada!</span>
+    </h1>
+
+    <!-- Mensaje principal -->
+    <p class="success-message">
+      <span *ngIf="quotationSentByEmail">
+        Tu cotización ha sido enviada exitosamente a tu correo electrónico.
+      </span>
+      <span *ngIf="!quotationSentByEmail">
+        Tu cotización ha sido procesada exitosamente.
+      </span>
+    </p>
+
+    <!-- Detalles de la cotización -->
+    <div class="quotation-details" *ngIf="quotationNumber">
+      <h3>Detalles de la Cotización</h3>
+      <p><strong>Número de Cotización:</strong> {{ quotationNumber }}</p>
+      <p><strong>Estado:</strong> 
+        <span *ngIf="quotationSentByEmail" class="status sent">Enviada por correo</span>
+        <span *ngIf="!quotationSentByEmail" class="status completed">Completada</span>
+      </p>
+    </div>
+
+    <!-- Instrucciones adicionales -->
+    <div class="next-steps" *ngIf="quotationSentByEmail">
+      <h3>Próximos Pasos</h3>
+      <ul>
+        <li>Revisa tu bandeja de entrada</li>
+        <li>La cotización incluye todos los detalles del plan</li>
+        <li>Puedes proceder al pago cuando estés listo</li>
+        <li>La cotización expira en 7 días</li>
+      </ul>
+    </div>
+
+    <!-- Botón de acción -->
+    <div class="action-buttons">
+      <button 
+        type="button" 
+        class="btn btn-primary"
+        (click)="onGoToStart()">
+        <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+        </svg>
+        Volver al Inicio
+      </button>
+    </div>
+  </div>
 </div> 

@@ -34,12 +34,15 @@ import { VdidService, VerificationOptions, CaptureOptions } from '../../services
           <div *ngIf="isInitialized">
             <div class="mb-3">
               <label for="uuid" class="form-label">UUID de Verificación</label>
+              <div *ngIf="verificationUuid" class="alert alert-info">
+                <strong>UUID del Backend:</strong> {{ verificationUuid }}
+              </div>
               <input 
                 type="text" 
                 class="form-control" 
                 id="uuid" 
                 [(ngModel)]="verificationUuid"
-                placeholder="Ingresa el UUID de verificación">
+                placeholder="Ingresa el UUID de verificación o usa el del backend">
             </div>
 
             <div class="mb-3">
@@ -98,99 +101,70 @@ import { VdidService, VerificationOptions, CaptureOptions } from '../../services
               </div>
             </div>
 
+            <div class="mb-3">
+              <label class="form-label">Opciones de Verificación</label>
+              <div class="form-check">
+                <input 
+                  class="form-check-input" 
+                  type="checkbox" 
+                  id="methodRedirect" 
+                  [(ngModel)]="verificationMethod"
+                  value="redirect">
+                <label class="form-check-label" for="methodRedirect">
+                  Usar Redirección
+                </label>
+              </div>
+              <div class="form-check">
+                <input 
+                  class="form-check-input" 
+                  type="checkbox" 
+                  id="methodPopup" 
+                  [(ngModel)]="verificationMethod"
+                  value="popup">
+                <label class="form-check-label" for="methodPopup">
+                  Usar Popup
+                </label>
+              </div>
+            </div>
+
             <button 
-              class="btn btn-success me-2" 
+              class="btn btn-success w-100" 
               (click)="startVerification()"
               [disabled]="!verificationUuid">
               Iniciar Verificación
-            </button>
-
-            <button 
-              class="btn btn-info me-2" 
-              (click)="getVerificationUrl()"
-              [disabled]="!verificationUuid">
-              Obtener URL
-            </button>
-
-            <button 
-              class="btn btn-warning" 
-              (click)="showEmailForm = !showEmailForm">
-              Enviar por Email
             </button>
           </div>
         </div>
 
         <div class="col-md-6">
-          <!-- Formulario de email -->
-          <div *ngIf="showEmailForm && isInitialized" class="card">
-            <div class="card-header">
-              <h6>Enviar Verificación por Email</h6>
-            </div>
+          <h5>Estado de Verificación</h5>
+          <div class="card">
             <div class="card-body">
-              <div class="mb-3">
-                <label for="email" class="form-label">Email del Usuario</label>
-                <input 
-                  type="email" 
-                  class="form-control" 
-                  id="email" 
-                  [(ngModel)]="userEmail"
-                  placeholder="usuario@ejemplo.com">
+              <div *ngIf="verificationStatus === 'pending'" class="text-center">
+                <i class="pi pi-clock" style="font-size: 2rem; color: #6c757d;"></i>
+                <p class="mt-2">Esperando inicio de verificación...</p>
               </div>
-              <button 
-                class="btn btn-primary" 
-                (click)="sendVerificationEmail()"
-                [disabled]="!userEmail || !verificationUuid">
-                Enviar Email
-              </button>
-            </div>
-          </div>
-
-          <!-- Captura de imágenes -->
-          <div class="card mt-3">
-            <div class="card-header">
-              <h6>Captura de Imágenes</h6>
-            </div>
-            <div class="card-body">
-              <div class="mb-3">
-                <label class="form-label">Tipo de Documento</label>
-                <select class="form-select" [(ngModel)]="captureType">
-                  <option value="first">Seleccionar tipo</option>
-                  <option value="id">ID (Frente y reverso)</option>
-                  <option value="passport">Pasaporte (Una foto)</option>
-                </select>
+              
+              <div *ngIf="verificationStatus === 'in_progress'" class="text-center">
+                <i class="pi pi-spin pi-spinner" style="font-size: 2rem; color: #007bff;"></i>
+                <p class="mt-2">Verificación en progreso...</p>
               </div>
-              <button 
-                class="btn btn-secondary" 
-                (click)="getImageCaptureUrl()">
-                Obtener URL de Captura
-              </button>
-            </div>
-          </div>
-
-          <!-- Resultados -->
-          <div class="card mt-3" *ngIf="verificationUrl">
-            <div class="card-header">
-              <h6>URL Generada</h6>
-            </div>
-            <div class="card-body">
-              <div class="mb-2">
-                <label class="form-label">URL:</label>
-                <input 
-                  type="text" 
-                  class="form-control" 
-                  [value]="verificationUrl" 
-                  readonly>
+              
+              <div *ngIf="verificationStatus === 'completed'" class="text-center">
+                <i class="pi pi-check-circle" style="font-size: 2rem; color: #28a745;"></i>
+                <p class="mt-2">Verificación completada exitosamente</p>
+                <button class="btn btn-primary mt-2" (click)="getVerificationResult()">
+                  Ver Resultado
+                </button>
               </div>
-              <button 
-                class="btn btn-outline-primary btn-sm" 
-                (click)="copyToClipboard(verificationUrl)">
-                Copiar URL
-              </button>
-              <button 
-                class="btn btn-outline-success btn-sm ms-2" 
-                (click)="openUrl(verificationUrl)">
-                Abrir URL
-              </button>
+              
+              <div *ngIf="verificationStatus === 'failed'" class="text-center">
+                <i class="pi pi-times-circle" style="font-size: 2rem; color: #dc3545;"></i>
+                <p class="mt-2">Verificación falló</p>
+                <button class="btn btn-warning mt-2" (click)="retryVerification()">
+                  Reintentar
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -199,169 +173,148 @@ import { VdidService, VerificationOptions, CaptureOptions } from '../../services
   `,
   styles: [`
     .vdid-integration {
-      padding: 20px;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 8px;
     }
     .card {
       border: 1px solid #dee2e6;
-      border-radius: 0.375rem;
+      border-radius: 8px;
     }
-    .card-header {
-      background-color: #f8f9fa;
-      border-bottom: 1px solid #dee2e6;
-      padding: 0.75rem 1rem;
-    }
-    .form-check {
-      margin-bottom: 0.5rem;
+    .btn {
+      border-radius: 6px;
     }
   `]
 })
 export class VdidIntegrationComponent implements OnInit {
   @Input() publicKey: string = '';
+  @Input() verificationUuid: string = ''; // UUID generado por el backend
   @Output() verificationStarted = new EventEmitter<string>();
   @Output() verificationCompleted = new EventEmitter<any>();
 
-  // Propiedades del componente
+  // Estado del componente
   isInitialized = false;
-  verificationUuid = '';
   verificationMethod: 'redirect' | 'popup' = 'redirect';
   designVersion: 'v1' | 'v2' = 'v2';
-  userEmail = '';
-  showEmailForm = false;
-  captureType: 'id' | 'passport' | 'first' = 'first';
-  verificationUrl = '';
+  verificationStatus: 'pending' | 'in_progress' | 'completed' | 'failed' = 'pending';
+
+  // Opciones de verificación
+  verificationOptions: VerificationOptions = {
+    method: 'redirect',
+    version: 'v2'
+  };
+
+  // Opciones de captura
+  captureOptions: CaptureOptions = {
+    typeId: 'id',
+    version: 'v2'
+  };
 
   constructor(private vdidService: VdidService) {}
 
-  ngOnInit(): void {
-    // Si se proporciona una public key como input, inicializar automáticamente
+  ngOnInit() {
+    // Si se proporciona una publicKey, inicializar automáticamente
     if (this.publicKey) {
       this.initializeSDK();
     }
+    
+    // Si se proporciona un UUID, configurar automáticamente
+    if (this.verificationUuid) {
+      console.log('🔑 UUID de verificación recibido:', this.verificationUuid);
+    }
   }
 
   /**
-   * Inicializa el SDK de VDID
+   * Inicializar el SDK de VDID
    */
-  initializeSDK(): void {
+  initializeSDK() {
     try {
-      console.log('🔧 Inicializando VDID SDK con publicKey:', this.publicKey);
-      this.vdidService.initialize({
-        publicKey: this.publicKey,
-        version: this.designVersion
-      });
+      this.vdidService.initialize({ publicKey: this.publicKey, version: 'v2' });
       this.isInitialized = true;
-      console.log('✅ VDID SDK inicializado correctamente');
-      console.log('🔍 SDK inicializado:', this.vdidService.isInitialized());
+      console.log('✅ SDK de VDID inicializado correctamente');
     } catch (error) {
-      console.error('❌ Error al inicializar VDID SDK:', error);
+      console.error('❌ Error inicializando SDK de VDID:', error);
     }
   }
 
   /**
-   * Inicia el proceso de verificación
+   * Iniciar proceso de verificación
    */
-  startVerification(): void {
+  startVerification() {
     if (!this.verificationUuid) {
-      alert('Por favor ingresa un UUID de verificación');
-      return;
-    }
-
-    const options: VerificationOptions = {
-      method: this.verificationMethod,
-      version: this.designVersion
-    };
-
-    this.verificationStarted.emit(this.verificationUuid);
-
-    this.vdidService.verifyIdentity(this.verificationUuid, options).subscribe({
-      next: () => {
-        console.log('Verificación iniciada correctamente');
-        this.verificationCompleted.emit({ uuid: this.verificationUuid, status: 'started' });
-      },
-      error: (error) => {
-        console.error('Error al iniciar verificación:', error);
-        alert('Error al iniciar la verificación');
-      }
-    });
-  }
-
-  /**
-   * Obtiene la URL de verificación
-   */
-  getVerificationUrl(): void {
-    if (!this.verificationUuid) {
-      alert('Por favor ingresa un UUID de verificación');
+      console.error('❌ UUID de verificación requerido');
       return;
     }
 
     try {
-      this.verificationUrl = this.vdidService.getVerificationUrl(
-        this.verificationUuid, 
-        this.designVersion
-      );
-    } catch (error) {
-      console.error('Error al obtener URL:', error);
-      alert('Error al obtener la URL de verificación');
-    }
-  }
+      this.verificationStatus = 'in_progress';
+      this.verificationStarted.emit(this.verificationUuid);
 
-  /**
-   * Envía verificación por email
-   */
-  sendVerificationEmail(): void {
-    if (!this.verificationUuid || !this.userEmail) {
-      alert('Por favor ingresa UUID y email');
-      return;
-    }
-
-    this.vdidService.sendVerificationEmail(
-      this.verificationUuid, 
-      this.userEmail, 
-      this.designVersion
-    ).subscribe({
-      next: () => {
-        console.log('Email enviado correctamente');
-        alert('Email de verificación enviado correctamente');
-      },
-      error: (error) => {
-        console.error('Error al enviar email:', error);
-        alert('Error al enviar el email de verificación');
-      }
-    });
-  }
-
-  /**
-   * Obtiene URL para captura de imágenes
-   */
-  getImageCaptureUrl(): void {
-    try {
-      const options: CaptureOptions = {
-        typeId: this.captureType,
+      // Configurar opciones de verificación
+      const options: VerificationOptions = {
+        method: this.verificationMethod,
         version: this.designVersion
       };
 
-      this.verificationUrl = this.vdidService.getImageCaptureUrl(options);
+      // Iniciar verificación usando el método correcto del servicio
+      this.vdidService.verifyIdentity(this.verificationUuid, options).subscribe({
+        next: () => {
+          console.log('🚀 Verificación iniciada correctamente');
+        },
+        error: (error: any) => {
+          console.error('❌ Error iniciando verificación:', error);
+          this.verificationStatus = 'failed';
+        }
+      });
+
     } catch (error) {
-      console.error('Error al obtener URL de captura:', error);
-      alert('Error al obtener la URL de captura de imágenes');
+      console.error('❌ Error configurando verificación:', error);
+      this.verificationStatus = 'failed';
     }
   }
 
   /**
-   * Copia URL al portapapeles
+   * Obtener resultado de verificación
    */
-  copyToClipboard(text: string): void {
-    navigator.clipboard.writeText(text).then(() => {
-      alert('URL copiada al portapapeles');
-    }).catch(() => {
-      alert('Error al copiar URL');
+  getVerificationResult() {
+    if (!this.verificationUuid) {
+      console.error('❌ UUID de verificación requerido');
+      return;
+    }
+
+    // Usar el método correcto del servicio
+    const verificationUrl = this.vdidService.getVerificationUrl(this.verificationUuid);
+    console.log('📊 URL de verificación:', verificationUrl);
+    
+    // Emitir evento con la URL
+    this.verificationCompleted.emit({ 
+      uuid: this.verificationUuid, 
+      url: verificationUrl,
+      status: 'url_generated'
     });
   }
 
   /**
-   * Abre URL en nueva pestaña
+   * Reintentar verificación
    */
-  openUrl(url: string): void {
-    window.open(url, '_blank');
+  retryVerification() {
+    this.verificationStatus = 'pending';
+    this.verificationUuid = '';
+  }
+
+  /**
+   * Manejar evento de verificación completada
+   */
+  onVerificationComplete(result: any) {
+    this.verificationStatus = 'completed';
+    this.verificationCompleted.emit(result);
+  }
+
+  /**
+   * Manejar evento de verificación fallida
+   */
+  onVerificationFailed(error: any) {
+    this.verificationStatus = 'failed';
+    console.error('❌ Verificación fallida:', error);
   }
 } 

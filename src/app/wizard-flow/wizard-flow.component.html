@@ -3,14 +3,28 @@
   <div class="city-background"></div>
 </div>
 
-<!-- Contenedor principal del wizard -->
-<div class="wizard-main-container">
-  <!-- Header con logo y botón cerrar -->
+<div class="wizard-flow">
   <div class="wizard-header">
-    <div class="logo-container">
-      <div class="logo-placeholder">Logo</div>
+    <div class="wizard-progress">
+      <div class="progress-bar">
+        <div class="progress-fill" [style.width.%]="((currentStep + 1) / steps.length) * 100"></div>
+      </div>
+      <div class="step-indicators">
+        <div 
+          *ngFor="let step of steps; let i = index" 
+          class="step-indicator"
+          [class.active]="i === currentStep"
+          [class.completed]="i < currentStep"
+          (click)="goToStep(i)"
+        >
+          <span class="step-number">{{ i + 1 }}</span>
+          <span class="step-label">{{ step.label }}</span>
+        </div>
+      </div>
     </div>
-    <button class="close-button" (click)="closeWizard()">
+    
+    <!-- Botón cerrar -->
+    <button class="close-button" (click)="closeWizard()" title="Cerrar wizard">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="18" y1="6" x2="6" y2="18"></line>
         <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -18,60 +32,93 @@
     </button>
   </div>
 
-  <!-- Contenido del wizard -->
   <div class="wizard-content">
-    <!-- Contenido dinámico del paso -->
-    <div class="wizard-step-content">
+    <!-- Welcome Step -->
+    <div *ngIf="getCurrentStepKey() === 'welcome'">
       <app-welcome-step 
-        *ngIf="getCurrentStepKey() === 'welcome'"
-        (next)="nextStep()">
+        *ngIf="currentStep === 0"
+        (next)="setCurrentStep(1)">
       </app-welcome-step>
+    </div>
 
-      <app-main-data-step 
-        *ngIf="getCurrentStepKey() === 'main-data'"
+    <!-- Main Data Step -->
+    <div *ngIf="getCurrentStepKey() === 'main-data'">
+      <app-main-data-step
+        *ngIf="currentStep === 1"
         [selectedPlan]="selectedPlan"
-        (next)="onMainDataNext($event)"
-        (previous)="prevStep()">
+        (next)="onNextAndPay($event)"
+        (previous)="setCurrentStep(0)"
+        (goToFinish)="onQuotationSentByEmail($event)">
       </app-main-data-step>
+    </div>
 
+    <!-- Payment Step -->
+    <div *ngIf="getCurrentStepKey() === 'payment'">
       <app-payment-step 
-        *ngIf="getCurrentStepKey() === 'payment'"
-        (next)="nextStep()"
+        *ngIf="currentStep === 2"
+        [quotationId]="quotationId || undefined"
+        [quotationData]="currentQuotation"
+        [userId]="userId || undefined"
+        (next)="onPaymentCompleted($event)"
         (previous)="prevStep()">
       </app-payment-step>
+    </div>
 
-      <app-validation-step 
-        *ngIf="getCurrentStepKey() === 'validation'"
+    <!-- Validation Step -->
+    <div *ngIf="getCurrentStepKey() === 'validation'">
+      <app-validation-step
         [validationStatus]="validationStatus"
         (next)="nextStep()"
         (selectPlan)="onValidationSelectPlan($event)"
-        (goToStart)="onValidationGoToStart()">
-      </app-validation-step>
-
-      <app-contract-step 
-        *ngIf="getCurrentStepKey() === 'contract'"
-        (next)="nextStep()"
-        (previous)="prevStep()">
-      </app-contract-step>
-
-      <app-finish-step 
-        *ngIf="getCurrentStepKey() === 'finish'"
-        (goToStart)="onFinishGoToStart()">
-      </app-finish-step>
+        (goToStart)="onValidationGoToStart()"
+      ></app-validation-step>
     </div>
 
-    <!-- Barra de progreso -->
-    <wizard-footer 
-      [currentStep]="currentStep" 
-      [totalSteps]="steps.length" />
-  </div>
-</div>
+    <!-- Contract Step -->
+    <div *ngIf="getCurrentStepKey() === 'contract'">
+      <app-contract-step
+        (next)="nextStep()"
+        (previous)="prevStep()"
+      ></app-contract-step>
+    </div>
 
-<!-- Modal para continuar wizard -->
-<app-continue-wizard-modal
-  [show]="showContinueModal"
-  [currentStep]="currentStep"
-  [selectedPlan]="selectedPlan"
-  (continue)="onContinueWizard()"
-  (restart)="onRestartWizard()">
-</app-continue-wizard-modal>
+    <!-- Finish Step -->
+    <div *ngIf="getCurrentStepKey() === 'finish'">
+      <app-finish-step
+        *ngIf="currentStep === 5"
+        [quotationSentByEmail]="quotationSentByEmail"
+        [quotationNumber]="quotationNumber"
+        (goToStart)="setCurrentStep(0)">
+      </app-finish-step>
+    </div>
+  </div>
+
+  <!-- Navegación del wizard -->
+  <div class="wizard-navigation" *ngIf="currentStep > 0">
+    <button 
+      *ngIf="canGoBack" 
+      class="btn btn-outline-secondary" 
+      (click)="prevStep()">
+      <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="15,18 9,12 15,6"/>
+      </svg>
+      Anterior
+    </button>
+    
+    <div class="step-indicator">
+      Paso {{ currentStep + 1 }} de {{ steps.length }}
+    </div>
+  </div>
+
+  <wizard-footer
+    [currentStep]="currentStep"
+    [totalSteps]="steps.length"
+  ></wizard-footer>
+
+  <!-- Modal para continuar wizard -->
+  <app-continue-wizard-modal
+    *ngIf="showContinueModal"
+    (continue)="onContinueWizard()"
+    (restart)="onRestartWizard()"
+  ></app-continue-wizard-modal>
+</div>

@@ -1,8 +1,170 @@
 <div class="validation-step">
+  <!-- Información del pago procesado y póliza generada -->
+  <div *ngIf="paymentResult && policyGenerated" class="payment-success-info mb-4">
+    <div class="card border-success">
+      <div class="card-body text-center">
+        <h4 class="text-success mb-3">
+          <i class="bi bi-check-circle-fill me-2"></i>
+          Pago Procesado y Póliza Generada
+        </h4>
+        <div class="row">
+          <div class="col-md-4">
+            <p class="mb-2"><strong>Número de Póliza:</strong></p>
+            <p class="text-success fw-bold">{{ paymentResult.policyNumber }}</p>
+          </div>
+          <div class="col-md-4">
+            <p class="mb-2"><strong>Estado:</strong></p>
+            <p class="text-success fw-bold">{{ paymentResult.status }}</p>
+          </div>
+          <div class="col-md-4">
+            <p class="mb-2"><strong>Monto Pagado:</strong></p>
+            <p class="h5 text-success fw-bold">{{ quotationCurrency }} {{ quotationAmount | number:'1.2-2' }}</p>
+          </div>
+        </div>
+        <div class="mt-3">
+          <small class="text-success">
+            <i class="bi bi-info-circle me-1"></i>
+            {{ paymentResult.message }}
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Información de cotización desde email o wizard (cuando no hay pago) -->
+  <div *ngIf="(isFromEmail || isFromWizard) && !paymentResult" class="quotation-info mb-4">
+    <div class="card border-primary">
+      <div class="card-body text-center">
+        <h4 class="text-primary mb-3">
+          <svg class="icon me-2" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+          {{ isFromEmail ? 'Cotización Recibida por Email' : 'Cotización Creada' }}
+        </h4>
+        <div class="row">
+          <div class="col-md-6">
+            <p class="mb-2"><strong>Número de Cotización:</strong></p>
+            <p class="text-primary fw-bold">{{ quotationNumber }}</p>
+          </div>
+          <div class="col-md-6">
+            <p class="mb-2"><strong>Monto a Pagar:</strong></p>
+            <p class="h4 text-success fw-bold">{{ quotationCurrency }} {{ quotationAmount | number:'1.2-2' }}</p>
+          </div>
+        </div>
+        <div class="mt-3">
+          <small class="text-muted">
+            {{ isFromEmail ? 
+              'Esta cotización fue enviada a tu correo electrónico. Completa la validación para proceder al pago con OpenPay.' :
+              'Cotización creada exitosamente. Completa la validación para proceder al pago con OpenPay.'
+            }}
+          </small>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <ng-container [ngSwitch]="validationStatus">
     <div *ngSwitchCase="'pending'" class="text-center">
-      <div class="spinner-border text-accent mb-3" role="status"></div>
-      <h3>Se está validando la identidad<br><span class="highlight">en plataforma externa.</span></h3>
+      <!-- Progreso de validaciones -->
+      <div class="validation-progress mb-4">
+        <h4 class="text-primary mb-3">Validación de Identidad Requerida</h4>
+        <div class="progress mb-3" style="height: 25px;">
+          <div class="progress-bar bg-success" 
+               [style.width.%]="(completedValidations / totalValidations) * 100"
+               role="progressbar">
+            {{ completedValidations }}/{{ totalValidations }} Validaciones Completadas
+          </div>
+        </div>
+        <p class="text-muted">Tipo de usuario: <strong>{{ userType | titlecase }}</strong></p>
+      </div>
+
+      <!-- Lista de validaciones requeridas -->
+      <div class="validation-requirements mb-4">
+        <div class="row justify-content-center">
+          <div class="col-md-6" *ngFor="let requirement of validationRequirements">
+            <div class="card mb-3" [class.border-success]="requirement.completed" [class.border-warning]="!requirement.completed">
+              <div class="card-body text-center">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <h6 class="mb-0">{{ requirement.name }}</h6>
+                  <span *ngIf="requirement.completed" class="badge bg-success">
+                    <i class="bi bi-check-circle-fill"></i> Completada
+                  </span>
+                  <span *ngIf="!requirement.completed" class="badge bg-warning">
+                    <i class="bi bi-clock"></i> Pendiente
+                  </span>
+                </div>
+                
+                <!-- Información adicional -->
+                <div class="mb-2">
+                  <small class="text-muted">
+                    <i class="bi bi-info-circle me-1"></i>
+                    {{ requirement.type === 'arrendador' ? 'Propietario del inmueble' : 
+                       requirement.type === 'arrendatario' ? 'Inquilino del inmueble' : 
+                       'Aval o garante' }}
+                  </small>
+                </div>
+                
+                <!-- Botón para iniciar validación VDID -->
+                <button 
+                  *ngIf="!requirement.completed"
+                  class="btn btn-primary btn-sm mt-2"
+                  (click)="startValidation(requirement.type)">
+                  <i class="bi bi-shield-check me-1"></i>
+                  Iniciar Validación VDID
+                </button>
+                
+                        <!-- Componente VDID específico para esta validación -->
+        <div *ngIf="currentValidationType === requirement.type && requirement.uuid" class="mt-3">
+          <app-vdid-integration
+            [publicKey]="'CONFIGURADO'"
+            [verificationUuid]="requirement.uuid"
+            (verificationStarted)="onVerificationStarted($event)"
+            (verificationCompleted)="onVerificationCompleted($event)">
+          </app-vdid-integration>
+        </div>
+                
+                <!-- Información de validación completada -->
+                <div *ngIf="requirement.completed" class="text-success small">
+                  <i class="bi bi-check-circle me-1"></i>
+                  Validación completada exitosamente
+                  <br>
+                  <small class="text-muted">UUID: {{ requirement.uuid }}</small>
+                  <br>
+                  <small class="text-success">
+                    <i class="bi bi-envelope-check me-1"></i>
+                    Enlace enviado y verificado
+                  </small>
+                </div>
+                
+                <!-- Información de validación en progreso -->
+                <div *ngIf="!requirement.completed && requirement.uuid" class="text-info small">
+                  <i class="bi bi-clock me-1"></i>
+                  Enlace de verificación enviado
+                  <br>
+                  <small class="text-muted">UUID: {{ requirement.uuid }}</small>
+                  <br>
+                  <small class="text-info">
+                    <i class="bi bi-hourglass-split me-1"></i>
+                    Esperando verificación...
+                  </small>
+                  
+                  <!-- Botón para reenviar verificación -->
+                  <div class="mt-2">
+                    <button 
+                      type="button" 
+                      class="btn btn-outline-info btn-sm"
+                      (click)="resendVerification(requirement.type)">
+                      <i class="bi bi-envelope-arrow-up me-1"></i>
+                      Reenviar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       
       <!-- Botón para mostrar integración VDID -->
       <div class="mt-4">
@@ -16,12 +178,21 @@
       <!-- Componente de integración VDID -->
       <div *ngIf="showVdidIntegration" class="mt-4">
         <app-vdid-integration
-          [publicKey]="vdidPublicKey"
+                      [publicKey]="'CONFIGURADO'"
+          [verificationUuid]="getCurrentValidationUuid()"
           (verificationStarted)="onVerificationStarted($event)"
           (verificationCompleted)="onVerificationCompleted($event)">
         </app-vdid-integration>
       </div>
     </div>
+
+    <!-- Modal para datos de validación -->
+    <app-validation-data-modal
+      [isOpen]="showValidationModal"
+      [validationType]="currentValidationType"
+      (submit)="onValidationDataSubmit($event)"
+      (close)="onValidationModalClose()">
+    </app-validation-data-modal>
     
     <div *ngSwitchCase="'success'" class="text-center">
       <i class="pi pi-check-circle" style="font-size: 3rem; color: #A8CF41;"></i>
@@ -32,17 +203,101 @@
     <div *ngSwitchCase="'intermediate'" class="text-center">
       <i class="pi pi-exclamation-triangle" style="font-size: 3rem; color: #A8CF41;"></i>
       <h3>No es posible continuar con este proceso,<br>pero puedes seleccionar otro paquete compatible.</h3>
+      
+      <!-- Planes alternativos -->
       <div class="row justify-content-center mt-4 mb-3">
         <div class="col-md-4 mb-3" *ngFor="let plan of alternativePlans">
-          <div class="card h-100 shadow-sm">
+          <div class="card h-100 shadow-sm" [class.border-warning]="plan.isPopular">
             <div class="card-body">
-              <h5 class="card-title">{{ plan.name }}</h5>
-              <p class="card-text">{{ plan.desc }}</p>
-              <button class="btn btn-accent w-100 mt-2" (click)="onSelectPlan(plan.key)">Seleccionar plan</button>
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <h5 class="card-title mb-0">{{ plan.name }}</h5>
+                <span *ngIf="plan.isPopular" class="badge bg-warning text-dark">Más Popular</span>
+              </div>
+              <p class="card-text text-muted">{{ plan.description }}</p>
+              
+              <!-- Precio -->
+              <div class="mb-3" *ngIf="plan.price > 0">
+                <span class="h5 text-primary">{{ plan.currency }} {{ plan.price | number:'1.2-2' }}</span>
+                <small class="text-muted d-block">por mes</small>
+              </div>
+              
+              <!-- Características -->
+              <div class="mb-3" *ngIf="plan.features && isArray(plan.features) && plan.features.length > 0">
+                <h6 class="text-muted small mb-2">Incluye:</h6>
+                <ul class="list-unstyled small">
+                  <li *ngFor="let feature of plan.features.slice(0, 3)" class="mb-1">
+                    <i class="pi pi-check text-success me-2"></i>{{ feature }}
+                  </li>
+                  <li *ngIf="plan.features.length > 3" class="text-muted">
+                    <small>+{{ plan.features.length - 3 }} características más</small>
+                  </li>
+                </ul>
+              </div>
+              
+              <button class="btn btn-accent w-100 mt-2" (click)="onSelectPlan(plan.id)">
+                Seleccionar plan →
+              </button>
             </div>
           </div>
         </div>
       </div>
+      
+      <!-- Selección de complementos (siempre visible en estado intermediate) -->
+      <div class="mt-4">
+        <div class="row justify-content-center">
+          <div class="col-md-8">
+            <div class="card shadow-sm">
+              <div class="card-body">
+                <h5 class="card-title mb-3">Complementos Disponibles</h5>
+                <hr class="border-success mb-3">
+                <p class="text-muted mb-4">Selecciona los complementos que necesites para tu póliza</p>
+                
+                <!-- Grid de complementos -->
+                <div class="row">
+                  <div class="col-md-4 mb-3" *ngFor="let complement of getComplementaryPlans()">
+                    <div class="form-check d-flex align-items-center p-2 border rounded">
+                      <input 
+                        class="form-check-input me-2" 
+                        type="checkbox" 
+                        [id]="'complement-' + complement.id"
+                        [(ngModel)]="complement.selected"
+                        (change)="onComplementChange()">
+                      <label [for]="'complement-' + complement.id" class="form-check-label mb-0">
+                        {{ complement.name }}
+                        <span class="text-primary fw-bold ms-2">{{ complement.currency }} {{ complement.price | number:'1.2-2' }}</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Total de la cotización -->
+                <div class="mt-4 p-3 bg-light rounded">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Total de la cotización:</h6>
+                    <span class="h5 text-primary mb-0">{{ selectedPlan?.currency || 'MXN' }} {{ getTotalPrice() | number:'1.2-2' }}</span>
+                  </div>
+                  <small class="text-muted">Plan base + complementos seleccionados</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Botones de navegación -->
+        <div class="row justify-content-center mt-4">
+          <div class="col-md-8">
+            <div class="d-flex justify-content-between">
+              <button class="btn btn-outline-secondary" (click)="onGoToStart()">
+                Anterior
+              </button>
+              <button class="btn btn-accent" (click)="onNext()">
+                Siguiente y Pagar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
       <button class="btn btn-secondary mt-2" (click)="onGoToStart()">Salir</button>
     </div>
     

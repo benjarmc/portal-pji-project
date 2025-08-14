@@ -4,15 +4,39 @@ import { isPlatformBrowser } from '@angular/common';
 export interface WizardState {
   currentStep: number;
   selectedPlan: string | null;
+  quotationId: string | null;
+  quotationNumber: string | null; // Agregado para el número de cotización
+  userId: string | null; // Agregado para el ID del usuario creado
   userData: {
     name?: string;
     email?: string;
     phone?: string;
+    postalCode?: string; // Código postal del inmueble
+    tipoUsuario?: 'arrendador' | 'arrendatario' | 'asesor'; // Tipo de usuario seleccionado
   };
   paymentData: {
     cardType?: string;
     lastFourDigits?: string;
   };
+  // Información del pago procesado
+  paymentResult?: {
+    success: boolean;
+    paymentId: string;
+    chargeId: string;
+    policyId: string;
+    policyNumber: string;
+    status: string;
+    message: string;
+  };
+  // Estado de las validaciones
+  validationRequirements?: Array<{
+    type: 'arrendador' | 'arrendatario' | 'aval';
+    name: string;
+    required: boolean;
+    completed: boolean;
+    uuid?: string;
+  }>;
+  completedValidations?: number;
   completedSteps: number[];
   timestamp: number;
 }
@@ -164,6 +188,9 @@ export class WizardStateService {
     return {
       currentStep: 0,
       selectedPlan: null,
+      quotationId: null,
+      quotationNumber: null,
+      userId: null, // Agregar userId
       userData: {},
       paymentData: {},
       completedSteps: [],
