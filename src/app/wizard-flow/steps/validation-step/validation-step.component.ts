@@ -1,7 +1,6 @@
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { VdidIntegrationComponent } from '../../../components/vdid-integration/vdid-integration.component';
 import { ValidationDataModalComponent, ValidationData } from '../../../components/validation-data-modal/validation-data-modal.component';
 import { environment } from '../../../../environments/environment';
 import { PlansService } from '../../../services/plans.service';
@@ -51,7 +50,7 @@ export interface ComplementaryPlan {
 @Component({
   selector: 'app-validation-step',
   standalone: true,
-  imports: [CommonModule, FormsModule, VdidIntegrationComponent, ValidationDataModalComponent],
+  imports: [CommonModule, FormsModule, ValidationDataModalComponent],
   templateUrl: './validation-step.component.html',
   styleUrls: ['./validation-step.component.scss']
 })
@@ -72,10 +71,6 @@ export class ValidationStepComponent implements OnInit {
   alternativePlans: AlternativePlan[] = [];
   selectedPlan: AlternativePlan | null = null;
 
-  // Propiedades para VDID
-  showVdidIntegration = false;
-  vdidConfigured = false;
-  
   // Propiedades para el modal de datos
   showValidationModal = false;
   currentValidationType: 'arrendador' | 'arrendatario' | 'aval' = 'arrendador';
@@ -109,9 +104,6 @@ export class ValidationStepComponent implements OnInit {
     
     // Cargar información del pago si viene del wizard
     this.loadPaymentInfo();
-    
-    // Cargar configuración de VDID desde el backend
-    this.loadVdidConfig();
     
     // Iniciar verificación automática de estado cada 30 segundos
     this.startAutoStatusCheck();
@@ -310,49 +302,11 @@ export class ValidationStepComponent implements OnInit {
     this.goToStart.emit();
   }
 
-  // Métodos para VDID
-  toggleVdidIntegration() {
-    this.showVdidIntegration = !this.showVdidIntegration;
-    console.log('🔄 Alternando visualización de VDID:', this.showVdidIntegration);
-  }
-
   /**
    * Verifica si un valor es un array
    */
   isArray(value: any): boolean {
     return Array.isArray(value);
-  }
-
-  onVerificationStarted(uuid: string) {
-    console.log('🚀 Verificación VDID iniciada con UUID:', uuid);
-    
-    // Buscar el requerimiento correspondiente y marcarlo como en progreso
-    const requirement = this.validationRequirements.find(req => req.uuid === uuid);
-    if (requirement) {
-      console.log(`📊 Marcando validación ${requirement.type} como en progreso`);
-      // Aquí podrías actualizar la UI para mostrar que está en progreso
-    }
-  }
-
-  onVerificationCompleted(result: any) {
-    console.log('✅ Verificación VDID completada:', result);
-    
-    // Extraer información de la verificación
-    const { uuid, type, status } = result;
-    
-    if (status === 'COMPLETED' || status === 'SUCCESS') {
-      // Marcar validación como completada
-      this.markValidationCompleted(type);
-      
-      console.log('🎉 Verificación VDID completada exitosamente para:', type);
-      console.log('🔑 UUID de la verificación:', uuid);
-      
-      // Aquí podrías hacer una llamada al backend para marcar como completada
-      // Por ahora solo actualizamos el estado local
-      
-    } else {
-      console.log('⚠️ Verificación no completada, estado:', status);
-    }
   }
 
   /**
@@ -395,37 +349,6 @@ export class ValidationStepComponent implements OnInit {
     
     console.log('✅ Validaciones configuradas:', this.validationRequirements);
     console.log(`📊 Total de validaciones: ${this.totalValidations}`);
-  }
-
-  /**
-   * Cargar configuración de VDID desde el backend
-   */
-  private loadVdidConfig(): void {
-    this.validationService.getVdidConfig().subscribe({
-      next: (response: any) => {
-        if (response.success && response.data) {
-          this.vdidConfigured = response.data.configured || false;
-          this.showVdidIntegration = response.data.configured;
-          console.log('🔑 Configuración de VDID cargada:', response.data);
-        }
-      },
-      error: (error: any) => {
-        console.error('❌ Error cargando configuración de VDID:', error);
-        this.showVdidIntegration = false;
-      }
-    });
-  }
-
-  /**
-   * Obtener el UUID de la validación actual
-   */
-  getCurrentValidationUuid(): string {
-    // Buscar la validación actual según el tipo de usuario
-    const currentRequirement = this.validationRequirements.find(req => 
-      req.type === this.currentValidationType && !req.completed
-    );
-    
-    return currentRequirement?.uuid || '';
   }
 
   /**
@@ -478,22 +401,6 @@ export class ValidationStepComponent implements OnInit {
   }
 
   /**
-   * Generar UUID para validación VDID
-   */
-  generateValidationUUID(type: string): string {
-    const uuid = 'uuid-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-    
-    // Asignar UUID al requerimiento
-    const requirement = this.validationRequirements.find(req => req.type === type);
-    if (requirement) {
-      requirement.uuid = uuid;
-    }
-    
-    console.log(`🔑 UUID generado para validación ${type}:`, uuid);
-    return uuid;
-  }
-
-  /**
    * Iniciar proceso de validación para un tipo específico
    */
   startValidation(type: string): void {
@@ -502,11 +409,11 @@ export class ValidationStepComponent implements OnInit {
     // Establecer el tipo de validación actual
     this.currentValidationType = type as 'arrendador' | 'arrendatario' | 'aval';
     
-    // Si ya tenemos un UUID para esta validación, mostrar directamente el componente VDID
+    // Si ya tenemos un UUID para esta validación, mostrar directamente el modal
     const requirement = this.validationRequirements.find(req => req.type === type);
     if (requirement && requirement.uuid) {
       console.log(`🔑 Validación ya iniciada para ${type}, UUID: ${requirement.uuid}`);
-      // No necesitamos abrir el modal, el componente VDID se mostrará automáticamente
+      // Mostrar información de la validación en progreso
     } else {
       // Si no hay UUID, abrir el modal para recoger datos y crear la validación
       this.showValidationModal = true;
@@ -560,6 +467,9 @@ export class ValidationStepComponent implements OnInit {
           this.wizardStateService.saveState({
             validationRequirements: this.validationRequirements
           });
+          
+          // Cerrar el modal
+          this.showValidationModal = false;
           
         } else {
           console.error('❌ Error iniciando validación en el backend:', response.message);

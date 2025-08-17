@@ -118,7 +118,12 @@
   <!-- Modal para continuar wizard -->
   <app-continue-wizard-modal
     *ngIf="showContinueModal"
+    [show]="showContinueModal"
+    [currentStep]="currentStep"
+    [selectedPlan]="selectedPlan"
+    [quotationNumber]="quotationNumber"
+    [completedSteps]="wizardStateService.getState().completedSteps.length"
     (continue)="onContinueWizard()"
-    (restart)="onRestartWizard()"
-  ></app-continue-wizard-modal>
+    (restart)="onRestartWizard()">
+  </app-continue-wizard-modal>
 </div>

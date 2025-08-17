@@ -4,7 +4,6 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 
 import { routes } from './app.routes';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
-import { VdidService } from './services/vdid.service';
 import { SeoService } from './services/seo.service';
 import { errorInterceptor } from './interceptors/error.interceptor';
 
@@ -14,7 +13,6 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideClientHydration(withEventReplay()),
     provideHttpClient(withInterceptors([errorInterceptor])),
-    VdidService,
     SeoService
   ]
 };

@@ -85,11 +85,4 @@ export class ValidationService {
   resendVerification(uuid: string): Observable<ApiResponse<any>> {
     return this.apiService.post<any>(`${this.endpoint}/resend/${uuid}`, {});
   }
-
-  /**
-   * Obtener configuración de VDID desde el backend
-   */
-  getVdidConfig(): Observable<ApiResponse<any>> {
-    return this.apiService.get<any>(`${this.endpoint}/config/vdid`);
-  }
 }

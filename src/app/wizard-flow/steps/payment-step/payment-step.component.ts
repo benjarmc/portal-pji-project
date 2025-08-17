@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { OpenPayService, OpenPayCardData, OpenPayTokenResponse } from '../../../services/openpay.service';
 import { PaymentsService, PaymentData } from '../../../services/payments.service';
 import { QuotationsService } from '../../../services/quotations.service';
+import { WizardStateService } from '../../../services/wizard-state.service';
 import { environment } from '../../../../environments/environment';
 
 @Component({
@@ -72,7 +73,8 @@ export class PaymentStepComponent implements OnInit {
   constructor(
     private openPayService: OpenPayService,
     private paymentsService: PaymentsService,
-    private quotationsService: QuotationsService
+    private quotationsService: QuotationsService,
+    private wizardStateService: WizardStateService
   ) {
     // Generar años de 2 dígitos (actual + 10 años)
     const currentYear = new Date().getFullYear();
@@ -128,17 +130,101 @@ export class PaymentStepComponent implements OnInit {
    * Cargar cotización desde el estado del wizard
    */
   private loadQuotationFromWizardState(): void {
-    // Importar WizardStateService si no está disponible
-    // Por ahora, intentar obtener datos de la URL o usar valores por defecto
     console.log('🔍 Intentando cargar cotización desde estado del wizard');
     
-    // TODO: Implementar carga desde WizardStateService
-    // Por ahora, usar valores por defecto
-    this.quotationAmount = 299.00; // Valor por defecto
+    try {
+      const wizardState = this.wizardStateService.getState();
+      console.log('📊 Estado del wizard cargado:', wizardState);
+      
+      // Obtener datos del estado del wizard
+      if (wizardState.quotationId && !this.quotationId) {
+        this.quotationId = wizardState.quotationId;
+        console.log('🔑 quotationId obtenido del estado:', this.quotationId);
+      }
+      
+      if (wizardState.quotationNumber) {
+        this.quotationNumber = wizardState.quotationNumber;
+        console.log('📋 quotationNumber obtenido del estado:', this.quotationNumber);
+      }
+      
+      if (wizardState.userId && !this.userId) {
+        this.userId = wizardState.userId;
+        console.log('👤 userId obtenido del estado:', this.userId);
+      }
+      
+      // Si tenemos quotationId, intentar obtener datos de la API
+      if (this.quotationId) {
+        console.log('🔍 Obteniendo datos de cotización desde API con ID:', this.quotationId);
+        this.loadQuotationFromAPI();
+      } else {
+        // Usar valores por defecto si no hay datos
+        console.log('⚠️ No hay quotationId, usando valores por defecto');
+        this.quotationAmount = 299.00; // Valor por defecto
+        this.quotationCurrency = 'MXN';
+        this.quotationNumber = 'COT-' + Date.now();
+        
+        console.log('💰 Datos por defecto cargados - Monto:', this.quotationAmount);
+      }
+    } catch (error) {
+      console.error('❌ Error cargando estado del wizard:', error);
+      // Usar valores por defecto en caso de error
+      this.quotationAmount = 299.00;
+      this.quotationCurrency = 'MXN';
+      this.quotationNumber = 'COT-' + Date.now();
+    }
+  }
+
+  /**
+   * Cargar datos de cotización desde la API
+   */
+  private loadQuotationFromAPI(): void {
+    if (!this.quotationId) return;
+    
+    this.quotationsService.getQuotationById(this.quotationId).subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          console.log('✅ Datos de cotización obtenidos desde API:', response.data);
+          
+          // Actualizar datos del componente usando la estructura correcta del modelo
+          this.quotationAmount = response.data.totalPrice || 299.00;
+          this.quotationCurrency = 'MXN'; // Por defecto MXN
+          this.quotationNumber = this.quotationId || 'COT-' + Date.now(); // Usar el ID como número de cotización o generar uno
+          this.selectedPlan = response.data.plan?.name || 'Póliza Jurídica Digital';
+          
+          console.log('💰 Datos de cotización actualizados:', {
+            amount: this.quotationAmount,
+            currency: this.quotationCurrency,
+            number: this.quotationNumber,
+            plan: this.selectedPlan
+          });
+        } else {
+          console.warn('⚠️ Respuesta de API no exitosa:', response);
+          this.loadDefaultValues();
+        }
+      },
+      error: (error) => {
+        console.error('❌ Error obteniendo cotización desde API:', error);
+        this.loadDefaultValues();
+      }
+    });
+  }
+
+  /**
+   * Cargar valores por defecto
+   */
+  private loadDefaultValues(): void {
+    console.log('🔄 Cargando valores por defecto');
+    this.quotationAmount = 299.00;
     this.quotationCurrency = 'MXN';
     this.quotationNumber = 'COT-' + Date.now();
+    this.selectedPlan = 'Póliza Jurídica Digital';
     
-    console.log('💰 Datos por defecto cargados - Monto:', this.quotationAmount);
+    console.log('💰 Valores por defecto cargados:', {
+      amount: this.quotationAmount,
+      currency: this.quotationCurrency,
+      number: this.quotationNumber,
+      plan: this.selectedPlan
+    });
   }
 
   validateCard() {
@@ -183,6 +269,12 @@ export class PaymentStepComponent implements OnInit {
       return;
     }
 
+    // Validar que el monto sea válido
+    if (!this.quotationAmount || this.quotationAmount <= 0) {
+      this.paymentError = 'El monto de la cotización no es válido. Por favor, regresa al paso anterior.';
+      return;
+    }
+
     this.isProcessing = true;
     this.paymentError = '';
     this.paymentSuccess = '';
@@ -191,10 +283,18 @@ export class PaymentStepComponent implements OnInit {
       const paymentData: PaymentData = {
         quotationId: this.quotationId,
         cardData: this.cardData,
-        amount: this.planPrice,
-        currency: 'MXN',
+        amount: this.quotationAmount, // Usar quotationAmount en lugar de planPrice
+        currency: this.quotationCurrency,
         description: `Pago de póliza: ${this.selectedPlan}`
       };
+
+      console.log('💰 Datos de pago preparados:', {
+        quotationId: paymentData.quotationId,
+        amount: paymentData.amount,
+        currency: paymentData.currency,
+        description: paymentData.description,
+        userId: this.userId
+      });
 
       // Procesar pago usando el servicio
       this.paymentsService.processPayment(paymentData, this.userId).subscribe({

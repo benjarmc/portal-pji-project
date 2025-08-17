@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { FormGroup } from '@angular/forms';
 import { CommonModule } from '@angular/common';
@@ -40,7 +40,7 @@ export class WizardFlowComponent implements OnInit {
   // Datos de la cotización
   currentQuotation: any = null;
   quotationId: string | null = null;
-  userId: string | null = null; // Nuevo campo para almacenar userId
+  userId: string | null = null;
 
   steps = [
     { key: 'welcome', label: 'Bienvenida' },
@@ -55,22 +55,52 @@ export class WizardFlowComponent implements OnInit {
   quotationSentByEmail: boolean = false;
   quotationNumber: string = '';
   isFromQuotationUrl: boolean = false;
-  canGoBack: boolean = true; // Nueva propiedad para controlar navegación
+  canGoBack: boolean = true;
+  isStateRestored = false; // Flag para controlar si el estado ya fue restaurado
 
   constructor(
     private route: ActivatedRoute,
     private seoService: SeoService,
-    private wizardStateService: WizardStateService
+    public wizardStateService: WizardStateService
   ) {}
 
   ngOnInit() {
-    // Cargar estado guardado
-    const savedState = this.wizardStateService.getState();
-    this.currentStep = savedState.currentStep || 0;
-    this.selectedPlan = savedState.selectedPlan;
+    // Limpiar estados expirados al iniciar
+    this.wizardStateService.cleanupExpiredStates();
     
     // Verificar si llegamos desde URL del cotizador
     this.handleUrlParameters();
+    
+    // Restaurar estado del wizard después de manejar parámetros de URL
+    this.restoreWizardState();
+    
+    // Configurar SEO
+    this.setupSEO();
+  }
+
+  /**
+   * Listener para detectar actividad del usuario
+   */
+  @HostListener('document:click')
+  @HostListener('document:keydown')
+  @HostListener('document:scroll')
+  onUserActivity(): void {
+    this.wizardStateService.updateActivity();
+  }
+
+  /**
+   * Listener para detectar cuando la página se va a recargar
+   */
+  @HostListener('window:beforeunload')
+  onBeforeUnload(): void {
+    // Guardar estado antes de recargar
+    this.wizardStateService.saveState({
+      currentStep: this.currentStep,
+      selectedPlan: this.selectedPlan,
+      quotationId: this.quotationId,
+      quotationNumber: this.quotationNumber || '',
+      userId: this.userId
+    });
   }
 
   /**
@@ -91,7 +121,7 @@ export class WizardFlowComponent implements OnInit {
         
         // Ir directamente al paso 3 (validación) sin permitir retroceder
         this.currentStep = 3;
-        this.canGoBack = false; // No permitir retroceder desde email
+        this.canGoBack = false;
         this.wizardStateService.saveState({ currentStep: 3 });
         
         // Marcar pasos anteriores como completados
@@ -99,6 +129,7 @@ export class WizardFlowComponent implements OnInit {
         this.wizardStateService.completeStep(1);
         this.wizardStateService.completeStep(2);
         
+        this.isFromQuotationUrl = true;
         console.log('✅ Navegación desde email configurada');
       } else if (planId) {
         console.log('🎯 Plan seleccionado desde landing page:', planId);
@@ -115,6 +146,74 @@ export class WizardFlowComponent implements OnInit {
         console.log('✅ Plan configurado para nuevo wizard');
       }
     }
+  }
+
+  /**
+   * Restaura el estado del wizard desde el almacenamiento
+   */
+  private restoreWizardState(): void {
+    // Solo restaurar si no es desde URL de cotización
+    if (this.isFromQuotationUrl) {
+      console.log('🔄 No restaurando estado - llegamos desde URL de cotización');
+      return;
+    }
+
+    if (this.wizardStateService.hasSavedState()) {
+      const savedState = this.wizardStateService.restoreWizard();
+      
+      // Restaurar datos del estado
+      this.currentStep = savedState.currentStep;
+      this.selectedPlan = savedState.selectedPlan;
+      this.quotationId = savedState.quotationId;
+      this.quotationNumber = savedState.quotationNumber || '';
+      this.userId = savedState.userId;
+      
+      // Restaurar estado de validación si existe
+      if (savedState.validationRequirements) {
+        this.validationStatus = this.calculateValidationStatus(savedState.validationRequirements);
+      }
+      
+      console.log('🔄 Estado del wizard restaurado:', {
+        step: this.currentStep,
+        plan: this.selectedPlan,
+        quotation: this.quotationId,
+        user: this.userId
+      });
+      
+      this.isStateRestored = true;
+      
+      // Mostrar modal de continuar si no es el paso inicial
+      if (this.currentStep > 0) {
+        setTimeout(() => {
+          this.showContinueModal = true;
+        }, 500); // Pequeño delay para asegurar que la UI esté lista
+      }
+    } else {
+      console.log('🆕 No hay estado guardado - iniciando wizard nuevo');
+    }
+  }
+
+  /**
+   * Calcula el estado de validación basado en los requerimientos
+   */
+  private calculateValidationStatus(requirements: any[]): 'pending' | 'success' | 'intermediate' | 'failed' {
+    if (!requirements || requirements.length === 0) return 'pending';
+    
+    const completed = requirements.filter(req => req.completed).length;
+    const total = requirements.length;
+    
+    if (completed === total) return 'success';
+    if (completed > 0) return 'intermediate';
+    return 'pending';
+  }
+
+  /**
+   * Configura SEO para el wizard
+   */
+  private setupSEO(): void {
+    // Comentado temporalmente hasta que se implemente el servicio SEO
+    // this.seoService.setTitle('Wizard de Cotización - Protección Jurídica Inmobiliaria');
+    // this.seoService.setMetaDescription('Completa tu cotización paso a paso para obtener protección jurídica inmobiliaria personalizada.');
   }
 
   setCurrentStep(step: number) {
@@ -137,17 +236,20 @@ export class WizardFlowComponent implements OnInit {
     this.currentQuotation = quotationData;
     this.quotationId = quotationData.id || quotationData.quotationId;
     this.quotationNumber = quotationData.quotationNumber;
-    this.userId = quotationData.userId; // Almacenar userId del usuario creado
+    this.userId = quotationData.userId;
+    
     console.log('📊 Datos guardados en wizard:');
     console.log('  - currentQuotation:', this.currentQuotation);
     console.log('  - quotationId:', this.quotationId);
     console.log('  - quotationNumber:', this.quotationNumber);
     console.log('  - userId:', this.userId);
+    
     this.wizardStateService.saveState({
       quotationId: this.quotationId,
       quotationNumber: this.quotationNumber,
       userId: this.userId
     });
+    
     this.setCurrentStep(2); // Ir al paso 2 (PAGO) con la cotización creada
     console.log('✅ Cotización creada, navegando al paso 2 (PAGO)');
   }
@@ -267,36 +369,11 @@ export class WizardFlowComponent implements OnInit {
   }
 
   /**
-   * Restaura el estado del wizard desde el almacenamiento
-   */
-  private restoreWizardState(): void {
-    if (this.wizardStateService.hasSavedState()) {
-      const savedState = this.wizardStateService.restoreWizard();
-      
-      // Restaurar datos del estado
-      this.currentStep = savedState.currentStep;
-      this.selectedPlan = savedState.selectedPlan;
-      this.quotationId = savedState.quotationId;
-      
-      console.log('Estado del wizard restaurado:', savedState);
-      
-      // Mostrar mensaje de continuar (opcional)
-      this.showContinueMessage();
-    }
-  }
-
-  /**
-   * Muestra mensaje para continuar el wizard
-   */
-  private showContinueMessage(): void {
-    this.showContinueModal = true;
-  }
-
-  /**
    * Maneja la decisión de continuar el wizard
    */
   onContinueWizard(): void {
     this.showContinueModal = false;
+    console.log('✅ Usuario decidió continuar el wizard');
     // El estado ya está restaurado en restoreWizardState()
   }
 
@@ -310,6 +387,19 @@ export class WizardFlowComponent implements OnInit {
     this.selectedPlan = null;
     this.currentQuotation = null;
     this.quotationId = null;
+    this.quotationNumber = '';
+    this.userId = null;
+    this.validationStatus = 'pending';
+    this.isStateRestored = false;
+    
+    console.log('🔄 Wizard reiniciado desde el principio');
+  }
+
+  /**
+   * Obtiene información del estado para debugging
+   */
+  getStateInfo(): any {
+    return this.wizardStateService.getStateInfo();
   }
 }
 
