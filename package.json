@@ -6,6 +6,7 @@
     "start": "ng serve",
     "build": "ng build",
     "build:ssr": "ng build && ng run portal-pji-project:server",
+    "build:ssr:production": "ng build --configuration production && ng run portal-pji-project:server",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "serve:ssr:portal-pji-project": "node dist/portal-pji-project/server/main.js"

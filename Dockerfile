@@ -8,7 +8,7 @@ RUN npm install --legacy-peer-deps
 
 # Copiar el resto del código y construir la app SSR
 COPY . .
-RUN npm run build:ssr
+RUN npm run build:ssr:production
 
 # Etapa 2: Imagen final para producción SSR
 FROM node:18-alpine
