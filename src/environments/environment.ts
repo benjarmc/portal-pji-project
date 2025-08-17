@@ -1,3 +1,4 @@
+// Environment de DESARROLLO - Este archivo se usa por defecto
 export const environment = {
     production: false,
     api: {
@@ -15,3 +16,10 @@ export const environment = {
         sandboxMode: true
     }
 };
+
+// Verificar que este environment se esté usando
+console.log('🔧 Environment de DESARROLLO cargado:', {
+    production: environment.production,
+    apiUrl: environment.api.baseUrl,
+    timestamp: new Date().toISOString()
+});

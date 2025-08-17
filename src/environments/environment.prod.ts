@@ -1,3 +1,4 @@
+// Environment de PRODUCCIÓN - Este archivo se usa cuando se ejecuta ng build --configuration production
 export const environment = {
     production: true,
     api: {
@@ -15,3 +16,10 @@ export const environment = {
         sandboxMode: true
     }
 };
+
+// Verificar que este environment se esté usando
+console.log('🚀 Environment de PRODUCCIÓN cargado:', {
+    production: environment.production,
+    apiUrl: environment.api.baseUrl,
+    timestamp: new Date().toISOString()
+});
