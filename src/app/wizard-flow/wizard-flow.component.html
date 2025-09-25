@@ -67,16 +67,27 @@
     <!-- Validation Step -->
     <div *ngIf="getCurrentStepKey() === 'validation'">
       <app-validation-step
+        *ngIf="currentStep === 3"
         [validationStatus]="validationStatus"
-        (next)="nextStep()"
+        (next)="setCurrentStep(4)"
         (selectPlan)="onValidationSelectPlan($event)"
         (goToStart)="onValidationGoToStart()"
       ></app-validation-step>
     </div>
 
+    <!-- Data Entry Step -->
+    <div *ngIf="getCurrentStepKey() === 'data-entry'">
+      <app-data-entry-step
+        *ngIf="currentStep === 4"
+        (next)="onDataEntryCompleted()"
+        (previous)="setCurrentStep(3)">
+      </app-data-entry-step>
+    </div>
+
     <!-- Contract Step -->
     <div *ngIf="getCurrentStepKey() === 'contract'">
       <app-contract-step
+        *ngIf="currentStep === 5"
         (next)="nextStep()"
         (previous)="prevStep()"
       ></app-contract-step>
@@ -85,35 +96,13 @@
     <!-- Finish Step -->
     <div *ngIf="getCurrentStepKey() === 'finish'">
       <app-finish-step
-        *ngIf="currentStep === 5"
+        *ngIf="currentStep === 6"
         [quotationSentByEmail]="quotationSentByEmail"
         [quotationNumber]="quotationNumber"
         (goToStart)="setCurrentStep(0)">
       </app-finish-step>
     </div>
   </div>
-
-  <!-- Navegación del wizard -->
-  <div class="wizard-navigation" *ngIf="currentStep > 0">
-    <button 
-      *ngIf="canGoBack" 
-      class="btn btn-outline-secondary" 
-      (click)="prevStep()">
-      <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="15,18 9,12 15,6"/>
-      </svg>
-      Anterior
-    </button>
-    
-    <div class="step-indicator">
-      Paso {{ currentStep + 1 }} de {{ steps.length }}
-    </div>
-  </div>
-
-  <wizard-footer
-    [currentStep]="currentStep"
-    [totalSteps]="steps.length"
-  ></wizard-footer>
 
   <!-- Modal para continuar wizard -->
   <app-continue-wizard-modal

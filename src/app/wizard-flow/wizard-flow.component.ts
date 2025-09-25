@@ -2,10 +2,9 @@ import { Component, OnInit, HostListener } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { FormGroup } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-
-import { WizardFooterComponent } from '../wizard-footer/wizard-footer.component';
 import { WelcomeStepComponent } from './steps/welcome-step/welcome-step.component';
 import { MainDataStepComponent } from './steps/main-data-step/main-data-step.component';
+import { DataEntryStepComponent } from './steps/data-entry-step/data-entry-step.component';
 import { PaymentStepComponent } from './steps/payment-step/payment-step.component';
 import { ValidationStepComponent } from './steps/validation-step/validation-step.component';
 import { ContractStepComponent } from './steps/contract-step/contract-step.component';
@@ -19,9 +18,9 @@ import { ContinueWizardModalComponent } from '../components/continue-wizard-moda
   standalone: true,
   imports: [
     CommonModule,
-    WizardFooterComponent,
     WelcomeStepComponent,
     MainDataStepComponent,
+    DataEntryStepComponent,
     PaymentStepComponent,
     ValidationStepComponent,
     ContractStepComponent,
@@ -32,31 +31,39 @@ import { ContinueWizardModalComponent } from '../components/continue-wizard-moda
   styleUrls: ['./wizard-flow.component.scss']
 })
 export class WizardFlowComponent implements OnInit {
+  // Propiedades del wizard
   currentStep = 0;
-  selectedPlan: string | null = null;
-  mainDataFormData: FormGroup | null = null;
+  selectedPlan = '';
+  quotationId = '';
+  quotationNumber = '';
+  userId = '';
+  currentQuotation: any = null;
+  quotationSentByEmail = false;
+  isStateRestored = false;
   showContinueModal = false;
+  canGoBack = true;
 
   // Datos de la cotización
-  currentQuotation: any = null;
-  quotationId: string | null = null;
-  userId: string | null = null;
+  // currentQuotation: any = null;
+  // quotationId: string | null = null;
+  // userId: string | null = null;
 
   steps = [
     { key: 'welcome', label: 'Bienvenida' },
     { key: 'main-data', label: 'Datos principales' },
     { key: 'payment', label: 'Pago' },
     { key: 'validation', label: 'Validación' },
+    { key: 'data-entry', label: 'Captura de datos' },
     { key: 'contract', label: 'Contrato' },
     { key: 'finish', label: 'Final' }
   ];
 
   validationStatus: 'pending' | 'success' | 'intermediate' | 'failed' = 'pending';
-  quotationSentByEmail: boolean = false;
-  quotationNumber: string = '';
+  // quotationSentByEmail: boolean = false;
+  // quotationNumber: string = '';
   isFromQuotationUrl: boolean = false;
-  canGoBack: boolean = true;
-  isStateRestored = false; // Flag para controlar si el estado ya fue restaurado
+  // canGoBack: boolean = true;
+  // isStateRestored = false; // Flag para controlar si el estado ya fue restaurado
 
   constructor(
     private route: ActivatedRoute,
@@ -65,9 +72,6 @@ export class WizardFlowComponent implements OnInit {
   ) {}
 
   ngOnInit() {
-    // Limpiar estados expirados al iniciar
-    this.wizardStateService.cleanupExpiredStates();
-    
     // Verificar si llegamos desde URL del cotizador
     this.handleUrlParameters();
     
@@ -159,25 +163,21 @@ export class WizardFlowComponent implements OnInit {
     }
 
     if (this.wizardStateService.hasSavedState()) {
-      const savedState = this.wizardStateService.restoreWizard();
+      const savedState = this.wizardStateService.getState();
       
       // Restaurar datos del estado
       this.currentStep = savedState.currentStep;
-      this.selectedPlan = savedState.selectedPlan;
-      this.quotationId = savedState.quotationId;
+      this.selectedPlan = savedState.selectedPlan || '';
+      this.quotationId = savedState.quotationId || '';
       this.quotationNumber = savedState.quotationNumber || '';
-      this.userId = savedState.userId;
-      
-      // Restaurar estado de validación si existe
-      if (savedState.validationRequirements) {
-        this.validationStatus = this.calculateValidationStatus(savedState.validationRequirements);
-      }
+      this.userId = savedState.userId || '';
       
       console.log('🔄 Estado del wizard restaurado:', {
         step: this.currentStep,
         plan: this.selectedPlan,
         quotation: this.quotationId,
-        user: this.userId
+        user: this.userId,
+        transactionId: savedState.transactionId
       });
       
       this.isStateRestored = true;
@@ -234,9 +234,9 @@ export class WizardFlowComponent implements OnInit {
   onNextAndPay(quotationData: any) {
     console.log('💰 onNextAndPay llamado con datos:', quotationData);
     this.currentQuotation = quotationData;
-    this.quotationId = quotationData.id || quotationData.quotationId;
-    this.quotationNumber = quotationData.quotationNumber;
-    this.userId = quotationData.userId;
+    this.quotationId = quotationData.id || quotationData.quotationId || '';
+    this.quotationNumber = quotationData.quotationNumber || '';
+    this.userId = quotationData.userId || '';
     
     console.log('📊 Datos guardados en wizard:');
     console.log('  - currentQuotation:', this.currentQuotation);
@@ -250,25 +250,58 @@ export class WizardFlowComponent implements OnInit {
       userId: this.userId
     });
     
-    this.setCurrentStep(2); // Ir al paso 2 (PAGO) con la cotización creada
-    console.log('✅ Cotización creada, navegando al paso 2 (PAGO)');
+    this.setCurrentStep(2); // Ir al paso 2 (PAYMENT) con la cotización creada
+    console.log('✅ Cotización creada, navegando al paso 2 (PAYMENT)');
+  }
+
+  onDataEntryCompleted() {
+    console.log('📝 Captura de datos completada, navegando al contrato');
+    this.setCurrentStep(5); // Ir al paso 5 (CONTRACT)
   }
 
   // Nuevo método para cuando se completa el pago
   onPaymentCompleted(paymentResult: any) {
     console.log('💰 onPaymentCompleted llamado con resultado:', paymentResult);
     
-    if (paymentResult) {
-      // Guardar información del pago en el estado del wizard
+    if (paymentResult && paymentResult.success) {
+      // Guardar información completa del pago en el estado del wizard
       this.wizardStateService.saveState({
-        paymentResult: paymentResult
+        paymentResult: paymentResult,
+        currentStep: 3, // Marcar que estamos en el paso de validación
+        policyId: paymentResult.policyId,
+        policyNumber: paymentResult.policyNumber
       });
-      console.log('✅ Información del pago guardada en el estado del wizard');
+      
+      console.log('✅ Información del pago guardada en el estado del wizard:', {
+        paymentId: paymentResult.paymentId,
+        policyId: paymentResult.policyId,
+        policyNumber: paymentResult.policyNumber,
+        status: paymentResult.status
+      });
+      
+      // Marcar el paso de pago como completado
+      this.wizardStateService.completeStep(2);
+      console.log('✅ Paso de pago marcado como completado');
+      
+      // Avanzar al siguiente paso (validación)
+      this.setCurrentStep(3);
+      console.log('✅ Pago completado exitosamente, navegando al paso 3 (VALIDACIÓN)');
+      
+      // Log del estado actual para debugging
+      const currentState = this.wizardStateService.getState();
+      console.log('📊 Estado del wizard después del pago:', {
+        currentStep: currentState.currentStep,
+        completedSteps: currentState.completedSteps,
+        transactionId: currentState.transactionId,
+        policyId: currentState.policyId,
+        policyNumber: currentState.policyNumber
+      });
+      
+    } else {
+      console.warn('⚠️ onPaymentCompleted llamado sin resultado exitoso:', paymentResult);
+      // Si no hay resultado exitoso, mantener en el paso de pago
+      this.setCurrentStep(2);
     }
-    
-    // Avanzar al siguiente paso (validación)
-    this.setCurrentStep(3);
-    console.log('✅ Pago completado, navegando al paso 3 (VALIDACIÓN)');
   }
 
   simulateValidation() {
@@ -316,8 +349,6 @@ export class WizardFlowComponent implements OnInit {
     console.log('onMainDataNext llamado en WizardFlowComponent');
     console.log('Form data recibido:', formData.value);
     
-    this.mainDataFormData = formData;
-    
     // Extraer ID de cotización del formulario
     const quotationId = formData.get('quotationId')?.value;
     if (quotationId) {
@@ -350,9 +381,8 @@ export class WizardFlowComponent implements OnInit {
   onFinishGoToStart() {
     this.goToStep(0);
     this.validationStatus = 'pending';
-    this.mainDataFormData = null;
     this.currentQuotation = null;
-    this.quotationId = null;
+    this.quotationId = '';
     
     // Limpiar estado del wizard
     this.wizardStateService.clearState();
@@ -380,19 +410,25 @@ export class WizardFlowComponent implements OnInit {
   /**
    * Maneja la decisión de reiniciar el wizard
    */
-  onRestartWizard(): void {
-    this.showContinueModal = false;
-    this.wizardStateService.clearState();
-    this.currentStep = 0;
-    this.selectedPlan = null;
-    this.currentQuotation = null;
-    this.quotationId = null;
-    this.quotationNumber = '';
-    this.userId = null;
-    this.validationStatus = 'pending';
-    this.isStateRestored = false;
+  onRestartWizard() {
+    console.log('🔄 Reiniciando wizard...');
     
-    console.log('🔄 Wizard reiniciado desde el principio');
+    // Limpiar estado del wizard
+    this.wizardStateService.clearState();
+    
+    // Resetear propiedades del componente
+    this.currentStep = 0;
+    this.selectedPlan = '';
+    this.quotationId = '';
+    this.quotationNumber = '';
+    this.userId = '';
+    this.currentQuotation = null;
+    this.validationStatus = 'pending';
+    this.quotationSentByEmail = false;
+    this.isStateRestored = false;
+    this.showContinueModal = false;
+    
+    console.log('✅ Wizard reiniciado');
   }
 
   /**

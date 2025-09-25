@@ -6,7 +6,7 @@ export interface Quotation {
     name: string;
     email: string;
     phone: string;
-    postalCode: string;
+    rentaMensual: number;
   };
   propertyData: {
     address: string;
@@ -34,7 +34,7 @@ export interface CreateQuotationDto {
     name: string;
     email: string;
     phone: string;
-    postalCode: string;
+    rentaMensual: number;
   };
   propertyData: {
     address: string;

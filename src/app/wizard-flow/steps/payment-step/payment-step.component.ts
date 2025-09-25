@@ -288,57 +288,48 @@ export class PaymentStepComponent implements OnInit {
         description: `Pago de póliza: ${this.selectedPlan}`
       };
 
-      console.log('💰 Datos de pago preparados:', {
-        quotationId: paymentData.quotationId,
-        amount: paymentData.amount,
-        currency: paymentData.currency,
-        description: paymentData.description,
-        userId: this.userId
-      });
-
       // Procesar pago usando el servicio
       this.paymentsService.processPayment(paymentData, this.userId).subscribe({
         next: (response) => {
-          console.log('💰 Respuesta del pago recibida:', response);
-          console.log('💰 Tipo de respuesta:', typeof response);
-          console.log('💰 Estructura de respuesta:', JSON.stringify(response, null, 2));
+          console.log('💰 Procesando respuesta del pago...');
           
           // Verificar si la respuesta es exitosa (puede venir en response.success o response.data.success)
           const isSuccess = response.success || (response.data && response.data?.success);
-          console.log('💰 isSuccess calculado:', isSuccess);
           
           if (isSuccess) {
             // Obtener el mensaje de éxito de la respuesta o usar uno por defecto
             const successMessage = response.data?.message || response.message || '¡Pago procesado exitosamente!';
             this.paymentSuccess = successMessage;
             
-            console.log('✅ Pago exitoso:', response.data || response);
-            console.log('✅ Mensaje de éxito:', successMessage);
+            console.log('✅ Pago procesado exitosamente');
             
             // Limpiar formulario
             this.resetForm();
             
             // Guardar información del pago en el estado del wizard
+            const responseData = response as any; // Usar any para evitar errores de TypeScript
             const paymentResult = {
               success: true,
-              paymentId: response.data?.paymentId || response.data?.id,
-              chargeId: response.data?.chargeId || 'N/A',
-              policyId: response.data?.policyId || 'N/A',
-              policyNumber: response.data?.policyNumber || 'N/A',
-              status: response.data?.status || 'COMPLETED',
-              message: response.data?.message || response.message || 'Pago procesado exitosamente'
+              paymentId: responseData.paymentId || responseData.data?.paymentId || responseData.data?.id,
+              chargeId: responseData.chargeId || responseData.data?.chargeId || 'N/A',
+              policyId: responseData.policyId || responseData.data?.policyId || 'N/A',
+              policyNumber: responseData.policyNumber || responseData.data?.policyNumber || 'N/A',
+              status: responseData.status || responseData.data?.status || 'COMPLETED',
+              message: responseData.message || responseData.data?.message || 'Pago procesado exitosamente'
             };
             
-            console.log('💰 Información del pago a guardar:', paymentResult);
-            
-            // Mostrar mensaje de éxito y esperar antes de avanzar
-            console.log('🚀 Pago exitoso, mostrando mensaje antes de avanzar');
+            // Guardar información del pago en el estado del wizard
+            this.wizardStateService.saveState({
+              paymentResult: paymentResult,
+              policyId: paymentResult.policyId,
+              policyNumber: paymentResult.policyNumber,
+              transactionId: paymentResult.paymentId,
+              paymentAmount: this.quotationAmount
+            });
             
             // Esperar 3 segundos para que el usuario vea el mensaje
             setTimeout(() => {
-              console.log('⏰ Tiempo de espera completado, avanzando al siguiente paso');
               this.next.emit(paymentResult);
-              console.log('✅ Evento next emitido con datos del pago');
             }, 3000);
           } else {
             const errorMessage = response.message || response.data?.message || 'Error procesando el pago';

@@ -1,0 +1,294 @@
+.data-entry-step {
+  padding: 1rem 0;
+  
+  h2 {
+    color: #1D4C2C;
+    margin-bottom: 1rem;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 700;
+  }
+  
+  .text-muted {
+    color: #6c757d;
+    margin-bottom: 2rem;
+  }
+  
+  // Navegación por tabs
+  .nav-tabs {
+    border-bottom: 2px solid #A8CF41;
+    margin-bottom: 2rem;
+    
+    .nav-item {
+      margin-bottom: -2px;
+      
+      .nav-link {
+        color: #1D4C2C;
+        border: none;
+        border-bottom: 2px solid transparent;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        
+        &:hover {
+          color: #A8CF41;
+          border-bottom-color: #A8CF41;
+        }
+        
+        &.active {
+          color: #A8CF41;
+          border-bottom-color: #A8CF41;
+          background-color: transparent;
+        }
+      }
+    }
+  }
+  
+  // Contenido de los tabs
+  .tab-content {
+    background-color: #ffffff;
+    border-radius: 0.5rem;
+    padding: 2rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    
+    .tab-pane {
+      &.active {
+        display: block;
+      }
+      
+      h5 {
+        color: #1D4C2C;
+        margin-bottom: 1.5rem;
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        border-bottom: 2px solid #A8CF41;
+        padding-bottom: 0.5rem;
+      }
+    }
+  }
+  
+  // Formularios
+  .form-label {
+    color: #333;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    
+    &::after {
+      content: ' *';
+      color: #dc3545;
+    }
+    
+    &:not([for*="telefono"]):not([for*="celular"]):not([for*="edificio"]):not([for*="canal"]):not([for*="estadoCivil"]):not([for*="empresa"]):not([for*="relacion"]):not([for*="regimen"]):not([for*="conyuge"]):not([for*="entreCalle"]):not([for*="yCalle"]):not([for*="escritura"]):not([for*="numeroEscritura"]):not([for*="fechaEscritura"]):not([for*="numeroNotario"]):not([for*="ciudadNotario"]):not([for*="nombreNotario"]):not([for*="datosRegistrales"]):not([for*="fechaRegistro"]):not([for*="interior"]):not([for*="giroComercial"]):not([for*="mantenimientoMonto"]) {
+      &::after {
+        content: '';
+      }
+    }
+  }
+  
+  .form-control,
+  .form-select {
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    transition: all 0.3s ease;
+    
+    &:focus {
+      border-color: #A8CF41;
+      box-shadow: 0 0 0 0.2rem rgba(168, 207, 65, 0.25);
+    }
+    
+    &:invalid {
+      border-color: #dc3545;
+    }
+  }
+  
+  // Campos de archivo
+  .form-control[type="file"] {
+    padding: 0.5rem;
+    
+    &::-webkit-file-upload-button {
+      background-color: #A8CF41;
+      color: white;
+      border: none;
+      border-radius: 0.25rem;
+      padding: 0.5rem 1rem;
+      margin-right: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      
+      &:hover {
+        background-color: #9bc23a;
+      }
+    }
+  }
+  
+  // Botones de navegación
+  .btn-navigation {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    
+    .btn {
+      padding: 0.75rem 2rem;
+      font-weight: 600;
+      border-radius: 0.5rem;
+      transition: all 0.3s ease;
+      
+      &.btn-secondary {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        color: white;
+        
+        &:hover {
+          background-color: #5a6268;
+          border-color: #545b62;
+        }
+      }
+      
+      &.btn-accent {
+        background-color: #A8CF41;
+        border-color: #A8CF41;
+        color: white;
+        
+        &:hover {
+          background-color: #9bc23a;
+          border-color: #9bc23a;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+      }
+    }
+  }
+  
+  // Responsive
+  @media (max-width: 768px) {
+    padding: 0.5rem 0;
+    
+    .nav-tabs {
+      .nav-item {
+        .nav-link {
+          padding: 0.5rem 1rem;
+          font-size: 0.9rem;
+        }
+      }
+    }
+    
+    .tab-content {
+      padding: 1rem;
+      
+      .row {
+        margin-bottom: 1rem;
+      }
+    }
+    
+    .btn-navigation {
+      flex-direction: column;
+      gap: 1rem;
+      
+      .btn {
+        width: 100%;
+      }
+    }
+  }
+  
+  // Estados de validación
+  .form-control.is-valid {
+    border-color: #28a745;
+  }
+  
+  .form-control.is-invalid {
+    border-color: #dc3545;
+  }
+  
+  .invalid-feedback {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+  }
+  
+  .valid-feedback {
+    color: #28a745;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+  }
+
+  // Estilos para indicador de estado de guardado
+  .save-status {
+    margin-top: 1rem;
+    
+    .alert {
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      border: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 500;
+      
+      &.alert-info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+      }
+      
+      &.alert-success {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      
+      &.alert-danger {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      
+      i {
+        font-size: 1.1rem;
+      }
+    }
+  }
+
+  // Estilos para inputs de archivos
+  .file-input-group {
+    position: relative;
+    
+    input[type="file"] {
+      padding: 0.5rem;
+      border: 2px dashed #A8CF41;
+      background-color: #f8f9fa;
+      transition: all 0.3s ease;
+      
+      &:hover {
+        border-color: #1D4C2C;
+        background-color: #e8f5e8;
+      }
+      
+      &:focus {
+        border-color: #1D4C2C;
+        box-shadow: 0 0 0 0.2rem rgba(29, 76, 44, 0.25);
+        background-color: #e8f5e8;
+      }
+    }
+    
+    .file-info {
+      margin-top: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      
+      small {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-weight: 500;
+      }
+      
+      .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        
+        &:hover {
+          transform: scale(1.05);
+        }
+      }
+    }
+  }
+}

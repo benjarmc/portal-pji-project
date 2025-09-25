@@ -1,21 +1,9 @@
 <div class="welcome-step">
   <h1 class="welcome-title">Bienvenida al cotizador.</h1>
   
-  <!-- Mostrar tipo de usuario si ya está seleccionado -->
-  <div class="user-type-info" *ngIf="hasUserType">
-    <div class="user-type-badge">
-      <span class="badge-label">Tipo de Usuario:</span>
-      <span class="badge-value">{{ getTipoUsuarioLabel(tipoUsuario!) }}</span>
-    </div>
-  </div>
   
   <p class="welcome-description">
-    <span *ngIf="!hasUserType">
-      Para comenzar con tu cotización, primero necesitas seleccionar tu tipo de usuario.
-    </span>
-    <span *ngIf="hasUserType">
-      ¡Perfecto! Ya tienes configurado tu tipo de usuario. Puedes continuar con tu cotización o modificar tu selección si es necesario.
-    </span>
+    Para comenzar con tu cotización, primero necesitas seleccionar tu tipo de usuario.
   </p>
   
   <!-- Formulario de selección de tipo de usuario -->
@@ -23,18 +11,47 @@
     <div class="form-section">
       <h3>Tipo de Usuario</h3>
       <div class="form-group">
-        <label for="tipoUsuario">¿Qué tipo de usuario eres? *</label>
-        <select 
-          id="tipoUsuario" 
-          formControlName="tipoUsuario" 
-          class="form-control"
-          [class.is-invalid]="welcomeForm.get('tipoUsuario')?.invalid && welcomeForm.get('tipoUsuario')?.touched"
-        >
-          <option value="">Selecciona tu tipo de usuario</option>
-          <option value="arrendador">Arrendador (Dueño del inmueble)</option>
-          <option value="arrendatario">Arrendatario (Inquilino)</option>
-          <option value="asesor">Asesor Inmobiliario</option>
-        </select>
+        <label>¿Qué tipo de usuario eres? *</label>
+        <div class="user-type-buttons">
+          <button 
+            type="button"
+            class="user-type-btn"
+            [class.selected]="welcomeForm.get('tipoUsuario')?.value === 'arrendador'"
+            (click)="selectUserType('arrendador')"
+          >
+            <div class="btn-icon">🏠</div>
+            <div class="btn-content">
+              <div class="btn-title">Arrendador</div>
+              <div class="btn-subtitle">Dueño del inmueble</div>
+            </div>
+          </button>
+          
+          <button 
+            type="button"
+            class="user-type-btn"
+            [class.selected]="welcomeForm.get('tipoUsuario')?.value === 'arrendatario'"
+            (click)="selectUserType('arrendatario')"
+          >
+            <div class="btn-icon">🔑</div>
+            <div class="btn-content">
+              <div class="btn-title">Arrendatario</div>
+              <div class="btn-subtitle">Inquilino</div>
+            </div>
+          </button>
+          
+          <button 
+            type="button"
+            class="user-type-btn"
+            [class.selected]="welcomeForm.get('tipoUsuario')?.value === 'asesor'"
+            (click)="selectUserType('asesor')"
+          >
+            <div class="btn-icon">👨‍💼</div>
+            <div class="btn-content">
+              <div class="btn-title">Asesor Inmobiliario</div>
+              <div class="btn-subtitle">Profesional del sector</div>
+            </div>
+          </button>
+        </div>
         <div class="error-message" *ngIf="welcomeForm.get('tipoUsuario')?.invalid && welcomeForm.get('tipoUsuario')?.touched">
           Debes seleccionar tu tipo de usuario
         </div>
@@ -47,8 +64,7 @@
     (click)="onNext()"
     [disabled]="welcomeForm.invalid"
   >
-    <span *ngIf="!hasUserType">Continuar</span>
-    <span *ngIf="hasUserType">Continuar Cotización</span>
+    Continuar
     <svg class="arrow-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <line x1="5" y1="12" x2="19" y2="12"></line>
       <polyline points="12,5 19,12 12,19"></polyline>

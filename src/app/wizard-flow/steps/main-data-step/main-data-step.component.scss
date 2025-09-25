@@ -1,8 +1,10 @@
+@use "sass:color" as c;
+
 // Variables de colores
-$primary-green: #A8CF41;
-$dark-green: #1D4C2C;
-$white: #FFFFFF;
-$light-gray: #F5F5F5;
+$primary-green: #A8CF41;  // Verde principal PJI
+$dark-green: #1D4C2C;    // Verde oscuro PJI
+$white: #FFFFFF;         // Blanco PJI
+$light-gray: #F9F9F9;    // Gris claro PJI
 $border-gray: #E0E0E0;
 $text-dark: #333333;
 $text-light: #666666;
@@ -254,7 +256,7 @@ $success-green: #27AE60;
     color: $white;
 
     &:hover:not(:disabled) {
-      background-color: darken($primary-green, 10%);
+      background-color: c.adjust($primary-green, $lightness: -10%);
       transform: translateY(-1px);
     }
   }

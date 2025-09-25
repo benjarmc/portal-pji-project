@@ -1,0 +1,761 @@
+<div class="data-entry-step">
+  <div class="step-header">
+    <h2>Captura de Datos del Contrato</h2>
+    <p class="text-muted">Complete la información requerida para generar el contrato de arrendamiento</p>
+    
+    <!-- Indicador de estado de guardado -->
+    <div class="save-status" *ngIf="saveStatus !== 'idle'">
+      <div class="alert" 
+           [class.alert-info]="saveStatus === 'saving'"
+           [class.alert-success]="saveStatus === 'saved'"
+           [class.alert-danger]="saveStatus === 'error'">
+        <i class="pi" 
+           [class.pi-spin]="saveStatus === 'saving'"
+           [class.pi-spinner]="saveStatus === 'saving'"
+           [class.pi-check-circle]="saveStatus === 'saved'"
+           [class.pi-times-circle]="saveStatus === 'error'"></i>
+        <span *ngIf="saveStatus === 'saving'">Guardando datos...</span>
+        <span *ngIf="saveStatus === 'saved'">Datos guardados exitosamente</span>
+        <span *ngIf="saveStatus === 'error'">Error al guardar datos</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs Navigation -->
+  <ul class="nav nav-tabs mb-4" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" 
+              [class.active]="activeTab === 'propietario'"
+              [class.text-success]="isTabValid('propietario')"
+              (click)="setActiveTab('propietario')"
+              type="button">
+        <i class="pi pi-user me-2"></i>
+        Propietario
+        <i class="pi pi-check-circle ms-2" *ngIf="isTabValid('propietario')"></i>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" 
+              [class.active]="activeTab === 'inquilino'"
+              [class.text-success]="isTabValid('inquilino')"
+              (click)="setActiveTab('inquilino')"
+              type="button">
+        <i class="pi pi-users me-2"></i>
+        Inquilino
+        <i class="pi pi-check-circle ms-2" *ngIf="isTabValid('inquilino')"></i>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" 
+              [class.active]="activeTab === 'fiador'"
+              [class.text-success]="isTabValid('fiador')"
+              (click)="setActiveTab('fiador')"
+              type="button">
+        <i class="pi pi-shield me-2"></i>
+        Fiador
+        <i class="pi pi-check-circle ms-2" *ngIf="isTabValid('fiador')"></i>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" 
+              [class.active]="activeTab === 'inmueble'"
+              [class.text-success]="isTabValid('inmueble')"
+              (click)="setActiveTab('inmueble')"
+              type="button">
+        <i class="pi pi-home me-2"></i>
+        Inmueble
+        <i class="pi pi-check-circle ms-2" *ngIf="isTabValid('inmueble')"></i>
+      </button>
+    </li>
+  </ul>
+
+  <!-- Tab Content -->
+  <div class="tab-content">
+    
+    <!-- Propietario Tab -->
+    <div class="tab-pane" [class.active]="activeTab === 'propietario'">
+      <form [formGroup]="propietarioForm" *ngIf="activeTab === 'propietario'">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Fecha Alta *</label>
+            <input type="date" class="form-control" formControlName="fechaAlta">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">CURP *</label>
+            <input type="text" class="form-control" formControlName="curp" 
+                   placeholder="ABCD123456HDFABC01" maxlength="18">
+            <div class="invalid-feedback" *ngIf="propietarioForm.get('curp')?.invalid && propietarioForm.get('curp')?.touched">
+              CURP inválido
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Tipo de Persona *</label>
+            <select class="form-select" formControlName="tipoPersona">
+              <option value="fisica">Persona Física</option>
+              <option value="moral">Persona Moral</option>
+            </select>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Nombre del Propietario *</label>
+            <input type="text" class="form-control" formControlName="nombre" placeholder="Nombre completo">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Teléfono</label>
+            <input type="tel" class="form-control" formControlName="telefono" placeholder="(55) 1234-5678">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Celular</label>
+            <input type="tel" class="form-control" formControlName="celular" placeholder="(55) 1234-5678">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Estado Civil</label>
+            <select class="form-select" formControlName="estadoCivil">
+              <option value="">Seleccionar...</option>
+              <option value="soltero">Soltero(a)</option>
+              <option value="casado">Casado(a)</option>
+              <option value="divorciado">Divorciado(a)</option>
+              <option value="viudo">Viudo(a)</option>
+              <option value="union_libre">Unión Libre</option>
+            </select>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Canal</label>
+            <input type="text" class="form-control" formControlName="canal" placeholder="Canal de contacto">
+          </div>
+        </div>
+
+        <h5 class="mt-4 mb-3">Domicilio del Propietario</h5>
+        <div class="row">
+          <div class="col-md-8 mb-3">
+            <label class="form-label">Calle *</label>
+            <input type="text" class="form-control" formControlName="calle" placeholder="Nombre de la calle">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">No. Exterior *</label>
+            <input type="text" class="form-control" formControlName="numeroExterior" placeholder="123">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label class="form-label">Edificio</label>
+            <input type="text" class="form-control" formControlName="edificio" placeholder="Edificio">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">CP *</label>
+            <input type="text" class="form-control" formControlName="cp" placeholder="12345" maxlength="5">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">Colonia *</label>
+            <input type="text" class="form-control" formControlName="colonia" placeholder="Colonia">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Alcaldía o Municipio *</label>
+            <input type="text" class="form-control" formControlName="alcaldiaMunicipio" placeholder="Alcaldía/Municipio">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Estado *</label>
+            <input type="text" class="form-control" formControlName="estado" placeholder="Estado">
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Inquilino Tab -->
+    <div class="tab-pane" [class.active]="activeTab === 'inquilino'">
+      <form [formGroup]="inquilinoForm" *ngIf="activeTab === 'inquilino'">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Fecha Alta *</label>
+            <input type="date" class="form-control" formControlName="fechaAlta">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">CURP *</label>
+            <input type="text" class="form-control" formControlName="curp" 
+                   placeholder="ABCD123456HDFABC01" maxlength="18">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Tipo de Persona *</label>
+            <select class="form-select" formControlName="tipoPersona">
+              <option value="fisica">Persona Física</option>
+              <option value="moral">Persona Moral</option>
+            </select>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Nombre del Inquilino *</label>
+            <input type="text" class="form-control" formControlName="nombre" placeholder="Nombre completo">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Teléfono</label>
+            <input type="tel" class="form-control" formControlName="telefono" placeholder="(55) 1234-5678">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Celular</label>
+            <input type="tel" class="form-control" formControlName="celular" placeholder="(55) 1234-5678">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Estado Civil</label>
+            <select class="form-select" formControlName="estadoCivil">
+              <option value="">Seleccionar...</option>
+              <option value="soltero">Soltero(a)</option>
+              <option value="casado">Casado(a)</option>
+              <option value="divorciado">Divorciado(a)</option>
+              <option value="viudo">Viudo(a)</option>
+              <option value="union_libre">Unión Libre</option>
+            </select>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Canal</label>
+            <input type="text" class="form-control" formControlName="canal" placeholder="Canal de contacto">
+          </div>
+        </div>
+
+        <h5 class="mt-4 mb-3">Domicilio del Inquilino</h5>
+        <div class="row">
+          <div class="col-md-8 mb-3">
+            <label class="form-label">Calle *</label>
+            <input type="text" class="form-control" formControlName="calle" placeholder="Nombre de la calle">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">No. Exterior *</label>
+            <input type="text" class="form-control" formControlName="numeroExterior" placeholder="123">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label class="form-label">Edificio</label>
+            <input type="text" class="form-control" formControlName="edificio" placeholder="Edificio">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">CP *</label>
+            <input type="text" class="form-control" formControlName="cp" placeholder="12345" maxlength="5">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">Colonia *</label>
+            <input type="text" class="form-control" formControlName="colonia" placeholder="Colonia">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Alcaldía o Municipio *</label>
+            <input type="text" class="form-control" formControlName="alcaldiaMunicipio" placeholder="Alcaldía/Municipio">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Estado *</label>
+            <input type="text" class="form-control" formControlName="estado" placeholder="Estado">
+          </div>
+        </div>
+
+        <h5 class="mt-4 mb-3">Documentación del Inquilino</h5>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">INE</label>
+            <div class="file-input-group">
+              <input type="file" 
+                     class="form-control" 
+                     accept="image/*,application/pdf"
+                     (change)="onFileSelected($event, 'ine', 'inquilino')">
+              <div class="file-info" *ngIf="getFileName('ine', 'inquilino') !== 'Ningún archivo seleccionado'">
+                <small class="text-success">
+                  <i class="pi pi-file"></i> {{ getFileName('ine', 'inquilino') }}
+                </small>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-2" 
+                        (click)="clearFile('ine', 'inquilino')">
+                  <i class="pi pi-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Pasaporte</label>
+            <div class="file-input-group">
+              <input type="file" 
+                     class="form-control" 
+                     accept="image/*,application/pdf"
+                     (change)="onFileSelected($event, 'pasaporte', 'inquilino')">
+              <div class="file-info" *ngIf="getFileName('pasaporte', 'inquilino') !== 'Ningún archivo seleccionado'">
+                <small class="text-success">
+                  <i class="pi pi-file"></i> {{ getFileName('pasaporte', 'inquilino') }}
+                </small>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-2" 
+                        (click)="clearFile('pasaporte', 'inquilino')">
+                  <i class="pi pi-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Comprobante de Domicilio</label>
+            <div class="file-input-group">
+              <input type="file" 
+                     class="form-control" 
+                     accept="image/*,application/pdf"
+                     (change)="onFileSelected($event, 'comprobanteDomicilio', 'inquilino')">
+              <div class="file-info" *ngIf="getFileName('comprobanteDomicilio', 'inquilino') !== 'Ningún archivo seleccionado'">
+                <small class="text-success">
+                  <i class="pi pi-file"></i> {{ getFileName('comprobanteDomicilio', 'inquilino') }}
+                </small>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-2" 
+                        (click)="clearFile('comprobanteDomicilio', 'inquilino')">
+                  <i class="pi pi-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Comprobante de Ingresos</label>
+            <div class="file-input-group">
+              <input type="file" 
+                     class="form-control" 
+                     accept="image/*,application/pdf"
+                     (change)="onFileSelected($event, 'comprobanteIngresos', 'inquilino')">
+              <div class="file-info" *ngIf="getFileName('comprobanteIngresos', 'inquilino') !== 'Ningún archivo seleccionado'">
+                <small class="text-success">
+                  <i class="pi pi-file"></i> {{ getFileName('comprobanteIngresos', 'inquilino') }}
+                </small>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-2" 
+                        (click)="clearFile('comprobanteIngresos', 'inquilino')">
+                  <i class="pi pi-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Comprobante de Domicilio (Imagen)</label>
+            <div class="file-input-group">
+              <input type="file" 
+                     class="form-control" 
+                     accept="image/*"
+                     (change)="onFileSelected($event, 'comprobanteDomicilioImagen', 'inquilino')">
+              <div class="file-info" *ngIf="getFileName('comprobanteDomicilioImagen', 'inquilino') !== 'Ningún archivo seleccionado'">
+                <small class="text-success">
+                  <i class="pi pi-file"></i> {{ getFileName('comprobanteDomicilioImagen', 'inquilino') }}
+                </small>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-2" 
+                        (click)="clearFile('comprobanteDomicilioImagen', 'inquilino')">
+                  <i class="pi pi-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Comprobante de Ingresos 2</label>
+            <div class="file-input-group">
+              <input type="file" 
+                     class="form-control" 
+                     accept="image/*,application/pdf"
+                     (change)="onFileSelected($event, 'comprobanteIngresos2', 'inquilino')">
+              <div class="file-info" *ngIf="getFileName('comprobanteIngresos2', 'inquilino') !== 'Ningún archivo seleccionado'">
+                <small class="text-success">
+                  <i class="pi pi-file"></i> {{ getFileName('comprobanteIngresos2', 'inquilino') }}
+                </small>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-2" 
+                        (click)="clearFile('comprobanteIngresos2', 'inquilino')">
+                  <i class="pi pi-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Fiador Tab -->
+    <div class="tab-pane" [class.active]="activeTab === 'fiador'">
+      <form [formGroup]="fiadorForm" *ngIf="activeTab === 'fiador'">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Fecha Alta *</label>
+            <input type="date" class="form-control" formControlName="fechaAlta">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">CURP *</label>
+            <input type="text" class="form-control" formControlName="curp" 
+                   placeholder="ABCD123456HDFABC01" maxlength="18">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Tipo de Persona *</label>
+            <select class="form-select" formControlName="tipoPersona">
+              <option value="fisica">Persona Física</option>
+              <option value="moral">Persona Moral</option>
+            </select>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Nombre del Fiador *</label>
+            <input type="text" class="form-control" formControlName="nombre" placeholder="Nombre completo">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Teléfono</label>
+            <input type="tel" class="form-control" formControlName="telefono" placeholder="(55) 1234-5678">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Celular</label>
+            <input type="tel" class="form-control" formControlName="celular" placeholder="(55) 1234-5678">
+          </div>
+        </div>
+
+        <h5 class="mt-4 mb-3">Domicilio del Fiador</h5>
+        <div class="row">
+          <div class="col-md-8 mb-3">
+            <label class="form-label">Calle *</label>
+            <input type="text" class="form-control" formControlName="calle" placeholder="Nombre de la calle">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">No. Exterior *</label>
+            <input type="text" class="form-control" formControlName="numeroExterior" placeholder="123">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label class="form-label">Edificio</label>
+            <input type="text" class="form-control" formControlName="edificio" placeholder="Edificio">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">CP *</label>
+            <input type="text" class="form-control" formControlName="cp" placeholder="12345" maxlength="5">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">Colonia *</label>
+            <input type="text" class="form-control" formControlName="colonia" placeholder="Colonia">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Alcaldía o Municipio *</label>
+            <input type="text" class="form-control" formControlName="alcaldiaMunicipio" placeholder="Alcaldía/Municipio">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Estado *</label>
+            <input type="text" class="form-control" formControlName="estado" placeholder="Estado">
+          </div>
+        </div>
+
+        <h5 class="mt-4 mb-3">Documentación del Fiador</h5>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">INE</label>
+            <div class="file-input-group">
+              <input type="file" 
+                     class="form-control" 
+                     accept="image/*,application/pdf"
+                     (change)="onFileSelected($event, 'ine', 'fiador')">
+              <div class="file-info" *ngIf="getFileName('ine', 'fiador') !== 'Ningún archivo seleccionado'">
+                <small class="text-success">
+                  <i class="pi pi-file"></i> {{ getFileName('ine', 'fiador') }}
+                </small>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-2" 
+                        (click)="clearFile('ine', 'fiador')">
+                  <i class="pi pi-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Escrituras</label>
+            <div class="file-input-group">
+              <input type="file" 
+                     class="form-control" 
+                     accept="image/*,application/pdf"
+                     (change)="onFileSelected($event, 'escrituras', 'fiador')">
+              <div class="file-info" *ngIf="getFileName('escrituras', 'fiador') !== 'Ningún archivo seleccionado'">
+                <small class="text-success">
+                  <i class="pi pi-file"></i> {{ getFileName('escrituras', 'fiador') }}
+                </small>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-2" 
+                        (click)="clearFile('escrituras', 'fiador')">
+                  <i class="pi pi-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Acta de Matrimonio</label>
+            <div class="file-input-group">
+              <input type="file" 
+                     class="form-control" 
+                     accept="image/*,application/pdf"
+                     (change)="onFileSelected($event, 'actaMatrimonio', 'fiador')">
+              <div class="file-info" *ngIf="getFileName('actaMatrimonio', 'fiador') !== 'Ningún archivo seleccionado'">
+                <small class="text-success">
+                  <i class="pi pi-file"></i> {{ getFileName('actaMatrimonio', 'fiador') }}
+                </small>
+                <button type="button" class="btn btn-sm btn-outline-danger ms-2" 
+                        (click)="clearFile('actaMatrimonio', 'fiador')">
+                  <i class="pi pi-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Empresa donde Labora</label>
+            <input type="text" class="form-control" formControlName="empresaLabora" placeholder="Empresa">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Relación con el Fiador</label>
+            <input type="text" class="form-control" formControlName="relacionFiador" placeholder="Relación">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Estado Civil</label>
+            <select class="form-select" formControlName="estadoCivil">
+              <option value="">Seleccionar...</option>
+              <option value="soltero">Soltero(a)</option>
+              <option value="casado">Casado(a)</option>
+              <option value="divorciado">Divorciado(a)</option>
+              <option value="viudo">Viudo(a)</option>
+              <option value="union_libre">Unión Libre</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Régimen Patrimonial</label>
+            <input type="text" class="form-control" formControlName="regimenPatrimonial" placeholder="Régimen patrimonial">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Nombre Completo del Cónyuge</label>
+            <input type="text" class="form-control" formControlName="nombreConyuge" placeholder="Nombre del cónyuge">
+          </div>
+        </div>
+
+        <h5 class="mt-4 mb-3">Datos del Inmueble Garantía</h5>
+        <div class="row">
+          <div class="col-md-8 mb-3">
+            <label class="form-label">Calle (Inmueble Garantía) *</label>
+            <input type="text" class="form-control" formControlName="calleGarantia" placeholder="Nombre de la calle">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">No Exterior (Inmueble Garantía) *</label>
+            <input type="text" class="form-control" formControlName="numeroExteriorGarantia" placeholder="123">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label class="form-label">Edificio (Inmueble Garantía)</label>
+            <input type="text" class="form-control" formControlName="edificioGarantia" placeholder="Edificio">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">No Interior (Inmueble Garantía)</label>
+            <input type="text" class="form-control" formControlName="numeroInteriorGarantia" placeholder="A">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">CP (Inmueble Garantía) *</label>
+            <input type="text" class="form-control" formControlName="cpGarantia" placeholder="12345" maxlength="5">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label class="form-label">Colonia (Inmueble Garantía) *</label>
+            <input type="text" class="form-control" formControlName="coloniaGarantia" placeholder="Colonia">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">Alcaldía o Municipio (Inmueble Garantía) *</label>
+            <input type="text" class="form-control" formControlName="alcaldiaMunicipioGarantia" placeholder="Alcaldía/Municipio">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">Estado (Inmueble Garantía) *</label>
+            <input type="text" class="form-control" formControlName="estadoGarantia" placeholder="Estado">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Entre la calle (Inmueble Garantía)</label>
+            <input type="text" class="form-control" formControlName="entreCalleGarantia" placeholder="Calle 1">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Y la Calle (Inmueble Garantía)</label>
+            <input type="text" class="form-control" formControlName="yCalleGarantia" placeholder="Calle 2">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Escritura (Inmueble Garantía)</label>
+            <input type="text" class="form-control" formControlName="escrituraGarantia" placeholder="Escritura">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">No de Escritura (Inmueble Garantía)</label>
+            <input type="text" class="form-control" formControlName="numeroEscrituraGarantia" placeholder="Número">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Fecha de Escritura (Inmueble Garantía)</label>
+            <input type="date" class="form-control" formControlName="fechaEscrituraGarantia">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Notario No</label>
+            <input type="text" class="form-control" formControlName="notarioNumero" placeholder="Número de notario">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">De la Ciudad</label>
+            <input type="text" class="form-control" formControlName="ciudadNotario" placeholder="Ciudad">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Nombre Notario</label>
+            <input type="text" class="form-control" formControlName="nombreNotario" placeholder="Nombre del notario">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Datos Registrales</label>
+            <input type="text" class="form-control" formControlName="datosRegistrales" placeholder="Datos registrales">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Fecha de Registro</label>
+            <input type="date" class="form-control" formControlName="fechaRegistro">
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Inmueble Tab -->
+    <div class="tab-pane" [class.active]="activeTab === 'inmueble'">
+      <form [formGroup]="inmuebleForm" *ngIf="activeTab === 'inmueble'">
+        <h5 class="mb-3">Datos del Inmueble</h5>
+        <div class="row">
+          <div class="col-md-8 mb-3">
+            <label class="form-label">Calle *</label>
+            <input type="text" class="form-control" formControlName="calle" placeholder="Nombre de la calle">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">No. Exterior *</label>
+            <input type="text" class="form-control" formControlName="numeroExterior" placeholder="123">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label class="form-label">No. Interior</label>
+            <input type="text" class="form-control" formControlName="numeroInterior" placeholder="A">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">CP *</label>
+            <input type="text" class="form-control" formControlName="cp" placeholder="12345" maxlength="5">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">Colonia *</label>
+            <input type="text" class="form-control" formControlName="colonia" placeholder="Colonia">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Alcaldía o Municipio *</label>
+            <input type="text" class="form-control" formControlName="alcaldiaMunicipio" placeholder="Alcaldía/Municipio">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Estado *</label>
+            <input type="text" class="form-control" formControlName="estado" placeholder="Estado">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Tipo de Inmueble *</label>
+            <select class="form-select" formControlName="tipoInmueble">
+              <option value="casa">Casa/Habitación</option>
+              <option value="oficina">Oficinas</option>
+              <option value="bodega">Bodega</option>
+              <option value="comercial">Local Comercial</option>
+            </select>
+          </div>
+          <div class="col-md-6 mb-3" *ngIf="inmuebleForm.get('tipoInmueble')?.value === 'comercial'">
+            <label class="form-label">Giro Comercial</label>
+            <input type="text" class="form-control" formControlName="giroComercial" placeholder="Ej: Restaurante, Tienda, etc.">
+          </div>
+        </div>
+
+        <h5 class="mt-4 mb-3">Datos Económicos</h5>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Renta Mensual (MXN) *</label>
+            <input type="number" class="form-control" formControlName="renta" placeholder="15000" min="1">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Mantenimiento (MXN)</label>
+            <input type="number" class="form-control" formControlName="mantenimiento" placeholder="2000" min="0">
+          </div>
+        </div>
+
+        <h5 class="mt-4 mb-3">Vigencia del Contrato</h5>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Fecha de Inicio *</label>
+            <input type="date" class="form-control" formControlName="vigenciaInicio">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Fecha de Fin *</label>
+            <input type="date" class="form-control" formControlName="vigenciaFin">
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Navigation Buttons -->
+  <div class="d-flex justify-content-between mt-4">
+    <button type="button" class="btn btn-secondary" (click)="onPrevious()">
+      <i class="pi pi-arrow-left me-2"></i>
+      Atrás
+    </button>
+    <button type="button" class="btn btn-accent" (click)="onNext()" 
+            [disabled]="!validateCurrentTab()">
+      Siguiente
+      <i class="pi pi-arrow-right ms-2"></i>
+    </button>
+  </div>
+</div>
+
+

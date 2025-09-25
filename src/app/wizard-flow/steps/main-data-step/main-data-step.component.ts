@@ -48,8 +48,8 @@ export class MainDataStepComponent implements OnInit {
       telefono: ['', [Validators.required, Validators.pattern(/^[0-9]{9,10}$/)]],
       correo: ['', [Validators.required, Validators.email]],
       
-      // Código postal del inmueble
-      codigoPostal: ['', [Validators.required, Validators.pattern(/^[0-9]{5}$/)]],
+      // Monto de renta mensual para calcular precio
+      rentaMensual: ['', [Validators.required, Validators.min(1)]],
       
       // Plan
       plan: ['', Validators.required]
@@ -68,6 +68,11 @@ export class MainDataStepComponent implements OnInit {
     } else {
       console.log('No hay plan seleccionado');
     }
+    
+    // Escuchar cambios en la renta mensual para recalcular precios
+    this.mainDataForm.get('rentaMensual')?.valueChanges.subscribe(() => {
+      console.log('💰 Renta mensual cambiada, recalculando precios...');
+    });
   }
 
   /**
@@ -86,7 +91,7 @@ export class MainDataStepComponent implements OnInit {
         nombre: userData.name || '',
         correo: userData.email || '',
         telefono: userData.phone || '',
-        codigoPostal: userData.postalCode || ''
+        rentaMensual: userData.rentaMensual || ''
       });
       
       console.log('✅ Datos del usuario cargados en el formulario');
@@ -158,12 +163,7 @@ export class MainDataStepComponent implements OnInit {
   }
 
   getComplementaryPlans(): ComplementaryPlan[] {
-    console.log('🔍 getComplementaryPlans() llamado');
-    console.log('📊 selectedPlanData:', this.selectedPlanData);
-    console.log('🔗 selectedPlanData?.complementaryPlans:', this.selectedPlanData?.complementaryPlans);
-    
     if (this.selectedPlanData?.complementaryPlans && this.selectedPlanData.complementaryPlans.length > 0) {
-      console.log('✅ Usando complementos de la API:', this.selectedPlanData.complementaryPlans);
       return this.selectedPlanData.complementaryPlans.map(complement => ({
         id: complement.id,
         name: complement.name,
@@ -173,18 +173,20 @@ export class MainDataStepComponent implements OnInit {
       }));
     }
     
-    // Si no hay complementos en la API, no mostrar ninguno
-    console.log('⚠️ No hay complementos disponibles en la API');
-    console.log('🔍 selectedPlanData es null o no tiene complementaryPlans');
     return [];
   }
 
   getTotalPrice(): number {
     let total = 0;
     
-    // Siempre empezar con el precio del plan base
+    // Siempre empezar con el precio del plan base (usar cálculo dinámico si hay renta mensual)
     if (this.selectedPlanData) {
-      total += this.selectedPlanData.price;
+      const rentaMensual = this.mainDataForm.get('rentaMensual')?.value || 0;
+      if (rentaMensual > 0) {
+        total += this.plansService.calculateDynamicPrice(this.selectedPlanData.name, rentaMensual);
+      } else {
+        total += this.selectedPlanData.price;
+      }
     }
     
     // Agregar precio de complementos seleccionados
@@ -196,6 +198,20 @@ export class MainDataStepComponent implements OnInit {
     });
     
     return total;
+  }
+
+  /**
+   * Obtiene el precio del plan base con cálculo dinámico
+   */
+  getPlanBasePrice(): number {
+    if (!this.selectedPlanData) return 0;
+    
+    const rentaMensual = this.mainDataForm.get('rentaMensual')?.value || 0;
+    if (rentaMensual > 0) {
+      return this.plansService.calculateDynamicPrice(this.selectedPlanData.name, rentaMensual);
+    }
+    
+    return this.selectedPlanData.price;
   }
 
 
@@ -241,10 +257,8 @@ export class MainDataStepComponent implements OnInit {
       name: formValue.nombre,
       email: formValue.correo,
       phone: formValue.telefono,
-      postalCode: formValue.codigoPostal
+      rentaMensual: formValue.rentaMensual
     };
-    
-    console.log('💾 Guardando datos del usuario:', userData);
     
     // Guardar en el estado del wizard
     this.wizardStateService.saveState({
@@ -253,8 +267,6 @@ export class MainDataStepComponent implements OnInit {
     
     // Marcar este paso como completado
     this.wizardStateService.completeStep(1);
-    
-    console.log('✅ Datos del usuario guardados en el estado');
   }
 
   /**
@@ -333,7 +345,7 @@ export class MainDataStepComponent implements OnInit {
       throw new Error('No se ha seleccionado un plan');
     }
 
-    if (!formValue.nombre || !formValue.correo || !formValue.telefono || !formValue.codigoPostal) {
+    if (!formValue.nombre || !formValue.correo || !formValue.telefono || !formValue.rentaMensual) {
       throw new Error('Todos los campos son obligatorios');
     }
 
@@ -342,10 +354,7 @@ export class MainDataStepComponent implements OnInit {
       throw new Error('Los datos del plan no están disponibles');
     }
 
-    console.log('🔍 Validando datos antes de crear cotización...');
-    console.log('📋 Form value:', formValue);
-    console.log('🎯 Selected plan:', this.selectedPlan);
-    console.log('📊 Plan data:', this.selectedPlanData);
+    console.log('📋 Creando cotización para plan:', this.selectedPlan);
 
     // Crear DTO simplificado con solo los campos disponibles
     const quotationDto: CreateQuotationDto = {
@@ -354,7 +363,7 @@ export class MainDataStepComponent implements OnInit {
         name: formValue.nombre,
         email: formValue.correo,
         phone: formValue.telefono,
-        postalCode: formValue.codigoPostal
+        rentaMensual: formValue.rentaMensual
       },
       propertyData: {
         address: 'Por definir', // Campo requerido pero no tenemos en el formulario
@@ -441,7 +450,6 @@ export class MainDataStepComponent implements OnInit {
       if (field.errors['minlength']) return `Mínimo ${field.errors['minlength'].requiredLength} caracteres`;
       if (field.errors['pattern']) {
         if (fieldName === 'telefono') return 'Teléfono inválido (9-10 dígitos)';
-        if (fieldName === 'codigoPostal') return 'Código postal inválido (5 dígitos)';
         return 'Formato inválido';
       }
       if (field.errors['min']) return `Valor mínimo: ${field.errors['min'].min}`;

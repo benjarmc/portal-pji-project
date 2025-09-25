@@ -1,0 +1,24 @@
+<div class="wizard-progress-container">
+  <!-- Línea de progreso -->
+  <div class="progress-line">
+    <div class="progress-fill" [style.width.%]="progressPercentage()"></div>
+  </div>
+  
+  <!-- Pasos del progreso -->
+  <div class="progress-steps">
+    <div 
+      *ngFor="let step of steps; let i = index" 
+      class="progress-step"
+      [class.active]="i === currentStep"
+      [class.completed]="i < currentStep"
+    >
+      <div class="step-dot">
+        <span class="step-number">{{ i + 1 }}</span>
+      </div>
+      <div class="step-label">{{ step.label }}</div>
+    </div>
+  </div>
+</div>
+
+
+

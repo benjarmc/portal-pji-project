@@ -3,6 +3,10 @@
 <!-- Hero principal -->
 <header class="lp-hero d-flex align-items-center justify-content-center text-center hero-background">
   <div class="container lp-hero-content">
+    <!-- Logo de PJI en el hero -->
+    <div class="lp-hero-logo mb-4">
+      <img src="assets/logo.png" alt="PJI - Protección Jurídica Inmobiliaria" class="hero-logo-img">
+    </div>
     <h1>
       Protege tu patrimonio<br />con la
       <span class="highlight">póliza jurídica</span> adecuada
@@ -85,12 +89,12 @@
       <!-- Planes dinámicos -->
       <div *ngFor="let plan of plans" class="col">
         <div class="lp-plan-card p-4 d-flex flex-column" 
-             [class.lp-plan-card-highlight]="plan.name.toLowerCase().includes('investigación') || plan.name.toLowerCase().includes('investigacion')">
+             [class.lp-plan-card-highlight]="plan.name.toLowerCase().includes('premium')">
           
           <!-- Título del plan -->
           <h5 class="lp-plan-card-title fw-bold">
             {{ plan.name }}
-            <span *ngIf="plan.name.toLowerCase().includes('investigación') || plan.name.toLowerCase().includes('investigacion')" 
+            <span *ngIf="plan.name.toLowerCase().includes('premium')" 
                   class="badge bg-warning text-dark ms-2">Más Popular</span>
           </h5>
           
@@ -98,19 +102,27 @@
           <div class="lp-card-description flex-grow-1">
             <p>{{ plan.description }}</p>
             
-            <!-- Precio -->
-            <div *ngIf="plan.price > 0" class="mb-3">
-              <span class="h5 text-primary">{{ plan.currency }} {{ plan.price | number:'1.2-2' }}</span>
-              <small class="text-muted d-block">por mes</small>
+            <!-- Precio dinámico -->
+            <div class="mb-3">
+              <div class="price-display">
+                <span class="h5 text-primary">Desde {{ plan.currency }} {{ getMinPrice(plan.name) | number:'1.0-0' }}</span>
+                <small class="text-muted d-block">por año</small>
+                <div class="price-info mt-2">
+                  <small class="text-info">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Precio calculado según monto de renta mensual
+                  </small>
+                </div>
+              </div>
             </div>
             
             <!-- Características -->
             <div *ngIf="plan.features && isArray(plan.features) && plan.features.length > 0">
               <strong>Incluye:</strong>
               <ul>
-                <li *ngFor="let feature of plan.features.slice(0, 3)">{{ feature }}</li>
-                <li *ngIf="plan.features.length > 3" class="text-muted">
-                  <small>+{{ plan.features.length - 3 }} características más</small>
+                <li *ngFor="let feature of plan.features.slice(0, 4)">{{ feature }}</li>
+                <li *ngIf="plan.features.length > 4" class="text-muted">
+                  <small>+{{ plan.features.length - 4 }} características más</small>
                 </li>
               </ul>
             </div>
@@ -121,7 +133,7 @@
               <div class="small text-muted">
                 <div *ngFor="let complement of plan.complementaryPlans" class="d-flex justify-content-between align-items-center py-1">
                   <span>{{ complement.name }}</span>
-                  <span class="badge bg-outline-success">{{ complement.currency }} {{ complement.price }}</span>
+                  <span class="badge bg-outline-success">{{ complement.currency }} {{ complement.price | number:'1.0-0' }}</span>
                 </div>
               </div>
             </div>
@@ -129,10 +141,10 @@
           
           <!-- Botón de acción -->
           <div class="d-flex justify-content-center">
-            <button
+            <button 
               class="lp-plans-cto-button btn btn-accent mt-auto d-flex align-items-center justify-content-center"
-              [class.lp-plans-cto-button-secondary]="plan.name.toLowerCase().includes('investigación') || plan.name.toLowerCase().includes('investigacion')"
-              [class.lp-plans-cto-button-primary]="!(plan.name.toLowerCase().includes('investigación') || plan.name.toLowerCase().includes('investigacion'))"
+              [class.lp-plans-cto-button-secondary]="plan.name.toLowerCase().includes('premium')"
+              [class.lp-plans-cto-button-primary]="!plan.name.toLowerCase().includes('premium')"
               (click)="startWizard(plan.id)">
               Seleccionar plan <i class="bi bi-arrow-right ms-2"></i>
             </button>

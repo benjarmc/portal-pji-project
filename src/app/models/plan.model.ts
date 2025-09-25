@@ -4,7 +4,19 @@ export interface Plan {
   description: string;
   price: number;
   currency: string;
-  coverageDetails?: object;
+  coverageDetails?: {
+    tipo?: string;
+    duracion?: string;
+    cobertura?: string;
+    renovacion?: string;
+    rangoRenta?: string;
+    calculoPrecio?: string;
+    requiereFiador?: boolean;
+    esAdicional?: boolean;
+    type?: string; // Para compatibilidad con sample-plans
+    planPrincipal?: string; // Para complementos
+    maxAmount?: number; // Monto máximo de cobertura
+  };
   maxCoverage?: number;
   deductible?: number;
   coverage?: string[]; // Hacer opcional
@@ -14,6 +26,12 @@ export interface Plan {
   createdAt: Date;
   updatedAt: Date;
   complementaryPlans?: Plan[]; // Complementos asociados al plan
+  priceRanges?: Array<{
+    rangoRenta: string;
+    price: number;
+    calculoPrecio?: string;
+    maxCoverage?: number;
+  }>; // Rangos de precio por tipo de renta
 }
 
 export interface CreatePlanDto {

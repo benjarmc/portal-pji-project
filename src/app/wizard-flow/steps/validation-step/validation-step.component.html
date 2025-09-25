@@ -18,7 +18,7 @@
           </div>
           <div class="col-md-4">
             <p class="mb-2"><strong>Monto Pagado:</strong></p>
-            <p class="h5 text-success fw-bold">{{ quotationCurrency }} {{ quotationAmount | number:'1.2-2' }}</p>
+            <p class="h5 text-success fw-bold">{{ quotationCurrency }} {{ paymentAmount || quotationAmount | number:'1.2-2' }}</p>
           </div>
         </div>
         <div class="mt-3">

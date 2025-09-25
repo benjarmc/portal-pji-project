@@ -100,6 +100,19 @@ export class LpContentComponent implements OnInit {
   }
 
   /**
+   * Obtiene el precio mínimo para un plan
+   */
+  getMinPrice(planName: string): number {
+    const priceRanges: Record<string, number> = {
+      'Esencial': 3500,
+      'Premium': 4950,
+      'Diamante': 9950
+    };
+    
+    return priceRanges[planName] || 0;
+  }
+
+  /**
    * Verifica si un valor es un array
    */
   isArray(value: any): boolean {

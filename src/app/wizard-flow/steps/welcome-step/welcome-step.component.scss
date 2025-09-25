@@ -1,7 +1,8 @@
 // Variables de colores
-$primary-green: #A8CF41;
-$dark-green: #1D4C2C;
-$white: #FFFFFF;
+$primary-green: #A8CF41;  // Verde principal PJI
+$dark-green: #1D4C2C;    // Verde oscuro PJI
+$white: #FFFFFF;         // Blanco PJI
+$light-gray: #F9F9F9;    // Gris claro PJI
 $black: #000000;
 
 .welcome-step {
@@ -25,29 +26,6 @@ $black: #000000;
   margin-bottom: 2rem;
 }
 
-.user-type-info {
-  margin-bottom: 1.5rem;
-}
-
-.user-type-badge {
-  display: inline-flex;
-  align-items: center;
-  background: linear-gradient(135deg, #4CAF50, #45a049);
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 25px;
-  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
-}
-
-.badge-label {
-  font-weight: 600;
-  margin-right: 0.5rem;
-}
-
-.badge-value {
-  font-weight: 700;
-  text-transform: capitalize;
-}
 
 .welcome-form {
   margin-bottom: 2rem;
@@ -80,6 +58,110 @@ $black: #000000;
   color: #555;
   margin-bottom: 0.5rem;
   font-size: 1rem;
+}
+
+// Estilos para los botones de tipo de usuario
+.user-type-buttons {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.user-type-btn {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border: 2px solid #e1e5e9;
+  border-radius: 12px;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+  width: 100%;
+  font-family: inherit;
+  
+  &:hover {
+    border-color: #4CAF50;
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.15);
+    transform: translateY(-2px);
+  }
+  
+  &.selected {
+    border-color: #4CAF50;
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(69, 160, 73, 0.05));
+    box-shadow: 0 4px 15px rgba(76, 175, 80, 0.2);
+    
+    .btn-icon {
+      transform: scale(1.1);
+    }
+    
+    .btn-title {
+      color: #2E7D32;
+      font-weight: 700;
+    }
+  }
+  
+  &:focus {
+    outline: none;
+    border-color: #4CAF50;
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+  }
+}
+
+.btn-icon {
+  font-size: 2rem;
+  margin-right: 1rem;
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
+}
+
+.btn-content {
+  flex: 1;
+}
+
+.btn-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.25rem;
+  transition: color 0.3s ease;
+}
+
+.btn-subtitle {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 400;
+}
+
+// Responsive para los botones
+@media (min-width: 768px) {
+  .user-type-buttons {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+  
+  .user-type-btn {
+    flex-direction: column;
+    text-align: center;
+    padding: 1.5rem 1rem;
+    
+    .btn-icon {
+      margin-right: 0;
+      margin-bottom: 0.75rem;
+      font-size: 2.5rem;
+    }
+    
+    .btn-content {
+      .btn-title {
+        font-size: 1rem;
+      }
+      
+      .btn-subtitle {
+        font-size: 0.85rem;
+      }
+    }
+  }
 }
 
 .form-control {

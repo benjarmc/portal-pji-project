@@ -64,6 +64,12 @@ export class WelcomeStepComponent implements OnInit {
     });
   }
 
+  selectUserType(tipo: string) {
+    console.log('🎯 Seleccionando tipo de usuario:', tipo);
+    this.welcomeForm.patchValue({ tipoUsuario: tipo });
+    this.welcomeForm.get('tipoUsuario')?.markAsTouched();
+  }
+
   onNext() {
     if (this.welcomeForm.valid) {
       const tipoUsuario = this.welcomeForm.get('tipoUsuario')?.value;

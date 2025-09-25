@@ -1,133 +1,82 @@
 import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { BehaviorSubject, Observable } from 'rxjs';
 
 export interface WizardState {
   currentStep: number;
-  selectedPlan: string | null;
-  quotationId: string | null;
-  quotationNumber: string | null;
-  userId: string | null;
-  userData: {
-    name?: string;
-    email?: string;
-    phone?: string;
-    postalCode?: string;
-    tipoUsuario?: 'arrendador' | 'arrendatario' | 'asesor';
-  };
-  paymentData: {
-    cardType?: string;
-    lastFourDigits?: string;
-  };
-  paymentResult?: {
-    success: boolean;
-    paymentId: string;
-    chargeId: string;
-    policyId: string;
-    policyNumber: string;
-    status: string;
-    message: string;
-  };
-  validationRequirements?: Array<{
-    type: 'arrendador' | 'arrendatario' | 'aval';
-    name: string;
-    required: boolean;
-    completed: boolean;
-    uuid?: string;
-  }>;
-  completedValidations?: number;
+  selectedPlan: string;
+  quotationId?: string;
+  quotationNumber?: string;
+  userId?: string;
+  userData?: any;
+  paymentData?: any;
+  contractData?: any;     // Datos del contrato
+  rentaMensual?: number;  // Monto de renta mensual para el contrato
   completedSteps: number[];
   timestamp: number;
-  sessionId: string; // Identificador único de sesión
-  lastActivity: number; // Última actividad del usuario
+  sessionId: string;
+  lastActivity: number;
+  paymentResult?: any;
+  transactionId?: string; // ID único para seguimiento
+  policyId?: string;      // ID de la póliza
+  policyNumber?: string;  // Número de póliza
+  paymentAmount?: number; // Monto del pago procesado
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class WizardStateService {
-  private readonly STORAGE_KEY = 'pji_wizard_state';
-  private readonly SESSION_KEY = 'pji_wizard_session';
-  private readonly SESSION_ID_KEY = 'pji_session_id';
-  private readonly EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24 horas
-  private readonly INACTIVITY_TIME = 30 * 60 * 1000; // 30 minutos de inactividad
+  private readonly SESSION_KEY = 'pji_wizard_state';
+  private readonly TRANSACTION_PREFIX = 'pji_txn_';
+  
+  // Subject para notificar cambios en el estado
+  private stateSubject = new BehaviorSubject<WizardState | null>(null);
+  public stateChanges$: Observable<WizardState | null> = this.stateSubject.asObservable();
+  
+  // Configuración de expiración
+  private readonly SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutos de inactividad
 
   constructor(@Inject(PLATFORM_ID) private platformId: Object) {
-    // Inicializar sessionId si no existe
-    this.initializeSessionId();
+    // Inicializar el estado al cargar el servicio
+    const initialState = this.getState();
+    this.stateSubject.next(initialState);
   }
 
   /**
-   * Inicializa un ID de sesión único
+   * Genera un ID único de transacción
    */
-  private initializeSessionId(): void {
-    if (!isPlatformBrowser(this.platformId)) return;
-
-    let sessionId = sessionStorage.getItem(this.SESSION_ID_KEY);
-    if (!sessionId) {
-      sessionId = this.generateSessionId();
-      sessionStorage.setItem(this.SESSION_ID_KEY, sessionId);
-    }
+  private generateTransactionId(): string {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substr(2, 9);
+    return `${this.TRANSACTION_PREFIX}${timestamp}_${random}`;
   }
 
   /**
-   * Genera un ID de sesión único
+   * Genera un ID único de sesión
    */
   private generateSessionId(): string {
-    return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substr(2, 9);
+    return `session_${timestamp}_${random}`;
   }
 
   /**
-   * Obtiene el ID de sesión actual
+   * Obtiene o genera un ID de transacción
    */
-  getSessionId(): string {
-    if (!isPlatformBrowser(this.platformId)) return '';
-    
-    let sessionId = sessionStorage.getItem(this.SESSION_ID_KEY);
-    if (!sessionId) {
-      sessionId = this.generateSessionId();
-      sessionStorage.setItem(this.SESSION_ID_KEY, sessionId);
+  getTransactionId(): string {
+    const state = this.getState();
+    if (!state.transactionId) {
+      // Generar nuevo ID de transacción
+      const newTransactionId = this.generateTransactionId();
+      this.saveState({ transactionId: newTransactionId });
+      return newTransactionId;
     }
-    return sessionId;
+    return state.transactionId;
   }
 
   /**
-   * Guarda el estado del wizard con sincronización
-   */
-  saveState(state: Partial<WizardState>): void {
-    if (!isPlatformBrowser(this.platformId)) return;
-
-    const currentState = this.getState();
-    const sessionId = this.getSessionId();
-    const now = Date.now();
-    
-    const newState: WizardState = {
-      ...currentState,
-      ...state,
-      timestamp: now,
-      sessionId: sessionId,
-      lastActivity: now
-    };
-    
-    try {
-      // Guardar en localStorage para persistencia a largo plazo
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(newState));
-      
-      // Guardar en sessionStorage para la sesión actual
-      sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(newState));
-      
-      console.log('💾 Estado del wizard guardado:', {
-        step: newState.currentStep,
-        plan: newState.selectedPlan,
-        sessionId: newState.sessionId,
-        timestamp: new Date(now).toLocaleString()
-      });
-    } catch (error) {
-      console.error('❌ Error guardando estado del wizard:', error);
-    }
-  }
-
-  /**
-   * Obtiene el estado del wizard con validación de expiración
+   * Obtiene el estado del wizard
    */
   getState(): WizardState {
     if (!isPlatformBrowser(this.platformId)) {
@@ -135,23 +84,14 @@ export class WizardStateService {
     }
 
     try {
-      // Intentar obtener de sessionStorage primero (más reciente)
       const sessionState = sessionStorage.getItem(this.SESSION_KEY);
       if (sessionState) {
         const state = JSON.parse(sessionState);
         if (this.isStateValid(state)) {
           return state;
-        }
-      }
-
-      // Si no hay en sessionStorage o es inválido, intentar localStorage
-      const localState = localStorage.getItem(this.STORAGE_KEY);
-      if (localState) {
-        const state = JSON.parse(localState);
-        if (this.isStateValid(state)) {
-          // Sincronizar con sessionStorage
-          this.syncStateToSession(state);
-          return state;
+        } else {
+          console.log('⏰ Estado de sesión expirado o inválido');
+          this.clearState();
         }
       }
     } catch (error) {
@@ -162,28 +102,16 @@ export class WizardStateService {
   }
 
   /**
-   * Verifica si el estado es válido (no expirado, sesión activa)
+   * Verifica si el estado es válido
    */
   private isStateValid(state: WizardState): boolean {
-    if (!state || !state.timestamp) return false;
+    if (!state || !state.timestamp || !state.lastActivity) return false;
 
     const now = Date.now();
-    const isExpired = (now - state.timestamp) > this.EXPIRATION_TIME;
-    const isInactive = (now - state.lastActivity) > this.INACTIVITY_TIME;
-    const hasValidSession = state.sessionId === this.getSessionId();
-
-    if (isExpired) {
-      console.log('⏰ Estado del wizard expirado (24h)');
-      return false;
-    }
+    const isInactive = (now - state.lastActivity) > this.SESSION_TIMEOUT;
 
     if (isInactive) {
       console.log('😴 Estado del wizard inactivo (30min)');
-      return false;
-    }
-
-    if (!hasValidSession) {
-      console.log('🔄 Estado del wizard de sesión anterior');
       return false;
     }
 
@@ -191,51 +119,44 @@ export class WizardStateService {
   }
 
   /**
-   * Sincroniza el estado de localStorage a sessionStorage
+   * Guarda el estado del wizard
    */
-  private syncStateToSession(state: WizardState): void {
-    try {
-      const updatedState = {
-        ...state,
-        sessionId: this.getSessionId(),
-        lastActivity: Date.now()
-      };
-      sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(updatedState));
-      console.log('🔄 Estado sincronizado de localStorage a sessionStorage');
-    } catch (error) {
-      console.error('❌ Error sincronizando estado:', error);
-    }
-  }
+  saveState(state: Partial<WizardState>): void {
+    if (!isPlatformBrowser(this.platformId)) return;
 
-  /**
-   * Actualiza un paso específico
-   */
-  updateStep(step: number, data: any): void {
     const currentState = this.getState();
+    const now = Date.now();
     
-    switch (step) {
-      case 0: // Welcome step
-        break;
-      case 1: // Main data step
-        currentState.userData = { ...currentState.userData, ...data };
-        break;
-      case 2: // Validation step
-        break;
-      case 3: // Contract step
-        break;
-      case 4: // Payment step
-        currentState.paymentData = { ...currentState.paymentData, ...data };
-        break;
-      case 5: // Finish step
-        break;
+    const newState: WizardState = {
+      ...currentState,
+      ...state,
+      timestamp: now,
+      lastActivity: now
+    };
+
+    // Asegurar que siempre tenga un sessionId
+    if (!newState.sessionId) {
+      newState.sessionId = this.generateSessionId();
     }
 
-    // Marcar paso como completado
-    if (!currentState.completedSteps.includes(step)) {
-      currentState.completedSteps.push(step);
+    // Asegurar que siempre tenga un transactionId
+    if (!newState.transactionId) {
+      newState.transactionId = this.generateTransactionId();
     }
 
-    this.saveState(currentState);
+    try {
+      sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(newState));
+      
+      // Emitir cambios en el estado
+      this.stateSubject.next(newState);
+      
+      // Solo loggear cambios importantes de paso
+      if (newState.currentStep !== currentState.currentStep) {
+        console.log(`🔄 Paso del wizard: ${currentState.currentStep} → ${newState.currentStep}`);
+      }
+    } catch (error) {
+      console.error('❌ Error guardando estado del wizard:', error);
+    }
   }
 
   /**
@@ -245,7 +166,7 @@ export class WizardStateService {
     const currentState = this.getState();
     if (!currentState.completedSteps.includes(step)) {
       currentState.completedSteps.push(step);
-      this.saveState(currentState);
+      this.saveState({ completedSteps: currentState.completedSteps });
     }
   }
 
@@ -274,9 +195,8 @@ export class WizardStateService {
     if (!isPlatformBrowser(this.platformId)) return;
     
     try {
-      localStorage.removeItem(this.STORAGE_KEY);
       sessionStorage.removeItem(this.SESSION_KEY);
-      console.log('🧹 Estado del wizard limpiado');
+      console.log('🧹 Estado del wizard limpiado de sessionStorage');
     } catch (error) {
       console.error('❌ Error limpiando estado del wizard:', error);
     }
@@ -290,70 +210,15 @@ export class WizardStateService {
     
     try {
       const sessionState = sessionStorage.getItem(this.SESSION_KEY);
-      const localState = localStorage.getItem(this.STORAGE_KEY);
-      
       if (sessionState) {
         const state = JSON.parse(sessionState);
         return this.isStateValid(state);
       }
-      
-      if (localState) {
-        const state = JSON.parse(localState);
-        return this.isStateValid(state);
-      }
-      
-      return false;
     } catch (error) {
       console.error('❌ Error verificando estado guardado:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Obtiene el estado por defecto
-   */
-  private getDefaultState(): WizardState {
-    return {
-      currentStep: 0,
-      selectedPlan: null,
-      quotationId: null,
-      quotationNumber: null,
-      userId: null,
-      userData: {},
-      paymentData: {},
-      completedSteps: [],
-      timestamp: Date.now(),
-      sessionId: this.getSessionId(),
-      lastActivity: Date.now()
-    };
-  }
-
-  /**
-   * Restaura el wizard al último estado válido
-   */
-  restoreWizard(): WizardState {
-    const state = this.getState();
-    
-    // Si hay un estado guardado válido, sugerir continuar
-    if (this.hasSavedState() && state.completedSteps.length > 0) {
-      // Determinar el paso actual basado en el último completado
-      const lastCompleted = this.getLastCompletedStep();
-      state.currentStep = Math.min(lastCompleted + 1, 5); // Máximo 6 pasos (0-5)
-      
-      console.log('🔄 Wizard restaurado al paso:', state.currentStep);
     }
     
-    return state;
-  }
-
-  /**
-   * Actualiza la actividad del usuario (última interacción)
-   */
-  updateActivity(): void {
-    const currentState = this.getState();
-    if (currentState.currentStep > 0) { // Solo si no es el paso inicial
-      this.saveState({ lastActivity: Date.now() });
-    }
+    return false;
   }
 
   /**
@@ -363,45 +228,62 @@ export class WizardStateService {
     const state = this.getState();
     return {
       currentStep: state.currentStep,
-      hasPlan: !!state.selectedPlan,
-      hasQuotation: !!state.quotationId,
-      hasUser: !!state.userId,
-      completedSteps: state.completedSteps,
-      timestamp: new Date(state.timestamp).toLocaleString(),
-      lastActivity: new Date(state.lastActivity).toLocaleString(),
+      transactionId: state.transactionId,
       sessionId: state.sessionId,
-      isValid: this.isStateValid(state)
+      quotationId: state.quotationId,
+      userId: state.userId,
+      completedSteps: state.completedSteps,
+      hasPaymentResult: !!state.paymentResult,
+      hasPolicy: !!(state.policyId && state.policyNumber),
+      timestamp: state.timestamp ? new Date(state.timestamp).toLocaleString() : 'N/A',
+      lastActivity: state.lastActivity ? new Date(state.lastActivity).toLocaleString() : 'N/A'
     };
   }
 
   /**
-   * Limpia estados expirados
+   * Obtiene el estado por defecto
    */
-  cleanupExpiredStates(): void {
-    if (!isPlatformBrowser(this.platformId)) return;
+  private getDefaultState(): WizardState {
+    return {
+      currentStep: 0,
+      selectedPlan: '',
+      quotationId: '',
+      quotationNumber: '',
+      userId: '',
+      userData: {},
+      paymentData: {},
+      completedSteps: [],
+      timestamp: Date.now(),
+      sessionId: this.generateSessionId(),
+      lastActivity: Date.now(),
+      transactionId: this.generateTransactionId()
+    };
+  }
 
-    try {
-      // Limpiar localStorage expirado
-      const localState = localStorage.getItem(this.STORAGE_KEY);
-      if (localState) {
-        const state = JSON.parse(localState);
-        if (!this.isStateValid(state)) {
-          localStorage.removeItem(this.STORAGE_KEY);
-          console.log('🧹 Estado expirado limpiado de localStorage');
-        }
-      }
+  /**
+   * Actualiza la actividad del usuario
+   */
+  updateActivity(): void {
+    const currentState = this.getState();
+    this.saveState({ lastActivity: Date.now() });
+  }
 
-      // Limpiar sessionStorage expirado
-      const sessionState = sessionStorage.getItem(this.SESSION_KEY);
-      if (sessionState) {
-        const state = JSON.parse(sessionState);
-        if (!this.isStateValid(state)) {
-          sessionStorage.removeItem(this.SESSION_KEY);
-          console.log('🧹 Estado expirado limpiado de sessionStorage');
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error limpiando estados expirados:', error);
-    }
+  /**
+   * Obtiene información de la transacción actual
+   */
+  getTransactionInfo(): any {
+    const state = this.getState();
+    return {
+      transactionId: state.transactionId,
+      sessionId: state.sessionId,
+      currentStep: state.currentStep,
+      quotationId: state.quotationId,
+      userId: state.userId,
+      paymentResult: state.paymentResult,
+      policyId: state.policyId,
+      policyNumber: state.policyNumber,
+      timestamp: state.timestamp,
+      lastActivity: state.lastActivity
+    };
   }
 }

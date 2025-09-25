@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Times+New+Roman:wght@400;700&display=swap');
 @import url('bootstrap/dist/css/bootstrap.min.css');
 @import url('primeicons/primeicons.css');
 
@@ -18,4 +19,23 @@ body {
   font-family: var(--font-family-base);
   background: var(--color-white);
   color: var(--color-black);
+}
+
+/* Estilos específicos para el contrato - forzar justificación */
+.contract-content {
+  text-align: justify !important;
+}
+
+.contract-content * {
+  text-align: justify !important;
+}
+
+.contract-content p,
+.contract-content div,
+.contract-content span,
+.contract-content strong,
+.contract-content em,
+.contract-content i,
+.contract-content b {
+  text-align: justify !important;
 } 

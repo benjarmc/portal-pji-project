@@ -57,18 +57,19 @@
         </div>
 
         <div class="form-group">
-          <label for="codigoPostal">Código Postal del Inmueble *</label>
+          <label for="rentaMensual">Monto de Renta Mensual *</label>
           <input 
-            type="text" 
-            id="codigoPostal" 
-            formControlName="codigoPostal" 
+            type="number" 
+            id="rentaMensual" 
+            formControlName="rentaMensual" 
             class="form-control"
-            placeholder="Ej: 12345"
-            maxlength="5"
+            placeholder="Ej: 15000"
+            min="1"
+            step="1"
           >
-          <div class="error-message" *ngIf="mainDataForm.get('codigoPostal')?.invalid && mainDataForm.get('codigoPostal')?.touched">
-            <span *ngIf="mainDataForm.get('codigoPostal')?.errors?.['required']">El código postal es requerido</span>
-            <span *ngIf="mainDataForm.get('codigoPostal')?.errors?.['pattern']">Ingresa un código postal válido de 5 dígitos</span>
+          <div class="error-message" *ngIf="mainDataForm.get('rentaMensual')?.invalid && mainDataForm.get('rentaMensual')?.touched">
+            <span *ngIf="mainDataForm.get('rentaMensual')?.errors?.['required']">El monto de renta mensual es requerido</span>
+            <span *ngIf="mainDataForm.get('rentaMensual')?.errors?.['min']">El monto debe ser mayor a 0</span>
           </div>
         </div>
       </div>
@@ -83,8 +84,20 @@
           <p class="plan-description">{{ selectedPlanData.description }}</p>
           <div class="plan-price">
             <span class="currency">{{ selectedPlanData.currency }}</span>
-            <span class="amount">{{ selectedPlanData.price | number:'1.2-2' }}</span>
-            <span class="period">/mes</span>
+            <span class="amount">{{ getPlanBasePrice() | number:'1.0-0' }}</span>
+            <span class="period">/año</span>
+            <div *ngIf="mainDataForm.get('rentaMensual')?.value > 0" class="price-calculation-info">
+              <small class="text-success">
+                <i class="bi bi-calculator me-1"></i>
+                Precio calculado según renta: {{ mainDataForm.get('rentaMensual')?.value | currency:'MXN':'symbol':'1.0-0' }}/mes
+              </small>
+            </div>
+            <div *ngIf="!mainDataForm.get('rentaMensual')?.value || mainDataForm.get('rentaMensual')?.value === 0" class="price-calculation-info">
+              <small class="text-warning">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                Ingresa el monto de renta mensual para calcular el precio exacto
+              </small>
+            </div>
           </div>
         </div>
       </div>
@@ -131,7 +144,7 @@
           <h6 class="mb-0">Total de la cotización:</h6>
           <span class="h5 text-primary mb-0">{{ selectedPlanData?.currency || 'MXN' }} {{ getTotalPrice() | number:'1.2-2' }}</span>
         </div>
-        <small class="text-muted">Plan base ({{ selectedPlanData?.currency || 'MXN' }} {{ selectedPlanData?.price || 0 }}) + complementos seleccionados</small>
+        <small class="text-muted">Plan base ({{ selectedPlanData?.currency || 'MXN' }} {{ getPlanBasePrice() | number:'1.0-0' }}) + complementos seleccionados</small>
       </div>
     </div>
 

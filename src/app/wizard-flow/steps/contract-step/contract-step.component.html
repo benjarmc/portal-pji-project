@@ -1,29 +1,50 @@
 <div class="contract-step">
-  <h2>Prototipo de contrato</h2>
-  <div class="contract-preview bg-white p-4 rounded shadow-sm mb-4">
-    <div class="pdf-placeholder d-flex align-items-center justify-content-center" style="height: 500px; border: 2px dashed #ccc;">
-      <div class="text-center">
-        <i class="pi pi-file-pdf" style="font-size: 3rem; color: #dc3545; margin-bottom: 1rem;"></i>
-        <h4>Vista previa del contrato</h4>
-        <p class="text-muted">Aquí se mostraría el documento del contrato</p>
-        <button class="btn btn-outline-primary" (click)="downloadContract()">
-          <i class="pi pi-download"></i> Descargar contrato
-        </button>
+  <h2>Contrato de Póliza Jurídica Digital</h2>
+  
+  <!-- Información del contrato -->
+  <div class="contract-info mb-3 d-flex justify-content-between align-items-center">
+    <div class="contract-info-content">
+      <span class="badge bg-primary me-2">Vista previa del contrato</span>
+      <small class="text-muted">Documento generado dinámicamente con tus datos</small>
+    </div>
+  </div>
+
+  <!-- Visualizador del contrato -->
+  <div class="contract-preview bg-white rounded shadow-sm mb-4">
+    <div class="contract-viewer">
+      <div class="contract-pages" *ngIf="contractHtml">
+        <div [innerHTML]="contractHtml" (contextmenu)="onContractRightClick($event)"></div>
+      </div>
+      <div class="d-flex align-items-center justify-content-center h-100" *ngIf="!contractHtml">
+        <div class="text-center">
+          <i class="pi pi-file-pdf" style="font-size: 3rem; color: #dc3545; margin-bottom: 1rem;"></i>
+          <h4>Cargando contrato...</h4>
+          <p class="text-muted">Generando documento con tus datos</p>
+        </div>
       </div>
     </div>
   </div>
   <form [formGroup]="contractForm" (ngSubmit)="onFirmarYFinalizar()">
+
+    <!-- Cláusulas adicionales -->
     <div class="mb-3">
       <label class="fw-bold">Cláusulas adicionales</label>
+      <p class="text-muted small">Selecciona las cláusulas que deseas agregar a tu contrato. Los cambios se reflejarán automáticamente en la vista previa.</p>
       <div class="row">
-        <div class="col-md-6" *ngFor="let clau of clausulas">
-          <input type="checkbox" [value]="clau" (change)="onClausulaChange($event, clau)"> {{ clau }}
+        <div class="col-md-6 mb-2" *ngFor="let clau of clausulas">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" [value]="clau" (change)="onClausulaChange($event, clau)">
+            <label class="form-check-label">{{ clau }}</label>
+          </div>
         </div>
       </div>
     </div>
+    
     <div class="mb-3">
-      <label>Requerimientos adicionales</label>
-      <textarea class="form-control" formControlName="requerimientos" rows="2"></textarea>
+      <label class="fw-bold">Requerimientos adicionales</label>
+      <textarea class="form-control" formControlName="requerimientos" rows="2" 
+                placeholder="Describe cualquier requerimiento adicional que tengas..."
+                (input)="updateContractWithClausulas()"></textarea>
     </div>
     <div class="form-check mb-3">
       <input class="form-check-input" type="checkbox" id="aceptarContrato" formControlName="aceptarContrato">

@@ -1,8 +1,8 @@
-// Variables de colores
-$primary-green: #A8CF41;
-$dark-green: #1D4C2C;
-$light-gray: #C5C5C5;
-$white: #FFFFFF;
+// Variables de colores oficiales de PJI
+$primary-green: #A8CF41;  // Verde principal PJI
+$dark-green: #1D4C2C;    // Verde oscuro PJI
+$white: #FFFFFF;         // Blanco PJI
+$light-gray: #F9F9F9;    // Gris claro PJI
 
 .wizard-progress-container {
   position: relative;
@@ -17,7 +17,7 @@ $white: #FFFFFF;
   left: 8px;
   right: 8px;
   height: 3px;
-  background-color: $light-gray;
+  background-color: rgba(255, 255, 255, 0.3);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -47,19 +47,51 @@ $white: #FFFFFF;
   width: 15px;
   height: 15px;
   border-radius: 50%;
-  background-color: $light-gray;
-  box-shadow: 0px 10px 10px 0px rgba(0, 0, 0, 0.1);
+  background-color: rgba(255, 255, 255, 0.5);
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0px 4px 8px 0px rgba(0, 0, 0, 0.2);
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .step-number {
+    font-size: 10px;
+    font-weight: bold;
+    color: $dark-green;
+    line-height: 1;
+  }
 
   .progress-step.active & {
     background-color: $primary-green;
+    border-color: $white;
     transform: scale(1.1);
+    box-shadow: 0px 6px 12px 0px rgba(0, 0, 0, 0.3);
+    
+    .step-number {
+      color: $white;
+    }
   }
 
   .progress-step.completed & {
     background-color: $dark-green;
+    border-color: $white;
     transform: scale(1.05);
+    box-shadow: 0px 6px 12px 0px rgba(0, 0, 0, 0.3);
+    
+    .step-number {
+      color: $white;
+    }
   }
+}
+
+.step-label {
+  font-size: 12px;
+  color: $white;
+  text-align: center;
+  margin-top: 8px;
+  font-weight: 500;
+  text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 // Responsive

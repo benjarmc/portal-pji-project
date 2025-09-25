@@ -85,6 +85,7 @@ export class ValidationStepComponent implements OnInit {
   // Propiedades para información del pago y póliza
   paymentResult: PaymentResult | null = null;
   policyGenerated: boolean = false;
+  paymentAmount: number = 0;
   
   // Propiedades para validación según tipo de usuario
   userType: 'arrendador' | 'arrendatario' | 'asesor' = 'arrendador';
@@ -151,18 +152,109 @@ export class ValidationStepComponent implements OnInit {
    * Cargar cotización desde el estado del wizard
    */
   private loadQuotationFromState(wizardState: any): void {
-    // Aquí podrías hacer una llamada a la API para obtener los detalles completos
-    // Por ahora usamos los datos del estado
     console.log('📊 Cargando cotización desde estado del wizard:', wizardState);
     
-    // TODO: Implementar llamada a API para obtener monto real
-    // this.quotationsService.getQuotationById(wizardState.quotationId).subscribe(...)
+    // Intentar obtener el monto real desde la cotización
+    if (wizardState.quotationId) {
+      this.loadQuotationFromAPI(wizardState.quotationId);
+    } else {
+      // Usar valores por defecto si no hay cotización
+      this.quotationAmount = 299.00;
+      this.quotationCurrency = 'MXN';
+      console.log('💰 Usando monto por defecto:', this.quotationAmount, this.quotationCurrency);
+    }
+  }
+
+  /**
+   * Cargar cotización desde la API para obtener el monto real
+   */
+  private loadQuotationFromAPI(quotationId: string): void {
+    // Primero intentar obtener el monto desde el estado del wizard (si viene del pago)
+    const wizardState = this.wizardStateService.getState();
+    if (wizardState.paymentResult) {
+      // El monto real se obtiene del paso de pago, no necesitamos calcularlo aquí
+      return;
+    }
     
-    // Por ahora usamos un valor por defecto
-    this.quotationAmount = 299.00;
-    this.quotationCurrency = 'MXN';
-    
-    console.log('💰 Monto de cotización desde wizard:', this.quotationAmount, this.quotationCurrency);
+    // Si no hay paymentResult, calcular desde el plan seleccionado
+    if (this.selectedPlan) {
+      const rentaMensual = this.getRentaMensualFromWizardState();
+      if (rentaMensual > 0) {
+        // Calcular precio dinámico
+        this.quotationAmount = this.calculateDynamicPrice(this.selectedPlan.name, rentaMensual);
+      } else {
+        this.quotationAmount = this.selectedPlan.price;
+      }
+      
+      // Agregar precio de complementos si están seleccionados
+      const complementaryPlans = this.getComplementaryPlans();
+      const complementPrice = complementaryPlans
+        .filter(complement => complement.selected)
+        .reduce((sum, complement) => sum + complement.price, 0);
+      
+      this.quotationAmount += complementPrice;
+      this.quotationCurrency = this.selectedPlan.currency || 'MXN';
+      
+      console.log('💰 Monto calculado desde plan:', this.quotationAmount, this.quotationCurrency);
+    } else {
+      // Fallback a valor por defecto
+      this.quotationAmount = 299.00;
+      this.quotationCurrency = 'MXN';
+      console.log('💰 Usando monto por defecto (sin plan):', this.quotationAmount, this.quotationCurrency);
+    }
+  }
+
+  /**
+   * Obtener renta mensual desde el estado del wizard
+   */
+  private getRentaMensualFromWizardState(): number {
+    try {
+      const wizardState = this.wizardStateService.getState();
+      return wizardState.userData?.rentaMensual || 0;
+    } catch (error) {
+      console.error('❌ Error obteniendo renta mensual del estado:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Calcular precio dinámico basado en la renta mensual
+   */
+  private calculateDynamicPrice(planName: string, rentaMensual: number): number {
+    // Lógica de cálculo dinámico (debería ser la misma que en PlansService)
+    const priceRanges: Record<string, Record<string, number>> = {
+      'Esencial': {
+        '0-5000': 0.05,
+        '5001-15000': 0.04,
+        '15001+': 0.03
+      },
+      'Premium': {
+        '0-5000': 0.06,
+        '5001-15000': 0.05,
+        '15001+': 0.04
+      },
+      'Diamante': {
+        '0-5000': 0.07,
+        '5001-15000': 0.06,
+        '15001+': 0.05
+      }
+    };
+
+    const planRanges = priceRanges[planName];
+    if (!planRanges) {
+      return 0;
+    }
+
+    let percentage = 0;
+    if (rentaMensual <= 5000) {
+      percentage = planRanges['0-5000'];
+    } else if (rentaMensual <= 15000) {
+      percentage = planRanges['5001-15000'];
+    } else {
+      percentage = planRanges['15001+'];
+    }
+
+    return rentaMensual * percentage * 12; // Precio anual
   }
 
   /**
@@ -361,7 +453,10 @@ export class ValidationStepComponent implements OnInit {
     if (wizardState.paymentResult) {
       this.paymentResult = wizardState.paymentResult;
       this.policyGenerated = true;
-      console.log('💰 Información de pago cargada:', this.paymentResult);
+      
+      // Obtener el monto del pago desde el estado del wizard
+      // El monto real se guarda en el paso de pago
+      this.paymentAmount = wizardState.paymentAmount || this.quotationAmount;
     }
   }
 
@@ -375,10 +470,9 @@ export class ValidationStepComponent implements OnInit {
       this.completedValidations++;
       console.log(`✅ Validación ${type} completada. Progreso: ${this.completedValidations}/${this.totalValidations}`);
       
-      // Guardar estado en el wizard
+      // Guardar estado en el wizard (sin validationRequirements)
       this.wizardStateService.saveState({
-        validationRequirements: this.validationRequirements,
-        completedValidations: this.completedValidations
+        // Estado simplificado - no guardamos completedValidations
       });
       
       // Mostrar mensaje de éxito para esta validación
@@ -463,9 +557,9 @@ export class ValidationStepComponent implements OnInit {
           console.log(`✅ Enlace de verificación enviado a ${validationData.email}`);
           console.log(`📧 El backend se encargó de crear la verificación VDID y enviar el email`);
           
-          // Guardar estado en el wizard
+          // Guardar estado en el wizard (sin validationRequirements)
           this.wizardStateService.saveState({
-            validationRequirements: this.validationRequirements
+            // No guardamos validationRequirements en el estado simplificado
           });
           
           // Cerrar el modal

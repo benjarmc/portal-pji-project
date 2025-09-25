@@ -2,7 +2,7 @@
 export const environment = {
     production: true,
     api: {
-        baseUrl: 'http://webjpi-backend-nqtehg-1f4f4f-72-167-143-166.traefik.me/api',
+        baseUrl: 'http://127.0.0.1:3000/api',
         timeout: 30000,
     },
     vdid: {

@@ -73,24 +73,23 @@
     /* Asegura un ancho mínimo para la alineación */
 }
 
-/* Estilos para el placeholder del logo */
-.lp-footer-logo-placeholder {
-    width: 100px;
-    /* Ancho del placeholder */
-    height: 100px;
-    /* Alto del placeholder */
-    background-color: #D3D3D3;
-    /* Gris claro para el fondo del logo */
+/* Estilos para el logo del footer */
+.lp-footer-logo {
     display: flex;
     justify-content: center;
     align-items: center;
-    color: #888;
-    /* Color del texto "Logo" */
-    font-size: 0.9rem;
-    border-radius: 8px;
-    /* Bordes ligeramente redondeados */
     margin-bottom: 1.5rem;
-    /* Espacio debajo del logo */
+    
+    .footer-logo-img {
+        height: 90px;
+        width: auto;
+        max-width: 220px;
+        object-fit: contain;
+        background-color: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 10px;
+        /* Removido el filtro para mantener el color original del logo */
+    }
 }
 
 /* Estilos para los iconos de redes sociales */
@@ -135,10 +134,15 @@
         margin-bottom: 1.5rem;
     }
 
-    .lp-footer-logo-placeholder {
+    .lp-footer-logo {
         margin-left: auto;
         /* Centra el logo en móvil */
         margin-right: auto;
+        
+        .footer-logo-img {
+            height: 70px; /* Más pequeño en móvil */
+            padding: 8px;
+        }
     }
 
     .lp-footer-social {

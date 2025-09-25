@@ -54,16 +54,24 @@
     color: var(--color-accent) !important;
 }
 
-/* Asegúrate de que el logo (si es texto o un SVG con currentColor) cambie de color */
+/* Estilos para el logo */
 .navbar-brand {
-    color: rgba(255, 255, 255, 0.8);
-    /* Color inicial del logo (si es texto) */
-    transition: color 0.3s ease-in-out;
+    display: flex;
+    align-items: center;
+    transition: opacity 0.3s ease-in-out;
+    
+    .navbar-logo {
+        height: 60px;
+        width: auto;
+        max-width: 200px;
+        object-fit: contain;
+        filter: brightness(0) invert(1); /* Hace el logo blanco */
+        transition: filter 0.3s ease-in-out;
+    }
 }
 
-.navbar-shrink .navbar-brand {
-    color: var(--bs-body-color) !important;
-    /* Color del logo encogido */
+.navbar-shrink .navbar-brand .navbar-logo {
+    filter: brightness(0) invert(0); /* Vuelve el logo a su color original */
 }
 
 /** Estilos para el icono del toggler cuando el navbar está transparente/expandido*/
