@@ -15,7 +15,6 @@
           class="step-indicator"
           [class.active]="i === currentStep"
           [class.completed]="i < currentStep"
-          (click)="goToStep(i)"
         >
           <span class="step-number">{{ i + 1 }}</span>
           <span class="step-label">{{ step.label }}</span>
