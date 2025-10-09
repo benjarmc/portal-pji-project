@@ -145,6 +145,8 @@ export class PaymentStepComponent implements OnInit {
       if (wizardState.quotationNumber) {
         this.quotationNumber = wizardState.quotationNumber;
         console.log('📋 quotationNumber obtenido del estado:', this.quotationNumber);
+      } else {
+        console.log('⚠️ No hay quotationNumber en el estado del wizard');
       }
       
       if (wizardState.userId && !this.userId) {
@@ -178,18 +180,65 @@ export class PaymentStepComponent implements OnInit {
    * Cargar datos de cotización desde la API
    */
   private loadQuotationFromAPI(): void {
-    if (!this.quotationId) return;
+    if (!this.quotationId) {
+      console.warn('⚠️ No hay quotationId para cargar desde API');
+      return;
+    }
+    
+    console.log('🔍 Iniciando llamada a API con quotationId:', this.quotationId);
     
     this.quotationsService.getQuotationById(this.quotationId).subscribe({
       next: (response) => {
+        console.log('📡 Respuesta completa de la API:', response);
+        
         if (response.success && response.data) {
           console.log('✅ Datos de cotización obtenidos desde API:', response.data);
+          console.log('💰 finalPrice en response.data:', response.data.finalPrice);
+          console.log('💰 basePrice en response.data:', response.data.basePrice);
+          console.log('📋 quotationNumber en response.data:', response.data.quotationNumber);
+          console.log('📋 plan en response.data:', response.data.plan);
           
           // Actualizar datos del componente usando la estructura correcta del modelo
-          this.quotationAmount = response.data.totalPrice || 299.00;
+          // Usar finalPrice, basePrice, o precio del plan como fallback
+          const finalPrice = parseFloat(response.data.finalPrice || '0');
+          const basePrice = parseFloat(response.data.basePrice || '0');
+          const planPrice = parseFloat(response.data.plan?.price || '0');
+          
+          console.log('💰 Análisis de precios:');
+          console.log('  - finalPrice:', finalPrice);
+          console.log('  - basePrice:', basePrice);
+          console.log('  - planPrice:', planPrice);
+          console.log('  - ¿finalPrice > 0?', finalPrice > 0);
+          console.log('  - ¿basePrice > 0?', basePrice > 0);
+          console.log('  - ¿planPrice > 0?', planPrice > 0);
+          
+          // TEMPORAL: Forzar uso del precio de la API si está disponible
+          if (finalPrice > 0) {
+            this.quotationAmount = finalPrice;
+            console.log('✅ Usando finalPrice de la API:', finalPrice);
+          } else if (basePrice > 0) {
+            this.quotationAmount = basePrice;
+            console.log('✅ Usando basePrice de la API:', basePrice);
+          } else if (planPrice > 0) {
+            this.quotationAmount = planPrice;
+            console.log('✅ Usando planPrice de la API:', planPrice);
+          } else {
+            // Calcular precio basado en renta mensual si está disponible
+            const rentaMensual = response.data.userData?.rentaMensual;
+            if (rentaMensual && rentaMensual > 0) {
+              this.quotationAmount = Math.max(299.00, rentaMensual * 0.01);
+              console.log('✅ Calculando precio basado en renta mensual:', rentaMensual, '->', this.quotationAmount);
+            } else {
+              this.quotationAmount = 299.00;
+              console.log('⚠️ Usando precio por defecto (no hay datos de renta)');
+            }
+          }
           this.quotationCurrency = 'MXN'; // Por defecto MXN
-          this.quotationNumber = this.quotationId || 'COT-' + Date.now(); // Usar el ID como número de cotización o generar uno
+          this.quotationNumber = response.data.quotationNumber || response.data.id || this.quotationId || 'COT-' + Date.now();
           this.selectedPlan = response.data.plan?.name || 'Póliza Jurídica Digital';
+          
+          console.log('💰 Precio final seleccionado:', this.quotationAmount);
+          console.log('💰 ¿Es precio hardcodeado?', this.quotationAmount === 299.00);
           
           console.log('💰 Datos de cotización actualizados:', {
             amount: this.quotationAmount,
@@ -197,6 +246,9 @@ export class PaymentStepComponent implements OnInit {
             number: this.quotationNumber,
             plan: this.selectedPlan
           });
+          
+          // Mostrar el resumen
+          this.showQuotationSummary = true;
         } else {
           console.warn('⚠️ Respuesta de API no exitosa:', response);
           this.loadDefaultValues();
@@ -204,6 +256,7 @@ export class PaymentStepComponent implements OnInit {
       },
       error: (error) => {
         console.error('❌ Error obteniendo cotización desde API:', error);
+        console.error('❌ Error details:', error.error);
         this.loadDefaultValues();
       }
     });
@@ -292,6 +345,7 @@ export class PaymentStepComponent implements OnInit {
       this.paymentsService.processPayment(paymentData, this.userId).subscribe({
         next: (response) => {
           console.log('💰 Procesando respuesta del pago...');
+          console.log('📡 Respuesta completa del pago:', JSON.stringify(response, null, 2));
           
           // Verificar si la respuesta es exitosa (puede venir en response.success o response.data.success)
           const isSuccess = response.success || (response.data && response.data?.success);
@@ -318,13 +372,36 @@ export class PaymentStepComponent implements OnInit {
               message: responseData.message || responseData.data?.message || 'Pago procesado exitosamente'
             };
             
+            console.log('📋 paymentResult creado:', paymentResult);
+            console.log('🔍 Campos extraídos:');
+            console.log('  - paymentId:', paymentResult.paymentId);
+            console.log('  - policyId:', paymentResult.policyId);
+            console.log('  - policyNumber:', paymentResult.policyNumber);
+            
             // Guardar información del pago en el estado del wizard
             this.wizardStateService.saveState({
               paymentResult: paymentResult,
-              policyId: paymentResult.policyId,
-              policyNumber: paymentResult.policyNumber,
-              transactionId: paymentResult.paymentId,
+              policyId: paymentResult.policyId !== 'N/A' ? paymentResult.policyId : undefined,
+              policyNumber: paymentResult.policyNumber !== 'N/A' ? paymentResult.policyNumber : undefined,
+              paymentAmount: this.quotationAmount,
+              metadata: {
+                transactionId: paymentResult.paymentId,
+                paymentTimestamp: new Date().toISOString()
+              }
+            });
+            
+            console.log('💾 Estado guardado en wizardStateService:', {
+              paymentResult: paymentResult,
+              policyId: paymentResult.policyId !== 'N/A' ? paymentResult.policyId : undefined,
+              policyNumber: paymentResult.policyNumber !== 'N/A' ? paymentResult.policyNumber : undefined,
               paymentAmount: this.quotationAmount
+            });
+            
+            // Sincronizar con el backend para guardar los datos del pago
+            this.wizardStateService.syncWithBackendCorrected(this.wizardStateService.getState()).then(() => {
+              console.log('✅ Datos del pago sincronizados con el backend');
+            }).catch(error => {
+              console.error('❌ Error sincronizando datos del pago con backend:', error);
             });
             
             // Esperar 3 segundos para que el usuario vea el mensaje
@@ -403,21 +480,6 @@ export class PaymentStepComponent implements OnInit {
     console.log('🔄 onNext() llamado en PaymentStepComponent');
     // Emitir sin datos para navegación manual
     this.next.emit(null);
-  }
-
-  /**
-   * Método de prueba para debuggear el avance del wizard
-   */
-  testNextStep() {
-    console.log('🧪 testNextStep() llamado - Probando avance manual');
-    console.log('Estado actual del componente:');
-    console.log('  - paymentSuccess:', this.paymentSuccess);
-    console.log('  - isProcessing:', this.isProcessing);
-    console.log('  - quotationId:', this.quotationId);
-    
-    // Emitir evento next manualmente
-    this.next.emit();
-    console.log('✅ Evento next emitido manualmente');
   }
 
   onPrevious() {

@@ -106,6 +106,9 @@ export class ValidationStepComponent implements OnInit {
     // Cargar información del pago si viene del wizard
     this.loadPaymentInfo();
     
+    // Cargar validaciones existentes si hay policyId
+    this.loadExistingValidations();
+    
     // Iniciar verificación automática de estado cada 30 segundos
     this.startAutoStatusCheck();
   }
@@ -412,35 +415,102 @@ export class ValidationStepComponent implements OnInit {
     
     console.log('👤 Configurando validaciones para tipo de usuario:', this.userType);
     
-    // Configurar validaciones según tipo de usuario
-    switch (this.userType) {
-      case 'arrendador':
-        this.validationRequirements = [
-          { type: 'arrendatario', name: 'Datos del Inquilino', required: true, completed: false },
-          { type: 'aval', name: 'Datos del Aval', required: true, completed: false }
-        ];
-        break;
-      case 'arrendatario':
-        this.validationRequirements = [
-          { type: 'arrendador', name: 'Datos del Arrendador', required: true, completed: false },
-          { type: 'aval', name: 'Datos del Aval', required: true, completed: false }
-        ];
-        break;
-      case 'asesor':
-        this.validationRequirements = [
-          { type: 'arrendador', name: 'Datos del Arrendador', required: true, completed: false },
-          { type: 'arrendatario', name: 'Datos del Arrendatario', required: true, completed: false }
-        ];
-        break;
-      default:
-        this.validationRequirements = [];
+    // Verificar si ya hay validationRequirements guardados en el estado
+    if (wizardState.validationRequirements && wizardState.validationRequirements.length > 0) {
+      console.log('📋 Cargando validationRequirements existentes del estado:', wizardState.validationRequirements);
+      this.validationRequirements = wizardState.validationRequirements;
+      this.completedValidations = this.validationRequirements.filter(req => req.completed).length;
+      console.log(`✅ Validaciones cargadas: ${this.completedValidations}/${this.validationRequirements.length} completadas`);
+    } else {
+      // Configurar validaciones según tipo de usuario (primera vez)
+      switch (this.userType) {
+        case 'arrendador':
+          this.validationRequirements = [
+            { type: 'arrendatario', name: 'Datos del Inquilino', required: true, completed: false },
+            { type: 'aval', name: 'Datos del Aval', required: true, completed: false }
+          ];
+          break;
+        case 'arrendatario':
+          this.validationRequirements = [
+            { type: 'arrendador', name: 'Datos del Arrendador', required: true, completed: false },
+            { type: 'aval', name: 'Datos del Aval', required: true, completed: false }
+          ];
+          break;
+        case 'asesor':
+          this.validationRequirements = [
+            { type: 'arrendador', name: 'Datos del Arrendador', required: true, completed: false },
+            { type: 'arrendatario', name: 'Datos del Arrendatario', required: true, completed: false }
+          ];
+          break;
+        default:
+          this.validationRequirements = [];
+      }
+      
+      this.completedValidations = 0;
+      
+      // Guardar validationRequirements en el estado
+      this.wizardStateService.saveState({
+        validationRequirements: this.validationRequirements
+      });
+      
+      console.log('✅ Validaciones configuradas y guardadas:', this.validationRequirements);
     }
     
     this.totalValidations = this.validationRequirements.length;
-    this.completedValidations = 0;
-    
-    console.log('✅ Validaciones configuradas:', this.validationRequirements);
     console.log(`📊 Total de validaciones: ${this.totalValidations}`);
+  }
+
+  /**
+   * Cargar validaciones existentes por policyId si está disponible
+   */
+  private loadExistingValidations(): void {
+    const wizardState = this.wizardStateService.getState();
+    const policyId = wizardState.policyId;
+    
+    if (policyId) {
+      console.log(`🔍 Cargando validaciones existentes para policyId: ${policyId}`);
+      
+      this.validationService.getValidationsByPolicy(policyId).subscribe({
+        next: (response) => {
+          if (response.success && response.data && response.data.length > 0) {
+            console.log(`✅ Encontradas ${response.data.length} validaciones existentes para policyId ${policyId}:`, response.data);
+            
+            // Actualizar validationRequirements con los UUIDs existentes
+            response.data.forEach(existingValidation => {
+              const requirement = this.validationRequirements.find(req => req.type === existingValidation.type);
+              if (requirement) {
+                requirement.uuid = existingValidation.uuid;
+                requirement.completed = existingValidation.status === 'COMPLETED';
+                
+                if (requirement.completed) {
+                  this.completedValidations++;
+                }
+                
+                console.log(`🔄 Actualizado requirement para ${existingValidation.type}:`, {
+                  uuid: requirement.uuid,
+                  completed: requirement.completed,
+                  status: existingValidation.status
+                });
+              }
+            });
+            
+            // Actualizar el estado con los validationRequirements actualizados
+            this.wizardStateService.saveState({
+              validationRequirements: this.validationRequirements
+            });
+            
+            console.log(`📊 Estado actualizado: ${this.completedValidations}/${this.totalValidations} validaciones completadas`);
+          } else {
+            console.log(`ℹ️ No se encontraron validaciones existentes para policyId ${policyId}`);
+          }
+        },
+        error: (error) => {
+          console.error(`❌ Error cargando validaciones existentes para policyId ${policyId}:`, error);
+        }
+      });
+    } else {
+      console.log('ℹ️ No hay policyId disponible, saltando carga de validaciones existentes');
+    }
   }
 
   /**
@@ -449,14 +519,68 @@ export class ValidationStepComponent implements OnInit {
   private loadPaymentInfo(): void {
     const wizardState = this.wizardStateService.getState();
     
+    console.log('📊 wizardState completo en validation-step:', wizardState);
+    console.log('🔍 Campos específicos de póliza:', {
+      policyId: wizardState.policyId,
+      policyNumber: wizardState.policyNumber,
+      paymentResult: wizardState.paymentResult,
+      paymentAmount: wizardState.paymentAmount,
+      quotationAmount: this.quotationAmount
+    });
+    
     // Verificar si hay información de pago en el estado
     if (wizardState.paymentResult) {
+      console.log('📋 paymentResult encontrado en wizardState:', wizardState.paymentResult);
+      console.log('🔍 Campos de paymentResult:');
+      console.log('  - policyId:', wizardState.paymentResult.policyId);
+      console.log('  - policyNumber:', wizardState.paymentResult.policyNumber);
+      console.log('  - paymentId:', wizardState.paymentResult.paymentId);
+      console.log('  - status:', wizardState.paymentResult.status);
+      
       this.paymentResult = wizardState.paymentResult;
       this.policyGenerated = true;
       
       // Obtener el monto del pago desde el estado del wizard
       // El monto real se guarda en el paso de pago
       this.paymentAmount = wizardState.paymentAmount || this.quotationAmount;
+      
+      console.log('💰 Monto asignado desde paymentResult:', {
+        wizardStatePaymentAmount: wizardState.paymentAmount,
+        quotationAmount: this.quotationAmount,
+        finalPaymentAmount: this.paymentAmount
+      });
+      
+      console.log('✅ paymentResult asignado al componente de validación');
+    } else if (wizardState.policyId && wizardState.policyNumber) {
+      console.log('📋 Datos de póliza encontrados directamente en wizardState');
+      console.log('🔍 Campos directos de póliza:');
+      console.log('  - policyId:', wizardState.policyId);
+      console.log('  - policyNumber:', wizardState.policyNumber);
+      
+      // Crear paymentResult desde los campos directos
+      this.paymentResult = {
+        success: true,
+        policyId: wizardState.policyId,
+        policyNumber: wizardState.policyNumber,
+        paymentId: wizardState.paymentResult?.paymentId || 'N/A',
+        chargeId: wizardState.paymentResult?.chargeId || 'N/A',
+        status: 'COMPLETED',
+        message: 'Pago procesado exitosamente'
+      };
+      
+      this.policyGenerated = true;
+      this.paymentAmount = wizardState.paymentAmount || this.quotationAmount;
+      
+      console.log('💰 Monto asignado desde campos directos:', {
+        wizardStatePaymentAmount: wizardState.paymentAmount,
+        quotationAmount: this.quotationAmount,
+        finalPaymentAmount: this.paymentAmount
+      });
+      
+      console.log('✅ Datos de póliza asignados al componente de validación desde campos directos');
+    } else {
+      console.log('⚠️ No hay paymentResult ni datos de póliza en wizardState');
+      console.log('📊 wizardState completo:', wizardState);
     }
   }
 
@@ -470,9 +594,16 @@ export class ValidationStepComponent implements OnInit {
       this.completedValidations++;
       console.log(`✅ Validación ${type} completada. Progreso: ${this.completedValidations}/${this.totalValidations}`);
       
-      // Guardar estado en el wizard (sin validationRequirements)
+      // Guardar validationRequirements actualizados en el estado
       this.wizardStateService.saveState({
-        // Estado simplificado - no guardamos completedValidations
+        validationRequirements: this.validationRequirements
+      });
+      
+      // Sincronizar con el backend para persistir los validationRequirements
+      this.wizardStateService.syncWithBackendCorrected(this.wizardStateService.getState()).then(() => {
+        console.log('✅ validationRequirements actualizados sincronizados con el backend');
+      }).catch(error => {
+        console.error('❌ Error sincronizando validationRequirements actualizados con backend:', error);
       });
       
       // Mostrar mensaje de éxito para esta validación
@@ -523,6 +654,7 @@ export class ValidationStepComponent implements OnInit {
     // Obtener datos necesarios del estado del wizard
     const wizardState = this.wizardStateService.getState();
     const quotationId = wizardState.quotationId;
+    const policyId = wizardState.policyId;
     
     if (!quotationId) {
       console.error('❌ Falta quotationId para iniciar validación');
@@ -534,10 +666,12 @@ export class ValidationStepComponent implements OnInit {
       name: validationData.name,
       email: validationData.email,
       type: validationData.type,
-      quotationId
+      quotationId,
+      policyId: policyId || undefined // Incluir policyId si está disponible
     };
     
     console.log(`🚀 Iniciando validación a través del backend para ${validationData.type}:`, validationRequest);
+    console.log(`📋 Datos enviados: quotationId=${quotationId}, policyId=${policyId}`);
     
     // Iniciar validación en el backend (el backend se encarga de VDID)
     this.validationService.startValidation(validationRequest).subscribe({
@@ -557,9 +691,16 @@ export class ValidationStepComponent implements OnInit {
           console.log(`✅ Enlace de verificación enviado a ${validationData.email}`);
           console.log(`📧 El backend se encargó de crear la verificación VDID y enviar el email`);
           
-          // Guardar estado en el wizard (sin validationRequirements)
+          // Guardar validationRequirements actualizados en el estado
           this.wizardStateService.saveState({
-            // No guardamos validationRequirements en el estado simplificado
+            validationRequirements: this.validationRequirements
+          });
+          
+          // Sincronizar con el backend para persistir los validationRequirements
+          this.wizardStateService.syncWithBackendCorrected(this.wizardStateService.getState()).then(() => {
+            console.log('✅ validationRequirements sincronizados con el backend');
+          }).catch(error => {
+            console.error('❌ Error sincronizando validationRequirements con backend:', error);
           });
           
           // Cerrar el modal

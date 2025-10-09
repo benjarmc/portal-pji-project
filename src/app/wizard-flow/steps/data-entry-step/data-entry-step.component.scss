@@ -291,4 +291,15 @@
       }
     }
   }
+
+  // Estilos para el check de completado
+  .pi-check-circle {
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      transform: scale(1.1);
+    }
+  }
+
 }

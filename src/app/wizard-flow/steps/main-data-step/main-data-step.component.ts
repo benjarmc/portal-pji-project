@@ -359,6 +359,7 @@ export class MainDataStepComponent implements OnInit {
     // Crear DTO simplificado con solo los campos disponibles
     const quotationDto: CreateQuotationDto = {
       planId: this.selectedPlan,
+      sessionId: this.wizardStateService.getState().sessionId, // Agregar sessionId
       userData: {
         name: formValue.nombre,
         email: formValue.correo,

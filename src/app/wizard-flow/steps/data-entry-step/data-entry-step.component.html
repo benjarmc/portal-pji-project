@@ -26,45 +26,41 @@
     <li class="nav-item" role="presentation">
       <button class="nav-link" 
               [class.active]="activeTab === 'propietario'"
-              [class.text-success]="isTabValid('propietario')"
               (click)="setActiveTab('propietario')"
               type="button">
         <i class="pi pi-user me-2"></i>
-        Propietario
-        <i class="pi pi-check-circle ms-2" *ngIf="isTabValid('propietario')"></i>
+        <span>Propietario</span>
+        <i class="pi pi-check-circle ms-2 text-success" *ngIf="completionProgress.propietario === 100"></i>
       </button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link" 
               [class.active]="activeTab === 'inquilino'"
-              [class.text-success]="isTabValid('inquilino')"
               (click)="setActiveTab('inquilino')"
               type="button">
         <i class="pi pi-users me-2"></i>
-        Inquilino
-        <i class="pi pi-check-circle ms-2" *ngIf="isTabValid('inquilino')"></i>
+        <span>Inquilino</span>
+        <i class="pi pi-check-circle ms-2 text-success" *ngIf="completionProgress.inquilino === 100"></i>
       </button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link" 
               [class.active]="activeTab === 'fiador'"
-              [class.text-success]="isTabValid('fiador')"
               (click)="setActiveTab('fiador')"
               type="button">
         <i class="pi pi-shield me-2"></i>
-        Fiador
-        <i class="pi pi-check-circle ms-2" *ngIf="isTabValid('fiador')"></i>
+        <span>Fiador</span>
+        <i class="pi pi-check-circle ms-2 text-success" *ngIf="completionProgress.fiador === 100"></i>
       </button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link" 
               [class.active]="activeTab === 'inmueble'"
-              [class.text-success]="isTabValid('inmueble')"
               (click)="setActiveTab('inmueble')"
               type="button">
         <i class="pi pi-home me-2"></i>
-        Inmueble
-        <i class="pi pi-check-circle ms-2" *ngIf="isTabValid('inmueble')"></i>
+        <span>Inmueble</span>
+        <i class="pi pi-check-circle ms-2 text-success" *ngIf="completionProgress.inmueble === 100"></i>
       </button>
     </li>
   </ul>
@@ -106,7 +102,7 @@
 
         <div class="row">
           <div class="col-md-6 mb-3">
-            <label class="form-label">Teléfono</label>
+            <label class="form-label">Teléfono *</label>
             <input type="tel" class="form-control" formControlName="telefono" placeholder="(55) 1234-5678">
           </div>
           <div class="col-md-6 mb-3">
@@ -170,6 +166,17 @@
             <input type="text" class="form-control" formControlName="estado" placeholder="Estado">
           </div>
         </div>
+
+        <!-- Botón de guardar para Propietario -->
+        <div class="d-flex justify-content-end mt-4">
+          <button type="button" class="btn btn-success" 
+                  (click)="savePropietarioData()"
+                  [disabled]="!isPropietarioFormValid() || isSaving">
+            <i class="pi pi-save me-2" *ngIf="!isSaving"></i>
+            <i class="pi pi-spin pi-spinner me-2" *ngIf="isSaving"></i>
+            {{ isSaving ? 'Guardando...' : (hasSavedData('propietario') ? 'Actualizar Propietario' : 'Guardar Propietario') }}
+          </button>
+        </div>
       </form>
     </div>
 
@@ -204,7 +211,7 @@
 
         <div class="row">
           <div class="col-md-6 mb-3">
-            <label class="form-label">Teléfono</label>
+            <label class="form-label">Teléfono *</label>
             <input type="tel" class="form-control" formControlName="telefono" placeholder="(55) 1234-5678">
           </div>
           <div class="col-md-6 mb-3">
@@ -386,6 +393,17 @@
             </div>
           </div>
         </div>
+
+        <!-- Botón de guardar para Inquilino -->
+        <div class="d-flex justify-content-end mt-4">
+          <button type="button" class="btn btn-success" 
+                  (click)="saveInquilinoData()"
+                  [disabled]="!isInquilinoFormValid() || isSaving">
+            <i class="pi pi-save me-2" *ngIf="!isSaving"></i>
+            <i class="pi pi-spin pi-spinner me-2" *ngIf="isSaving"></i>
+            {{ isSaving ? 'Guardando...' : (hasSavedData('inquilino') ? 'Actualizar Inquilino' : 'Guardar Inquilino') }}
+          </button>
+        </div>
       </form>
     </div>
 
@@ -420,7 +438,7 @@
 
         <div class="row">
           <div class="col-md-6 mb-3">
-            <label class="form-label">Teléfono</label>
+            <label class="form-label">Teléfono *</label>
             <input type="tel" class="form-control" formControlName="telefono" placeholder="(55) 1234-5678">
           </div>
           <div class="col-md-6 mb-3">
@@ -657,6 +675,17 @@
             <input type="date" class="form-control" formControlName="fechaRegistro">
           </div>
         </div>
+
+        <!-- Botón de guardar para Fiador -->
+        <div class="d-flex justify-content-end mt-4">
+          <button type="button" class="btn btn-success" 
+                  (click)="saveFiadorData()"
+                  [disabled]="!isFiadorFormValid() || isSaving">
+            <i class="pi pi-save me-2" *ngIf="!isSaving"></i>
+            <i class="pi pi-spin pi-spinner me-2" *ngIf="isSaving"></i>
+            {{ isSaving ? 'Guardando...' : (hasSavedData('fiador') ? 'Actualizar Fiador' : 'Guardar Fiador') }}
+          </button>
+        </div>
       </form>
     </div>
 
@@ -740,18 +769,24 @@
             <input type="date" class="form-control" formControlName="vigenciaFin">
           </div>
         </div>
+
+        <!-- Botón de guardar para Inmueble -->
+        <div class="d-flex justify-content-end mt-4">
+          <button type="button" class="btn btn-success" 
+                  (click)="saveInmuebleData()"
+                  [disabled]="!isInmuebleFormValid() || isSaving">
+            <i class="pi pi-save me-2" *ngIf="!isSaving"></i>
+            <i class="pi pi-spin pi-spinner me-2" *ngIf="isSaving"></i>
+            {{ isSaving ? 'Guardando...' : (hasSavedData('inmueble') ? 'Actualizar Inmueble' : 'Guardar Inmueble') }}
+          </button>
+        </div>
       </form>
     </div>
   </div>
 
   <!-- Navigation Buttons -->
-  <div class="d-flex justify-content-between mt-4">
-    <button type="button" class="btn btn-secondary" (click)="onPrevious()">
-      <i class="pi pi-arrow-left me-2"></i>
-      Atrás
-    </button>
-    <button type="button" class="btn btn-accent" (click)="onNext()" 
-            [disabled]="!validateCurrentTab()">
+  <div class="d-flex justify-content-end mt-4">
+    <button type="button" class="btn btn-primary" (click)="onNext()">
       Siguiente
       <i class="pi pi-arrow-right ms-2"></i>
     </button>

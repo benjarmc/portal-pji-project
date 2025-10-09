@@ -7,6 +7,7 @@ export interface ValidationRequest {
   email: string;
   type: 'arrendador' | 'arrendatario' | 'aval';
   quotationId: string;
+  policyId?: string; // Agregar policyId opcional
 }
 
 export interface ValidationResponse {
@@ -56,6 +57,13 @@ export class ValidationService {
    */
   getValidationsByQuotation(quotationId: string): Observable<ApiResponse<ValidationResponse[]>> {
     return this.apiService.get<ValidationResponse[]>(`${this.endpoint}/quotation/${quotationId}`);
+  }
+
+  /**
+   * Obtener todas las validaciones de una póliza
+   */
+  getValidationsByPolicy(policyId: string): Observable<ApiResponse<ValidationResponse[]>> {
+    return this.apiService.get<ValidationResponse[]>(`${this.endpoint}/policy/${policyId}`);
   }
 
   /**

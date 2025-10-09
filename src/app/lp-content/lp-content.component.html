@@ -1,5 +1,18 @@
 <app-lp-header />
 
+<!-- Modal continuar sesión -->
+<app-continue-wizard-modal
+  [show]="showContinueModal"
+  [currentStep]="modalCurrentStep"
+  [selectedPlan]="modalSelectedPlan"
+  [selectedPlanName]="modalSelectedPlanName"
+  [quotationNumber]="modalQuotationNumber"
+  [policyNumber]="modalPolicyNumber"
+  [completedSteps]="modalCompletedSteps"
+  (continue)="onContinueExisting()"
+  (restart)="onRestartNew()"
+></app-continue-wizard-modal>
+
 <!-- Hero principal -->
 <header class="lp-hero d-flex align-items-center justify-content-center text-center hero-background">
   <div class="container lp-hero-content">

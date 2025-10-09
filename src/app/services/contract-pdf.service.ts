@@ -46,7 +46,11 @@ export class ContractPdfService {
    * Genera el HTML del contrato con los datos dinámicos
    */
   generateContractHtml(data: ContractData): string {
+    console.log('🔄 ContractPdfService.generateContractHtml() ejecutado');
+    console.log('📋 Datos recibidos para generar contrato:', data);
+    
     const template = this.getContractTemplate();
+    console.log('📄 Template del contrato obtenido, longitud:', template.length);
     
     // Reemplazar variables básicas
     let html = template
@@ -63,22 +67,22 @@ export class ContractPdfService {
 
     // Reemplazar datos del inmueble
     html = html
-      .replace(/\{\{inmueble\.calle\}\}/g, data.inmueble?.calle || '')
+      .replace(/\{\{inmueble\.calle\}\}/g, this.formatDireccion(data.inmueble?.calle || ''))
       .replace(/\{\{inmueble\.numero\}\}/g, data.inmueble?.numeroExterior || '')
       .replace(/\{\{inmueble\.interior\}\}/g, data.inmueble?.numeroInterior || '')
-      .replace(/\{\{inmueble\.colonia\}\}/g, data.inmueble?.colonia || '')
-      .replace(/\{\{inmueble\.delegacion\}\}/g, data.inmueble?.alcaldiaMunicipio || '')
+      .replace(/\{\{inmueble\.colonia\}\}/g, this.formatDireccion(data.inmueble?.colonia || ''))
+      .replace(/\{\{inmueble\.delegacion\}\}/g, this.formatDireccion(data.inmueble?.alcaldiaMunicipio || ''))
       .replace(/\{\{inmueble\.cp\}\}/g, data.inmueble?.cp || '');
 
     // Reemplazar datos del propietario
     html = html
-      .replace(/\{\{arrendador\.nombre\}\}/g, data.propietario?.nombre || '')
-      .replace(/\{\{arrendador\.tipoPersona\}\}/g, data.propietario?.tipoPersona || 'fisica');
+      .replace(/\{\{arrendador\.nombre\}\}/g, this.formatNombre(data.propietario?.nombre || ''))
+      .replace(/\{\{arrendador\.tipoPersona\}\}/g, this.getTipoPersonaText(data.propietario?.tipoPersona || 'fisica'));
 
     // Reemplazar datos del inquilino
     html = html
-      .replace(/\{\{arrendatario\.nombre\}\}/g, data.inquilino?.nombre || '')
-      .replace(/\{\{arrendatario\.tipoPersona\}\}/g, data.inquilino?.tipoPersona || 'fisica');
+      .replace(/\{\{arrendatario\.nombre\}\}/g, this.formatNombre(data.inquilino?.nombre || ''))
+      .replace(/\{\{arrendatario\.tipoPersona\}\}/g, this.getTipoPersonaText(data.inquilino?.tipoPersona || 'fisica'));
 
     // Reemplazar datos económicos
     html = html
@@ -93,24 +97,24 @@ export class ContractPdfService {
 
     // Reemplazar tipo de inmueble
     html = html
-      .replace(/\{\{tipoInmueble\}\}/g, data.inmueble?.tipoInmueble || 'casa')
-      .replace(/\{\{giroComercial\}\}/g, data.inmueble?.giroComercial || '');
+      .replace(/\{\{tipoInmueble\}\}/g, this.getTipoInmuebleText(data.inmueble?.tipoInmueble || 'casa'))
+      .replace(/\{\{giroComercial\}\}/g, this.formatDireccion(data.inmueble?.giroComercial || ''));
 
     // Reemplazar campos específicos del contrato con placeholders dinámicos
     html = html
-      .replace(/\{\{inmueble\.calle\}\}/g, data.inmueble?.calle || '________')
+      .replace(/\{\{inmueble\.calle\}\}/g, this.formatDireccion(data.inmueble?.calle || '________'))
       .replace(/\{\{inmueble\.numero\}\}/g, data.inmueble?.numeroExterior || '___')
       .replace(/\{\{inmueble\.interior\}\}/g, data.inmueble?.numeroInterior || '___')
-      .replace(/\{\{inmueble\.colonia\}\}/g, data.inmueble?.colonia || '________')
-      .replace(/\{\{inmueble\.delegacion\}\}/g, data.inmueble?.alcaldiaMunicipio || '________')
+      .replace(/\{\{inmueble\.colonia\}\}/g, this.formatDireccion(data.inmueble?.colonia || '________'))
+      .replace(/\{\{inmueble\.delegacion\}\}/g, this.formatDireccion(data.inmueble?.alcaldiaMunicipio || '________'))
       .replace(/\{\{inmueble\.cp\}\}/g, data.inmueble?.cp || '______')
-      .replace(/\{\{arrendador\.nombre\}\}/g, data.propietario?.nombre || '________')
-      .replace(/\{\{arrendatario\.nombre\}\}/g, data.inquilino?.nombre || '________')
-      .replace(/\{\{arrendador\.domicilio\.calle\}\}/g, data.propietario?.calle || '________')
+      .replace(/\{\{arrendador\.nombre\}\}/g, this.formatNombre(data.propietario?.nombre || '________'))
+      .replace(/\{\{arrendatario\.nombre\}\}/g, this.formatNombre(data.inquilino?.nombre || '________'))
+      .replace(/\{\{arrendador\.domicilio\.calle\}\}/g, this.formatDireccion(data.propietario?.calle || '________'))
       .replace(/\{\{arrendador\.domicilio\.numero\}\}/g, data.propietario?.numeroExterior || '___')
       .replace(/\{\{arrendador\.domicilio\.interior\}\}/g, data.propietario?.edificio || '___')
-      .replace(/\{\{arrendador\.domicilio\.colonia\}\}/g, data.propietario?.colonia || '________')
-      .replace(/\{\{arrendador\.domicilio\.delegacion\}\}/g, data.propietario?.alcaldiaMunicipio || '________')
+      .replace(/\{\{arrendador\.domicilio\.colonia\}\}/g, this.formatDireccion(data.propietario?.colonia || '________'))
+      .replace(/\{\{arrendador\.domicilio\.delegacion\}\}/g, this.formatDireccion(data.propietario?.alcaldiaMunicipio || '________'))
       .replace(/\{\{arrendador\.domicilio\.cp\}\}/g, data.propietario?.cp || '______')
       .replace(/\{\{renta\.monto\}\}/g, data.inmueble?.renta?.toString() || '0')
       .replace(/\{\{renta\.mantenimiento\}\}/g, data.inmueble?.mantenimiento?.toString() || '0')
@@ -133,17 +137,106 @@ export class ContractPdfService {
     // Envolver el contrato en su clase CSS
     const contractContent = `<div class="contract-content">${html}</div>`;
     
-    return coverPage + contractContent;
+    const finalHtml = coverPage + contractContent;
+    console.log('✅ HTML del contrato generado exitosamente, longitud total:', finalHtml.length);
+    console.log('📋 Primeros 500 caracteres del HTML:', finalHtml.substring(0, 500));
+    
+    return finalHtml;
   }
 
   /**
    * Genera la carátula del contrato con los datos dinámicos
    */
   generateCoverPage(data: ContractData): string {
-    const currentDate = new Date();
-    const startDate = new Date(currentDate);
-    const endDate = new Date(currentDate);
-    endDate.setFullYear(endDate.getFullYear() + 1);
+    // Usar las fechas reales de vigencia del inmueble si están disponibles
+    let startDate: Date;
+    let endDate: Date;
+    
+    if (data.inmueble?.vigenciaInicio && data.inmueble?.vigenciaFin) {
+      // Usar fechas reales del inmueble
+      console.log('📅 Fechas recibidas en ContractPdfService:', {
+        vigenciaInicio: data.inmueble.vigenciaInicio,
+        vigenciaFin: data.inmueble.vigenciaFin
+      });
+      
+      // Las fechas pueden venir formateadas (30/9/2025) o como ISO (2025-09-30)
+      let startDateParsed: Date;
+      let endDateParsed: Date;
+      
+      if (data.inmueble.vigenciaInicio.includes('/')) {
+        // Formato: 30/9/2025
+        const [day, month, year] = data.inmueble.vigenciaInicio.split('/');
+        startDateParsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      } else {
+        // Formato ISO: 2025-09-30
+        const [year, month, day] = data.inmueble.vigenciaInicio.split('-');
+        startDateParsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      }
+      
+      if (data.inmueble.vigenciaFin.includes('/')) {
+        // Formato: 30/10/2025
+        const [day, month, year] = data.inmueble.vigenciaFin.split('/');
+        endDateParsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      } else {
+        // Formato ISO: 2025-10-30
+        const [year, month, day] = data.inmueble.vigenciaFin.split('-');
+        endDateParsed = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      }
+      
+      startDate = startDateParsed;
+      endDate = endDateParsed;
+      
+      console.log('📅 Fechas procesadas correctamente:', {
+        startDate: startDate.toLocaleDateString('es-MX'),
+        endDate: endDate.toLocaleDateString('es-MX')
+      });
+    } else {
+      // Fallback: usar fechas por defecto
+      const currentDate = new Date();
+      startDate = new Date(currentDate);
+      endDate = new Date(currentDate);
+      endDate.setFullYear(endDate.getFullYear() + 1);
+      
+      console.log('📅 Usando fechas por defecto (no hay fechas de vigencia)');
+    }
+
+    // Calcular la duración real entre las fechas
+    const calculateDuration = (start: Date, end: Date): string => {
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      console.log('📅 Calculando duración:', {
+        startDate: start.toLocaleDateString('es-MX'),
+        endDate: end.toLocaleDateString('es-MX'),
+        diffDays: diffDays
+      });
+      
+      if (diffDays < 30) {
+        return `${diffDays} día${diffDays > 1 ? 's' : ''}`;
+      } else if (diffDays < 365) {
+        const months = Math.floor(diffDays / 30);
+        const remainingDays = diffDays % 30;
+        
+        if (remainingDays === 0) {
+          return `${months} mes${months > 1 ? 'es' : ''}`;
+        } else {
+          return `${months} mes${months > 1 ? 'es' : ''} y ${remainingDays} día${remainingDays > 1 ? 's' : ''}`;
+        }
+      } else {
+        const years = Math.floor(diffDays / 365);
+        const remainingDays = diffDays % 365;
+        const remainingMonths = Math.floor(remainingDays / 30);
+        
+        if (remainingMonths === 0) {
+          return `${years} año${years > 1 ? 's' : ''}`;
+        } else {
+          return `${years} año${years > 1 ? 's' : ''} y ${remainingMonths} mes${remainingMonths > 1 ? 'es' : ''}`;
+        }
+      }
+    };
+
+    const duration = calculateDuration(startDate, endDate);
+    console.log('📅 Duración calculada:', duration);
 
     const formatDate = (date: Date) => {
       const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 
@@ -194,7 +287,7 @@ export class ContractPdfService {
               </div>
               <div class="info-item">
                 <label>TIEMPO</label>
-                <span>1 año</span>
+                <span>${duration}</span>
               </div>
               <div class="info-item">
                 <label>ELABORÓ</label>
@@ -263,7 +356,7 @@ export class ContractPdfService {
               <h3>Datos del beneficiario</h3>
               <div class="data-item">
                 <label>Beneficiario</label>
-                <span>${data.propietario?.nombre || ''}</span>
+                <span>${this.formatNombre(data.propietario?.nombre || '')}</span>
               </div>
             </div>
 
@@ -271,7 +364,7 @@ export class ContractPdfService {
               <h3>Datos del arrendatario</h3>
               <div class="data-item">
                 <label>Inquilino</label>
-                <span>${data.inquilino?.nombre || ''}</span>
+                <span>${this.formatNombre(data.inquilino?.nombre || '')}</span>
               </div>
             </div>
 
@@ -280,7 +373,7 @@ export class ContractPdfService {
               <div class="data-grid">
                 <div class="data-item">
                   <label>Calle</label>
-                  <span>${data.inmueble?.calle || ''}</span>
+                  <span>${this.formatDireccion(data.inmueble?.calle || '')}</span>
                 </div>
                 <div class="data-item">
                   <label>No. Exterior</label>
@@ -300,15 +393,15 @@ export class ContractPdfService {
                 </div>
                 <div class="data-item">
                   <label>Colonia</label>
-                  <span>${data.inmueble?.colonia || ''}</span>
+                  <span>${this.formatDireccion(data.inmueble?.colonia || '')}</span>
                 </div>
                 <div class="data-item">
                   <label>Alcaldía o Municipio</label>
-                  <span>${data.inmueble?.alcaldiaMunicipio || ''}</span>
+                  <span>${this.formatDireccion(data.inmueble?.alcaldiaMunicipio || '')}</span>
                 </div>
                 <div class="data-item">
                   <label>Estado</label>
-                  <span>${data.inmueble?.estado || ''}</span>
+                  <span>${this.formatDireccion(data.inmueble?.estado || '')}</span>
                 </div>
                 <div class="data-item">
                   <label>Uso del inmueble</label>
@@ -322,11 +415,11 @@ export class ContractPdfService {
               <div class="data-grid">
                 <div class="data-item">
                   <label>Nombre</label>
-                  <span>${data.fiador?.nombre || ''}</span>
+                  <span>${this.formatNombre(data.fiador?.nombre || '')}</span>
                 </div>
                 <div class="data-item">
                   <label>Calle</label>
-                  <span>${data.fiador?.calle || ''}</span>
+                  <span>${this.formatDireccion(data.fiador?.calle || '')}</span>
                 </div>
                 <div class="data-item">
                   <label>No. Exterior</label>
@@ -338,7 +431,7 @@ export class ContractPdfService {
                 </div>
                 <div class="data-item">
                   <label>Edificio</label>
-                  <span>${data.fiador?.edificioGarantia || ''}</span>
+                  <span>${this.formatDireccion(data.fiador?.edificioGarantia || '')}</span>
                 </div>
                 <div class="data-item">
                   <label>CP</label>
@@ -346,15 +439,15 @@ export class ContractPdfService {
                 </div>
                 <div class="data-item">
                   <label>Colonia</label>
-                  <span>${data.fiador?.coloniaGarantia || ''}</span>
+                  <span>${this.formatDireccion(data.fiador?.coloniaGarantia || '')}</span>
                 </div>
                 <div class="data-item">
                   <label>Alcaldía o Municipio</label>
-                  <span>${data.fiador?.alcaldiaMunicipioGarantia || ''}</span>
+                  <span>${this.formatDireccion(data.fiador?.alcaldiaMunicipioGarantia || '')}</span>
                 </div>
                 <div class="data-item">
                   <label>Estado</label>
-                  <span>${data.fiador?.estadoGarantia || ''}</span>
+                  <span>${this.formatDireccion(data.fiador?.estadoGarantia || '')}</span>
                 </div>
               </div>
             </div>
@@ -364,7 +457,7 @@ export class ContractPdfService {
               <div class="data-grid">
                 <div class="data-item">
                   <label>Calle</label>
-                  <span>${data.fiador?.calleGarantia || ''}</span>
+                  <span>${this.formatDireccion(data.fiador?.calleGarantia || '')}</span>
                 </div>
                 <div class="data-item">
                   <label>No. Exterior</label>
@@ -376,7 +469,7 @@ export class ContractPdfService {
                 </div>
                 <div class="data-item">
                   <label>Edificio</label>
-                  <span>${data.fiador?.edificioGarantia || ''}</span>
+                  <span>${this.formatDireccion(data.fiador?.edificioGarantia || '')}</span>
                 </div>
                 <div class="data-item">
                   <label>CP</label>
@@ -384,15 +477,15 @@ export class ContractPdfService {
                 </div>
                 <div class="data-item">
                   <label>Colonia</label>
-                  <span>${data.fiador?.coloniaGarantia || ''}</span>
+                  <span>${this.formatDireccion(data.fiador?.coloniaGarantia || '')}</span>
                 </div>
                 <div class="data-item">
                   <label>Alcaldía o Municipio</label>
-                  <span>${data.fiador?.alcaldiaMunicipioGarantia || ''}</span>
+                  <span>${this.formatDireccion(data.fiador?.alcaldiaMunicipioGarantia || '')}</span>
                 </div>
                 <div class="data-item">
                   <label>Estado</label>
-                  <span>${data.fiador?.estadoGarantia || ''}</span>
+                  <span>${this.formatDireccion(data.fiador?.estadoGarantia || '')}</span>
                 </div>
               </div>
             </div>
@@ -414,7 +507,7 @@ export class ContractPdfService {
                 </div>
                 <div class="data-item">
                   <label>Tiempo Contrato</label>
-                  <span>1 año</span>
+                  <span>${duration}</span>
                 </div>
                 <div class="data-item">
                   <label>vigencia</label>
@@ -454,7 +547,8 @@ export class ContractPdfService {
    * Obtiene el texto del tipo de inmueble
    */
   private getTipoInmuebleText(tipo: string): string {
-    switch (tipo) {
+    const tipoLower = tipo?.toLowerCase() || 'casa';
+    switch (tipoLower) {
       case 'casa':
         return 'CASA/HABITACIÓN';
       case 'oficina':
@@ -466,6 +560,69 @@ export class ContractPdfService {
       default:
         return 'CASA/HABITACIÓN';
     }
+  }
+
+  /**
+   * Obtiene el texto del tipo de persona
+   */
+  private getTipoPersonaText(tipo: string): string {
+    const tipoLower = tipo?.toLowerCase() || 'fisica';
+    switch (tipoLower) {
+      case 'fisica':
+        return 'PERSONA FÍSICA';
+      case 'moral':
+        return 'PERSONA MORAL';
+      default:
+        return 'PERSONA FÍSICA';
+    }
+  }
+
+  /**
+   * Obtiene el texto del estado civil
+   */
+  private getEstadoCivilText(estado: string): string {
+    const estadoLower = estado?.toLowerCase() || '';
+    switch (estadoLower) {
+      case 'soltero':
+      case 'soltera':
+        return 'SOLTERO(A)';
+      case 'casado':
+      case 'casada':
+        return 'CASADO(A)';
+      case 'divorciado':
+      case 'divorciada':
+        return 'DIVORCIADO(A)';
+      case 'viudo':
+      case 'viuda':
+        return 'VIUDO(A)';
+      case 'union libre':
+      case 'unión libre':
+        return 'UNIÓN LIBRE';
+      default:
+        return estado ? estado.toUpperCase() : '';
+    }
+  }
+
+  /**
+   * Formatea nombres propios (primera letra mayúscula)
+   */
+  private formatNombre(nombre: string): string {
+    if (!nombre) return '';
+    return nombre.toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  }
+
+  /**
+   * Formatea direcciones (primera letra mayúscula)
+   */
+  private formatDireccion(direccion: string): string {
+    if (!direccion) return '';
+    return direccion.toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
   }
 
   /**
@@ -576,7 +733,10 @@ export class ContractPdfService {
    * Obtiene el template del contrato de arrendamiento
    */
   private getContractTemplate(): string {
-    return this.generateFullContractTemplate();
+    console.log('📄 Obteniendo template del contrato...');
+    const template = this.generateFullContractTemplate();
+    console.log('📄 Template obtenido, longitud:', template.length);
+    return template;
   }
 
   /**

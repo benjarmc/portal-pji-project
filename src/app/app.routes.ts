@@ -11,4 +11,9 @@ export const routes: Routes = [
     loadComponent: () => import('./wizard-flow/wizard-flow.component').then(m => m.WizardFlowComponent),
     title: 'Cotizador',
   },
+  {
+    path: 'validation/complete',
+    loadComponent: () => import('./validation-complete/validation-complete.component').then(m => m.ValidationCompleteComponent),
+    title: 'Validación Completada',
+  },
 ];

@@ -2,6 +2,11 @@ export interface Quotation {
   id: string;
   planId: string;
   userId?: string;
+  sessionId?: string;
+  quotationNumber?: string;
+  basePrice?: string;
+  riskMultiplier?: string;
+  finalPrice?: string;
   userData: {
     name: string;
     email: string;
@@ -18,7 +23,7 @@ export interface Quotation {
   plan?: {
     id: string;
     name: string;
-    price: number;
+    price: string;
   };
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
   totalPrice: number;
@@ -30,6 +35,7 @@ export interface Quotation {
 
 export interface CreateQuotationDto {
   planId: string;
+  sessionId?: string; // ID de la sesión del wizard
   userData: {
     name: string;
     email: string;

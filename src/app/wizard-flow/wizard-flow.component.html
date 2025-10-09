@@ -34,84 +34,72 @@
 
   <div class="wizard-content">
     <!-- Welcome Step -->
-    <div *ngIf="getCurrentStepKey() === 'welcome'">
-      <app-welcome-step 
-        *ngIf="currentStep === 0"
-        (next)="setCurrentStep(1)">
-      </app-welcome-step>
-    </div>
+    <app-welcome-step 
+      *ngIf="currentStep === 0"
+      (next)="setCurrentStep(1)">
+    </app-welcome-step>
 
     <!-- Main Data Step -->
-    <div *ngIf="getCurrentStepKey() === 'main-data'">
-      <app-main-data-step
-        *ngIf="currentStep === 1"
-        [selectedPlan]="selectedPlan"
-        (next)="onNextAndPay($event)"
-        (previous)="setCurrentStep(0)"
-        (goToFinish)="onQuotationSentByEmail($event)">
-      </app-main-data-step>
-    </div>
+    <app-main-data-step
+      *ngIf="currentStep === 1"
+      [selectedPlan]="selectedPlan"
+      (next)="onNextAndPay($event)"
+      (previous)="setCurrentStep(0)"
+      (goToFinish)="onQuotationSentByEmail($event)">
+    </app-main-data-step>
 
     <!-- Payment Step -->
-    <div *ngIf="getCurrentStepKey() === 'payment'">
-      <app-payment-step 
-        *ngIf="currentStep === 2"
-        [quotationId]="quotationId || undefined"
-        [quotationData]="currentQuotation"
-        [userId]="userId || undefined"
-        (next)="onPaymentCompleted($event)"
-        (previous)="prevStep()">
-      </app-payment-step>
-    </div>
+    <app-payment-step 
+      *ngIf="currentStep === 2"
+      [quotationId]="quotationId || undefined"
+      [quotationData]="currentQuotation"
+      [userId]="userId || undefined"
+      (next)="onPaymentCompleted($event)"
+      (previous)="prevStep()">
+    </app-payment-step>
 
     <!-- Validation Step -->
-    <div *ngIf="getCurrentStepKey() === 'validation'">
-      <app-validation-step
-        *ngIf="currentStep === 3"
-        [validationStatus]="validationStatus"
-        (next)="setCurrentStep(4)"
-        (selectPlan)="onValidationSelectPlan($event)"
-        (goToStart)="onValidationGoToStart()"
-      ></app-validation-step>
-    </div>
+    <app-validation-step
+      *ngIf="currentStep === 3"
+      [validationStatus]="validationStatus"
+      (next)="setCurrentStep(4)"
+      (selectPlan)="onValidationSelectPlan($event)"
+      (goToStart)="onValidationGoToStart()"
+    ></app-validation-step>
 
     <!-- Data Entry Step -->
-    <div *ngIf="getCurrentStepKey() === 'data-entry'">
-      <app-data-entry-step
-        *ngIf="currentStep === 4"
-        (next)="onDataEntryCompleted()"
-        (previous)="setCurrentStep(3)">
-      </app-data-entry-step>
-    </div>
+    <app-data-entry-step
+      *ngIf="currentStep === 4"
+      (next)="onDataEntryCompleted()"
+      (previous)="setCurrentStep(3)">
+    </app-data-entry-step>
 
     <!-- Contract Step -->
-    <div *ngIf="getCurrentStepKey() === 'contract'">
-      <app-contract-step
-        *ngIf="currentStep === 5"
-        (next)="nextStep()"
-        (previous)="prevStep()"
-      ></app-contract-step>
-    </div>
+    <app-contract-step
+      *ngIf="currentStep === 5"
+      (next)="nextStep()"
+      (previous)="prevStep()"
+    ></app-contract-step>
 
     <!-- Finish Step -->
-    <div *ngIf="getCurrentStepKey() === 'finish'">
-      <app-finish-step
-        *ngIf="currentStep === 6"
-        [quotationSentByEmail]="quotationSentByEmail"
-        [quotationNumber]="quotationNumber"
-        (goToStart)="setCurrentStep(0)">
-      </app-finish-step>
-    </div>
+    <app-finish-step
+      *ngIf="currentStep === 6"
+      [quotationSentByEmail]="quotationSentByEmail"
+      [quotationNumber]="quotationNumber"
+      (goToStart)="setCurrentStep(0)">
+    </app-finish-step>
   </div>
 
   <!-- Modal para continuar wizard -->
   <app-continue-wizard-modal
     *ngIf="showContinueModal"
     [show]="showContinueModal"
-    [currentStep]="currentStep"
-    [selectedPlan]="selectedPlan"
-    [quotationNumber]="quotationNumber"
-    [completedSteps]="wizardStateService.getState().completedSteps.length"
+    [currentStep]="modalCurrentStep"
+    [selectedPlan]="modalSelectedPlan"
+    [selectedPlanName]="modalSelectedPlanName"
+    [quotationNumber]="modalQuotationNumber"
+    [policyNumber]="modalPolicyNumber"
+    [completedSteps]="modalCompletedSteps"
     (continue)="onContinueWizard()"
     (restart)="onRestartWizard()">
   </app-continue-wizard-modal>

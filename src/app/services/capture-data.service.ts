@@ -124,7 +124,7 @@ export class CaptureDataService {
   constructor(private apiService: ApiService) {}
 
   // Métodos para Propietario
-  createPropietario(userId: string, data: PropietarioData): Observable<ApiResponse<PropietarioData>> {
+  createPropietario(userId: string, data: PropietarioData & { policyId?: string }): Observable<ApiResponse<PropietarioData>> {
     return this.apiService.post<PropietarioData>(`${this.endpoint}/propietario`, {
       userId,
       ...data
@@ -140,7 +140,7 @@ export class CaptureDataService {
   }
 
   // Métodos para Inquilino
-  createInquilino(userId: string, data: InquilinoData): Observable<ApiResponse<InquilinoData>> {
+  createInquilino(userId: string, data: InquilinoData & { policyId?: string }): Observable<ApiResponse<InquilinoData>> {
     return this.apiService.post<InquilinoData>(`${this.endpoint}/inquilino`, {
       userId,
       ...data
@@ -156,7 +156,7 @@ export class CaptureDataService {
   }
 
   // Métodos para Fiador
-  createFiador(userId: string, data: FiadorData): Observable<ApiResponse<FiadorData>> {
+  createFiador(userId: string, data: FiadorData & { policyId?: string }): Observable<ApiResponse<FiadorData>> {
     return this.apiService.post<FiadorData>(`${this.endpoint}/fiador`, {
       userId,
       ...data
@@ -172,7 +172,7 @@ export class CaptureDataService {
   }
 
   // Métodos para Inmueble
-  createInmueble(userId: string, data: InmuebleData): Observable<ApiResponse<InmuebleData>> {
+  createInmueble(userId: string, data: InmuebleData & { policyId?: string }): Observable<ApiResponse<InmuebleData>> {
     return this.apiService.post<InmuebleData>(`${this.endpoint}/inmueble`, {
       userId,
       ...data
@@ -190,6 +190,28 @@ export class CaptureDataService {
   // Método para obtener todos los datos de captura de un usuario
   getAllCaptureData(userId: string): Observable<ApiResponse<CaptureDataResponse>> {
     return this.apiService.get<CaptureDataResponse>(`${this.endpoint}/all/${userId}`);
+  }
+
+  // Métodos para obtener datos por policyId
+  getPropietarioByPolicy(policyId: string): Observable<ApiResponse<PropietarioData>> {
+    return this.apiService.get<PropietarioData>(`${this.endpoint}/propietario/policy/${policyId}`);
+  }
+
+  getInquilinoByPolicy(policyId: string): Observable<ApiResponse<InquilinoData>> {
+    return this.apiService.get<InquilinoData>(`${this.endpoint}/inquilino/policy/${policyId}`);
+  }
+
+  getFiadorByPolicy(policyId: string): Observable<ApiResponse<FiadorData>> {
+    return this.apiService.get<FiadorData>(`${this.endpoint}/fiador/policy/${policyId}`);
+  }
+
+  getInmuebleByPolicy(policyId: string): Observable<ApiResponse<InmuebleData>> {
+    return this.apiService.get<InmuebleData>(`${this.endpoint}/inmueble/policy/${policyId}`);
+  }
+
+  // Método para obtener todos los datos de captura por policyId
+  getAllCaptureDataByPolicy(policyId: string): Observable<ApiResponse<CaptureDataResponse>> {
+    return this.apiService.get<CaptureDataResponse>(`${this.endpoint}/all/policy/${policyId}`);
   }
 
   // Método para guardar todos los datos de captura de una vez

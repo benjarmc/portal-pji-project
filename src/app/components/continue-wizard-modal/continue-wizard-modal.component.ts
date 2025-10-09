@@ -29,29 +29,34 @@ import { CommonModule } from '@angular/common';
             
             <div class="status-item" *ngIf="selectedPlan">
               <span class="status-label">Plan seleccionado:</span>
-              <span class="status-value">{{ selectedPlan }}</span>
+              <span class="status-value">{{ selectedPlanName || selectedPlan }}</span>
             </div>
             
-            <div class="status-item" *ngIf="quotationNumber">
+            <div class="status-item" *ngIf="policyNumber">
+              <span class="status-label">Póliza:</span>
+              <span class="status-value">{{ policyNumber }}</span>
+            </div>
+            
+            <div class="status-item" *ngIf="!policyNumber && quotationNumber">
               <span class="status-label">Cotización:</span>
               <span class="status-value">{{ quotationNumber }}</span>
             </div>
             
             <div class="status-item" *ngIf="completedSteps > 0">
               <span class="status-label">Progreso:</span>
-              <span class="status-value">{{ completedSteps }} de 6 pasos completados</span>
+              <span class="status-value">{{ completedSteps }} de 7 pasos completados</span>
             </div>
           </div>
           
           <div class="progress-info mt-3">
             <div class="progress mb-2" style="height: 8px;">
               <div class="progress-bar bg-success" 
-                   [style.width.%]="(completedSteps / 6) * 100"
+                   [style.width.%]="(completedSteps / 7) * 100"
                    role="progressbar">
               </div>
             </div>
             <small class="text-muted">
-              {{ Math.round((completedSteps / 6) * 100) }}% completado
+              {{ Math.round((completedSteps / 7) * 100) }}% completado
             </small>
           </div>
         </div>
@@ -232,7 +237,9 @@ export class ContinueWizardModalComponent {
   @Input() show = false;
   @Input() currentStep = 0;
   @Input() selectedPlan: string | null = null;
+  @Input() selectedPlanName: string | null = null;
   @Input() quotationNumber: string | null = null;
+  @Input() policyNumber: string | null = null;
   @Input() completedSteps: number = 0;
   @Output() continue = new EventEmitter<void>();
   @Output() restart = new EventEmitter<void>();
@@ -246,6 +253,7 @@ export class ContinueWizardModalComponent {
       'Datos principales', 
       'Pago',
       'Validación',
+      'Captura de datos',
       'Contrato',
       'Final'
     ];

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, FormArray } from '@angular/forms';
 import { ContractPdfService, ContractData } from '../../../services/contract-pdf.service';
 import { WizardStateService } from '../../../services/wizard-state.service';
+import { CaptureDataService } from '../../../services/capture-data.service';
 
 @Component({
   selector: 'app-contract-step',
@@ -30,7 +31,8 @@ export class ContractStepComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private contractPdfService: ContractPdfService,
-    private wizardStateService: WizardStateService
+    private wizardStateService: WizardStateService,
+    private captureDataService: CaptureDataService
   ) {
     this.contractForm = this.fb.group({
       clausulas: this.fb.array([]),
@@ -40,10 +42,14 @@ export class ContractStepComponent implements OnInit {
   }
 
   ngOnInit() {
+    console.log('🚀 ContractStepComponent ngOnInit() ejecutado');
+    console.log('🔍 Estado inicial del wizard:', this.wizardStateService.getState());
     this.loadContractData();
     
     // Suscribirse a cambios en el estado del wizard para actualizar el contrato
     this.wizardStateService.stateChanges$.subscribe(() => {
+      console.log('🔄 Estado del wizard cambió, recargando datos del contrato');
+      console.log('🔍 Nuevo estado del wizard:', this.wizardStateService.getState());
       this.loadContractData();
     });
   }
@@ -54,10 +60,61 @@ export class ContractStepComponent implements OnInit {
   loadContractData() {
     const state = this.wizardStateService.getState();
     if (state) {
-      // Cargar datos del paso anterior (data-entry)
-      const dataEntryData = state.contractData || {};
+      console.log('📋 Cargando datos para el contrato desde wizardState:', state);
+      console.log('📋 state.policyId:', state.policyId);
       
-      this.contractData = {
+      // Si tenemos policyId, cargar datos desde el backend
+      if (state.policyId) {
+        console.log('📡 Cargando datos desde backend usando policyId:', state.policyId);
+        this.loadDataFromBackendByPolicy(state.policyId);
+        return;
+      }
+      
+      // Fallback: crear contrato con datos por defecto
+      console.log('⚠️ No hay policyId, creando contrato con datos por defecto');
+      this.createContractData(state, {});
+    }
+  }
+
+  /**
+   * Carga datos desde el backend usando policyId
+   */
+  private loadDataFromBackendByPolicy(policyId: string) {
+    console.log('📡 Cargando datos de captura desde el backend por policyId:', policyId);
+    
+    this.captureDataService.getAllCaptureDataByPolicy(policyId).subscribe({
+      next: (response) => {
+        console.log('📡 Respuesta completa del backend:', response);
+        if (response.success && response.data) {
+          const data = response.data;
+          console.log('📡 Datos recibidos del backend:', data);
+          
+          // Crear el contrato con los datos del backend
+          const state = this.wizardStateService.getState();
+          this.createContractData(state, data);
+        } else {
+          console.log('⚠️ Respuesta del backend no exitosa o sin datos:', response);
+          // Fallback: crear contrato con datos por defecto
+          const state = this.wizardStateService.getState();
+          this.createContractData(state, {});
+        }
+      },
+      error: (error) => {
+        console.log('❌ Error cargando datos desde backend:', error);
+        // Fallback: crear contrato con datos por defecto
+        const state = this.wizardStateService.getState();
+        this.createContractData(state, {});
+      }
+    });
+  }
+
+  /**
+   * Crea los datos del contrato
+   */
+  private createContractData(state: any, captureData: any) {
+    console.log('📋 Creando datos del contrato con:', captureData);
+    
+    this.contractData = {
         // Datos básicos del usuario
         userData: state.userData || {
           name: '',
@@ -70,17 +127,25 @@ export class ContractStepComponent implements OnInit {
         selectedPlan: state.selectedPlan || '',
         quotationNumber: state.quotationNumber || '',
         policyNumber: state.policyNumber || 'Pendiente',
-        contractDate: new Date().toLocaleDateString('es-MX'),
-        generationDate: new Date().toLocaleDateString('es-MX'),
+        contractDate: (() => {
+          const now = new Date();
+          const fecha = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          return fecha.toLocaleDateString('es-MX');
+        })(),
+        generationDate: (() => {
+          const now = new Date();
+          const fecha = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          return fecha.toLocaleDateString('es-MX');
+        })(),
         
-        // Configuración del contrato (valores por defecto)
-        tipoPersona: 'fisica',
-        tipoPersonaArrendatario: 'fisica',
-        tipoInmueble: 'casa',
-        giroComercial: '',
+        // Configuración del contrato (usar datos reales)
+        tipoPersona: captureData.propietario?.tipoPersona || 'fisica',
+        tipoPersonaArrendatario: captureData.inquilino?.tipoPersona || 'fisica',
+        tipoInmueble: captureData.inmueble?.tipoInmueble || 'casa',
+        giroComercial: captureData.inmueble?.giroComercial || '',
         
         // Datos del propietario (usar datos reales capturados)
-        propietario: dataEntryData.propietario || {
+        propietario: captureData.propietario || {
           fechaAlta: new Date().toISOString().split('T')[0],
           curp: '',
           tipoPersona: 'fisica',
@@ -99,7 +164,7 @@ export class ContractStepComponent implements OnInit {
         },
         
         // Datos del inquilino (usar datos reales capturados)
-        inquilino: dataEntryData.inquilino || {
+        inquilino: captureData.inquilino || {
           fechaAlta: new Date().toISOString().split('T')[0],
           curp: '',
           tipoPersona: 'fisica',
@@ -126,7 +191,7 @@ export class ContractStepComponent implements OnInit {
         },
         
         // Datos del fiador (usar datos reales capturados)
-        fiador: dataEntryData.fiador || {
+        fiador: captureData.fiador || {
           fechaAlta: new Date().toISOString().split('T')[0],
           curp: '',
           tipoPersona: 'fisica',
@@ -168,14 +233,39 @@ export class ContractStepComponent implements OnInit {
           fechaRegistro: ''
         },
         
-        // Datos del inmueble (usar datos reales capturados + datos adicionales del wizard)
+        // Datos del inmueble (usar datos reales capturados)
         inmueble: {
-          ...(dataEntryData.inmueble || {}),
-          // Agregar campos adicionales necesarios para el contrato
-          renta: state.userData?.rentaMensual || 0,
-          mantenimiento: 0, // Por defecto sin mantenimiento adicional
-          vigenciaInicio: '01 de enero de 2024', // Fecha por defecto
-          vigenciaFin: '31 de diciembre de 2024'  // Fecha por defecto
+          ...captureData.inmueble,
+          // Asegurar que los campos numéricos sean números
+          renta: parseFloat(captureData.inmueble?.renta || '0'),
+          mantenimiento: parseFloat(captureData.inmueble?.mantenimiento || '0'),
+          // Formatear fechas para el contrato (evitar problemas de zona horaria)
+          vigenciaInicio: (() => {
+            const fechaInicio = captureData.inmueble?.vigenciaInicio;
+            console.log('📅 Fecha de inicio de vigencia original:', fechaInicio);
+            if (fechaInicio) {
+              // Crear fecha sin problemas de zona horaria
+              const [year, month, day] = fechaInicio.split('-');
+              const fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+              const fechaFormateada = fecha.toLocaleDateString('es-MX');
+              console.log('📅 Fecha de inicio formateada:', fechaFormateada);
+              return fechaFormateada;
+            }
+            return '01 de enero de 2024';
+          })(),
+          vigenciaFin: (() => {
+            const fechaFin = captureData.inmueble?.vigenciaFin;
+            console.log('📅 Fecha de fin de vigencia original:', fechaFin);
+            if (fechaFin) {
+              // Crear fecha sin problemas de zona horaria
+              const [year, month, day] = fechaFin.split('-');
+              const fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+              const fechaFormateada = fecha.toLocaleDateString('es-MX');
+              console.log('📅 Fecha de fin formateada:', fechaFormateada);
+              return fechaFormateada;
+            }
+            return '31 de diciembre de 2024';
+          })()
         },
         
         // Cláusulas adicionales
@@ -183,16 +273,21 @@ export class ContractStepComponent implements OnInit {
         requerimientosAdicionales: ''
       };
       
+      console.log('📋 Datos del contrato preparados:', this.contractData);
       this.generateContractPreview();
-    }
   }
 
   /**
    * Genera la vista previa del contrato
    */
   generateContractPreview() {
+    console.log('🔄 generateContractPreview() ejecutado');
     if (this.contractData) {
+      console.log('📋 Generando HTML del contrato con datos:', this.contractData);
       this.contractHtml = this.contractPdfService.generateContractHtml(this.contractData);
+      console.log('📋 HTML del contrato generado:', this.contractHtml.substring(0, 200) + '...');
+    } else {
+      console.log('❌ No hay datos del contrato para generar');
     }
   }
 

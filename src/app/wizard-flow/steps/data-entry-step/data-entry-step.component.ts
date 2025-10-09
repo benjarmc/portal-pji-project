@@ -126,6 +126,24 @@ export class DataEntryStepComponent implements OnInit {
   isSaving = false;
   saveStatus: 'idle' | 'saving' | 'saved' | 'error' = 'idle';
   
+  // Progreso de completado
+  completionProgress: {
+    propietario: number;
+    inquilino: number;
+    fiador: number;
+    inmueble: number;
+    total: number;
+  } = {
+    propietario: 0,
+    inquilino: 0,
+    fiador: 0,
+    inmueble: 0,
+    total: 0
+  };
+
+  // Array para el ngFor con tipos específicos
+  tabs: ('propietario' | 'inquilino' | 'fiador' | 'inmueble')[] = ['propietario', 'inquilino', 'fiador', 'inmueble'];
+  
   propietarioForm!: FormGroup;
   inquilinoForm!: FormGroup;
   fiadorForm!: FormGroup;
@@ -141,6 +159,36 @@ export class DataEntryStepComponent implements OnInit {
 
   ngOnInit() {
     this.loadExistingData();
+    this.initializeProgressTracking();
+  }
+
+  private initializeProgressTracking() {
+    // Calcular progreso inicial
+    setTimeout(() => {
+      this.calculateProgress();
+    }, 100);
+
+    // Agregar listeners para recalcular progreso cuando cambien los formularios
+    if (this.propietarioForm) {
+      this.propietarioForm.valueChanges.subscribe(() => {
+        this.calculateProgress();
+      });
+    }
+    if (this.inquilinoForm) {
+      this.inquilinoForm.valueChanges.subscribe(() => {
+        this.calculateProgress();
+      });
+    }
+    if (this.fiadorForm) {
+      this.fiadorForm.valueChanges.subscribe(() => {
+        this.calculateProgress();
+      });
+    }
+    if (this.inmuebleForm) {
+      this.inmuebleForm.valueChanges.subscribe(() => {
+        this.calculateProgress();
+      });
+    }
   }
 
   private initializeForms() {
@@ -255,28 +303,109 @@ export class DataEntryStepComponent implements OnInit {
   private loadExistingData() {
     const state = this.wizardStateService.getState();
     
+    console.log('🔍 [DEBUG] Estado completo del wizard:', state);
+    console.log('🔍 [DEBUG] policyId disponible:', state?.policyId);
+    console.log('🔍 [DEBUG] contractData disponible:', state?.contractData);
+    
     // Primero cargar desde el estado local del wizard
     if (state && state.contractData) {
       const contractData = state.contractData;
       
       if (contractData.propietario) {
         this.propietarioForm.patchValue(contractData.propietario);
+        console.log('✅ Datos de propietario cargados desde estado local');
       }
       if (contractData.inquilino) {
         this.inquilinoForm.patchValue(contractData.inquilino);
+        console.log('✅ Datos de inquilino cargados desde estado local');
       }
       if (contractData.fiador) {
         this.fiadorForm.patchValue(contractData.fiador);
+        console.log('✅ Datos de fiador cargados desde estado local');
       }
       if (contractData.inmueble) {
         this.inmuebleForm.patchValue(contractData.inmueble);
+        console.log('✅ Datos de inmueble cargados desde estado local');
       }
     }
 
-    // También intentar cargar desde el backend si tenemos userId
-    if (state && state.userId) {
-      this.loadDataFromBackend(state.userId);
+    // También intentar cargar desde el backend usando policyId
+    if (state && state.policyId) {
+      console.log('🚀 Iniciando carga desde backend con policyId:', state.policyId);
+      this.loadDataFromBackendByPolicy(state.policyId);
+    } else {
+      console.log('⚠️ No hay policyId disponible para cargar desde backend');
     }
+  }
+
+  private loadDataFromBackendByPolicy(policyId: string) {
+    console.log('📡 Cargando datos de captura desde el backend por policyId:', policyId);
+    
+    this.captureDataService.getAllCaptureDataByPolicy(policyId).subscribe({
+      next: (response) => {
+        console.log('📡 Respuesta completa del backend:', response);
+        if (response.success && response.data) {
+          const data = response.data;
+          console.log('📡 Datos recibidos del backend:', data);
+          
+          // Solo actualizar formularios si no tienen datos locales
+          if (data.propietario && !this.propietarioForm.get('nombre')?.value) {
+            console.log('📝 Llenando formulario de propietario con:', data.propietario);
+            this.propietarioForm.patchValue(data.propietario);
+            console.log('✅ Datos de propietario cargados desde backend por policyId');
+          } else if (data.propietario) {
+            console.log('⚠️ Formulario de propietario ya tiene datos, no se sobrescribe');
+          }
+          
+          if (data.inquilino && !this.inquilinoForm.get('nombre')?.value) {
+            console.log('📝 Llenando formulario de inquilino con:', data.inquilino);
+            this.inquilinoForm.patchValue(data.inquilino);
+            console.log('✅ Datos de inquilino cargados desde backend por policyId');
+          } else if (data.inquilino) {
+            console.log('⚠️ Formulario de inquilino ya tiene datos, no se sobrescribe');
+          }
+          
+          if (data.fiador && !this.fiadorForm.get('nombre')?.value) {
+            console.log('📝 Llenando formulario de fiador con:', data.fiador);
+            this.fiadorForm.patchValue(data.fiador);
+            console.log('✅ Datos de fiador cargados desde backend por policyId');
+          } else if (data.fiador) {
+            console.log('⚠️ Formulario de fiador ya tiene datos, no se sobrescribe');
+          }
+          
+          if (data.inmueble && !this.inmuebleForm.get('calle')?.value) {
+            console.log('📝 Llenando formulario de inmueble con:', data.inmueble);
+            this.inmuebleForm.patchValue(data.inmueble);
+            console.log('✅ Datos de inmueble cargados desde backend por policyId');
+          } else if (data.inmueble) {
+            console.log('⚠️ Formulario de inmueble ya tiene datos, no se sobrescribe');
+          }
+          
+          // IMPORTANTE: Guardar los datos cargados en wizardState.captureData
+          // para que hasSavedData() funcione correctamente
+          console.log('💾 Guardando datos cargados en wizardState.captureData');
+          const currentState = this.wizardStateService.getState();
+          this.wizardStateService.saveState({
+            captureData: {
+              ...currentState.captureData,
+              propietario: data.propietario || currentState.captureData?.propietario,
+              inquilino: data.inquilino || currentState.captureData?.inquilino,
+              fiador: data.fiador || currentState.captureData?.fiador,
+              inmueble: data.inmueble || currentState.captureData?.inmueble
+            }
+          });
+          console.log('✅ Datos guardados en wizardState.captureData para verificación de hasSavedData()');
+        } else {
+          console.log('⚠️ Respuesta del backend no exitosa o sin datos:', response);
+        }
+      },
+      error: (error) => {
+        console.log('❌ Error cargando datos desde backend:', error);
+        console.log('❌ Error details:', error.error);
+        console.log('❌ Error message:', error.message);
+        console.log('❌ Error status:', error.status);
+      }
+    });
   }
 
   private loadDataFromBackend(userId: string) {
@@ -321,10 +450,26 @@ export class DataEntryStepComponent implements OnInit {
   }
 
   onNext() {
-    if (this.validateCurrentTab()) {
-      this.saveData();
-      this.next.emit();
-    }
+    console.log('🚀 onNext() ejecutado - avanzando al siguiente paso');
+    
+    // Guardar explícitamente los datos capturados en el wizardState
+    const currentState = this.wizardStateService.getState();
+    console.log('💾 Guardando datos de captura en wizardState antes de navegar al contrato');
+    console.log('📊 Datos actuales de captureData:', currentState.captureData);
+    
+    // Asegurar que los datos estén guardados
+    this.wizardStateService.saveState({
+      ...currentState,
+      captureData: {
+        propietario: currentState.captureData?.propietario,
+        inquilino: currentState.captureData?.inquilino,
+        fiador: currentState.captureData?.fiador,
+        inmueble: currentState.captureData?.inmueble
+      }
+    });
+    
+    console.log('✅ Datos guardados, emitiendo evento next');
+    this.next.emit();
   }
 
   onPrevious() {
@@ -447,6 +592,261 @@ export class DataEntryStepComponent implements OnInit {
     console.log(`🗑️ Archivo limpiado para ${fieldName}`);
   }
 
+  // Métodos para guardar datos de cada tab
+  async savePropietarioData(): Promise<void> {
+    console.log('🚀 savePropietarioData() ejecutado');
+    
+    if (!this.isPropietarioFormValid()) {
+      console.warn('⚠️ Formulario de propietario no válido - campos obligatorios faltantes');
+      return;
+    }
+
+    this.isSaving = true;
+    this.saveStatus = 'saving';
+
+    try {
+      const wizardState = this.wizardStateService.getState();
+      const propietarioData = this.propietarioForm.value;
+      
+      console.log('💾 Guardando datos de propietario:', propietarioData);
+      console.log('📋 policyId disponible:', wizardState.policyId);
+
+      const response = await this.captureDataService.createPropietario(
+        wizardState.userId || this.generateTempUserId(),
+        {
+          ...propietarioData,
+          policyId: wizardState.policyId || undefined
+        }
+      ).toPromise();
+
+      if (response?.success) {
+        console.log('✅ Propietario guardado exitosamente:', response.data);
+        this.saveStatus = 'saved';
+        
+        // Actualizar el estado del wizard
+        this.wizardStateService.saveState({
+          captureData: {
+            ...wizardState.captureData,
+            propietario: response.data
+          }
+        });
+      } else {
+        throw new Error('Error en la respuesta del servidor');
+      }
+    } catch (error) {
+      console.error('❌ Error guardando propietario:', error);
+      this.saveStatus = 'error';
+    } finally {
+      this.isSaving = false;
+      // Resetear el estado después de 3 segundos
+      setTimeout(() => {
+        this.saveStatus = 'idle';
+      }, 3000);
+    }
+  }
+
+  async saveInquilinoData(): Promise<void> {
+    if (!this.isInquilinoFormValid()) {
+      console.warn('⚠️ Formulario de inquilino no válido - campos obligatorios faltantes');
+      return;
+    }
+
+    this.isSaving = true;
+    this.saveStatus = 'saving';
+
+    try {
+      const wizardState = this.wizardStateService.getState();
+      const inquilinoData = this.inquilinoForm.value;
+      
+      console.log('💾 Guardando datos de inquilino:', inquilinoData);
+      console.log('📋 policyId disponible:', wizardState.policyId);
+
+      // Filtrar campos que no existen en el backend y convertir archivos a strings
+      const { comprobanteIngresos3, comprobanteIngresos4, ...filteredData } = inquilinoData;
+      
+      // Convertir archivos a strings (nombres de archivo o vacío)
+      const processedData = {
+        ...filteredData,
+        ine: filteredData.ine ? (filteredData.ine as File).name : '',
+        pasaporte: filteredData.pasaporte ? (filteredData.pasaporte as File).name : '',
+        comprobanteDomicilio: filteredData.comprobanteDomicilio ? (filteredData.comprobanteDomicilio as File).name : '',
+        comprobanteIngresos: filteredData.comprobanteIngresos ? (filteredData.comprobanteIngresos as File).name : '',
+        comprobanteDomicilioImagen: filteredData.comprobanteDomicilioImagen ? (filteredData.comprobanteDomicilioImagen as File).name : '',
+        comprobanteIngresos2: filteredData.comprobanteIngresos2 ? (filteredData.comprobanteIngresos2 as File).name : ''
+      };
+      
+      console.log('🔍 Datos procesados para enviar:', processedData);
+
+      const response = await this.captureDataService.createInquilino(
+        wizardState.userId || this.generateTempUserId(),
+        {
+          ...processedData,
+          policyId: wizardState.policyId || undefined
+        }
+      ).toPromise();
+
+      if (response?.success) {
+        console.log('✅ Inquilino guardado exitosamente:', response.data);
+        this.saveStatus = 'saved';
+        
+        // Actualizar el estado del wizard
+        this.wizardStateService.saveState({
+          captureData: {
+            ...wizardState.captureData,
+            inquilino: response.data
+          }
+        });
+      } else {
+        throw new Error('Error en la respuesta del servidor');
+      }
+    } catch (error) {
+      console.error('❌ Error guardando inquilino:', error);
+      this.saveStatus = 'error';
+    } finally {
+      this.isSaving = false;
+      // Resetear el estado después de 3 segundos
+      setTimeout(() => {
+        this.saveStatus = 'idle';
+      }, 3000);
+    }
+  }
+
+  async saveFiadorData(): Promise<void> {
+    if (!this.isFiadorFormValid()) {
+      console.warn('⚠️ Formulario de fiador no válido - campos obligatorios faltantes');
+      return;
+    }
+
+    this.isSaving = true;
+    this.saveStatus = 'saving';
+
+    try {
+      const wizardState = this.wizardStateService.getState();
+      const fiadorData = this.fiadorForm.value;
+      
+      console.log('💾 Guardando datos de fiador:', fiadorData);
+      console.log('📋 policyId disponible:', wizardState.policyId);
+
+      // Convertir archivos a strings (nombres de archivo o vacío) y manejar fechas
+      const processedData = {
+        ...fiadorData,
+        ine: fiadorData.ine ? (fiadorData.ine as File).name : '',
+        escrituras: fiadorData.escrituras ? (fiadorData.escrituras as File).name : '',
+        actaMatrimonio: fiadorData.actaMatrimonio ? (fiadorData.actaMatrimonio as File).name : '',
+        // Manejar fechas: enviar null si están vacías, de lo contrario mantener el valor
+        fechaEscrituraGarantia: fiadorData.fechaEscrituraGarantia && fiadorData.fechaEscrituraGarantia.trim() !== '' 
+          ? fiadorData.fechaEscrituraGarantia 
+          : null,
+        fechaRegistro: fiadorData.fechaRegistro && fiadorData.fechaRegistro.trim() !== '' 
+          ? fiadorData.fechaRegistro 
+          : null
+      };
+      
+      console.log('🔍 Datos procesados para enviar:', processedData);
+
+      const response = await this.captureDataService.createFiador(
+        wizardState.userId || this.generateTempUserId(),
+        {
+          ...processedData,
+          policyId: wizardState.policyId || undefined
+        }
+      ).toPromise();
+
+      if (response?.success) {
+        console.log('✅ Fiador guardado exitosamente:', response.data);
+        this.saveStatus = 'saved';
+        
+        // Actualizar el estado del wizard
+        this.wizardStateService.saveState({
+          captureData: {
+            ...wizardState.captureData,
+            fiador: response.data
+          }
+        });
+      } else {
+        throw new Error('Error en la respuesta del servidor');
+      }
+    } catch (error) {
+      console.error('❌ Error guardando fiador:', error);
+      this.saveStatus = 'error';
+    } finally {
+      this.isSaving = false;
+      // Resetear el estado después de 3 segundos
+      setTimeout(() => {
+        this.saveStatus = 'idle';
+      }, 3000);
+    }
+  }
+
+  async saveInmuebleData(): Promise<void> {
+    if (!this.isInmuebleFormValid()) {
+      console.warn('⚠️ Formulario de inmueble no válido - campos obligatorios faltantes');
+      return;
+    }
+
+    this.isSaving = true;
+    this.saveStatus = 'saving';
+
+    try {
+      const wizardState = this.wizardStateService.getState();
+      const inmuebleData = this.inmuebleForm.value;
+      
+      console.log('💾 Guardando datos de inmueble:', inmuebleData);
+      console.log('📋 policyId disponible:', wizardState.policyId);
+
+      // Manejar fechas: enviar null si están vacías
+      const processedData = {
+        ...inmuebleData,
+        fechaEscritura: inmuebleData.fechaEscritura && inmuebleData.fechaEscritura.trim() !== '' 
+          ? inmuebleData.fechaEscritura 
+          : null,
+        fechaRegistro: inmuebleData.fechaRegistro && inmuebleData.fechaRegistro.trim() !== '' 
+          ? inmuebleData.fechaRegistro 
+          : null,
+        vigenciaInicio: inmuebleData.vigenciaInicio && inmuebleData.vigenciaInicio.trim() !== '' 
+          ? inmuebleData.vigenciaInicio 
+          : null,
+        vigenciaFin: inmuebleData.vigenciaFin && inmuebleData.vigenciaFin.trim() !== '' 
+          ? inmuebleData.vigenciaFin 
+          : null
+      };
+      
+      console.log('🔍 Datos procesados para enviar:', processedData);
+
+      const response = await this.captureDataService.createInmueble(
+        wizardState.userId || this.generateTempUserId(),
+        {
+          ...processedData,
+          policyId: wizardState.policyId || undefined
+        }
+      ).toPromise();
+
+      if (response?.success) {
+        console.log('✅ Inmueble guardado exitosamente:', response.data);
+        this.saveStatus = 'saved';
+        
+        // Actualizar el estado del wizard
+        this.wizardStateService.saveState({
+          captureData: {
+            ...wizardState.captureData,
+            inmueble: response.data
+          }
+        });
+      } else {
+        throw new Error('Error en la respuesta del servidor');
+      }
+    } catch (error) {
+      console.error('❌ Error guardando inmueble:', error);
+      this.saveStatus = 'error';
+    } finally {
+      this.isSaving = false;
+      // Resetear el estado después de 3 segundos
+      setTimeout(() => {
+        this.saveStatus = 'idle';
+      }, 3000);
+    }
+  }
+
   getCurrentTabForm(): FormGroup {
     switch (this.activeTab) {
       case 'propietario':
@@ -476,4 +876,181 @@ export class DataEntryStepComponent implements OnInit {
         return false;
     }
   }
+
+  // Método para generar un UUID temporal válido
+  private generateTempUserId(): string {
+    // Generar un UUID v4 válido
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  // Métodos de validación para botones de guardar (solo campos obligatorios)
+  isPropietarioFormValid(): boolean {
+    const form = this.propietarioForm;
+    const isValid = !!(
+      form.get('fechaAlta')?.value &&
+      form.get('curp')?.value &&
+      form.get('tipoPersona')?.value &&
+      form.get('nombre')?.value &&
+      form.get('telefono')?.value &&  // Agregado: telefono es obligatorio en el backend
+      form.get('calle')?.value &&
+      form.get('numeroExterior')?.value &&
+      form.get('cp')?.value &&
+      form.get('colonia')?.value &&
+      form.get('alcaldiaMunicipio')?.value &&
+      form.get('estado')?.value
+    );
+    
+    
+    return isValid;
+  }
+
+  isInquilinoFormValid(): boolean {
+    const form = this.inquilinoForm;
+    return !!(
+      form.get('fechaAlta')?.value &&
+      form.get('curp')?.value &&
+      form.get('tipoPersona')?.value &&
+      form.get('nombre')?.value &&
+      form.get('telefono')?.value &&  // Agregado: telefono es obligatorio en el backend
+      form.get('calle')?.value &&
+      form.get('numeroExterior')?.value &&
+      form.get('cp')?.value &&
+      form.get('colonia')?.value &&
+      form.get('alcaldiaMunicipio')?.value &&
+      form.get('estado')?.value
+    );
+  }
+
+  isFiadorFormValid(): boolean {
+    const form = this.fiadorForm;
+    return !!(
+      form.get('fechaAlta')?.value &&
+      form.get('curp')?.value &&
+      form.get('tipoPersona')?.value &&
+      form.get('nombre')?.value &&
+      form.get('telefono')?.value &&  // Agregado: telefono es obligatorio en el backend
+      form.get('calle')?.value &&
+      form.get('numeroExterior')?.value &&
+      form.get('cp')?.value &&
+      form.get('colonia')?.value &&
+      form.get('alcaldiaMunicipio')?.value &&
+      form.get('estado')?.value &&
+      form.get('calleGarantia')?.value &&
+      form.get('numeroExteriorGarantia')?.value &&
+      form.get('cpGarantia')?.value &&
+      form.get('coloniaGarantia')?.value &&
+      form.get('alcaldiaMunicipioGarantia')?.value &&
+      form.get('estadoGarantia')?.value
+    );
+  }
+
+  isInmuebleFormValid(): boolean {
+    const form = this.inmuebleForm;
+    return !!(
+      form.get('calle')?.value &&
+      form.get('numeroExterior')?.value &&
+      form.get('cp')?.value &&
+      form.get('colonia')?.value &&
+      form.get('alcaldiaMunicipio')?.value &&
+      form.get('estado')?.value &&
+      form.get('tipoInmueble')?.value &&
+      form.get('renta')?.value &&
+      form.get('vigenciaInicio')?.value &&
+      form.get('vigenciaFin')?.value
+    );
+  }
+
+  // Métodos para calcular progreso
+  calculateProgress(): void {
+    this.completionProgress.propietario = this.calculateFormProgress(this.propietarioForm, this.getPropietarioRequiredFields());
+    this.completionProgress.inquilino = this.calculateFormProgress(this.inquilinoForm, this.getInquilinoRequiredFields());
+    this.completionProgress.fiador = this.calculateFormProgress(this.fiadorForm, this.getFiadorRequiredFields());
+    this.completionProgress.inmueble = this.calculateFormProgress(this.inmuebleForm, this.getInmuebleRequiredFields());
+    
+    // Calcular progreso total
+    const totalProgress = this.completionProgress.propietario + 
+                         this.completionProgress.inquilino + 
+                         this.completionProgress.fiador + 
+                         this.completionProgress.inmueble;
+    this.completionProgress.total = Math.round(totalProgress / 4);
+  }
+
+  calculateFormProgress(form: FormGroup, requiredFields: string[]): number {
+    if (!form) return 0;
+    
+    let completedFields = 0;
+    requiredFields.forEach(field => {
+      const control = form.get(field);
+      if (control && control.value && control.value.toString().trim() !== '') {
+        completedFields++;
+      }
+    });
+    
+    return Math.round((completedFields / requiredFields.length) * 100);
+  }
+
+  getPropietarioRequiredFields(): string[] {
+    return ['fechaAlta', 'curp', 'tipoPersona', 'nombre', 'telefono', 'calle', 'numeroExterior', 'cp', 'colonia', 'alcaldiaMunicipio', 'estado'];
+  }
+
+  getInquilinoRequiredFields(): string[] {
+    return ['fechaAlta', 'curp', 'tipoPersona', 'nombre', 'telefono', 'calle', 'numeroExterior', 'cp', 'colonia', 'alcaldiaMunicipio', 'estado'];
+  }
+
+  getFiadorRequiredFields(): string[] {
+    return ['fechaAlta', 'curp', 'tipoPersona', 'nombre', 'telefono', 'calle', 'numeroExterior', 'cp', 'colonia', 'alcaldiaMunicipio', 'estado', 'calleGarantia', 'numeroExteriorGarantia', 'cpGarantia', 'coloniaGarantia', 'alcaldiaMunicipioGarantia', 'estadoGarantia'];
+  }
+
+  getInmuebleRequiredFields(): string[] {
+    return ['calle', 'numeroExterior', 'cp', 'colonia', 'alcaldiaMunicipio', 'estado', 'renta', 'vigenciaInicio', 'vigenciaFin'];
+  }
+
+  getProgressColor(progress: number): string {
+    if (progress === 100) return '#28a745'; // Verde para completado
+    if (progress >= 75) return '#17a2b8'; // Azul para casi completado
+    if (progress >= 50) return '#ffc107'; // Amarillo para parcialmente completado
+    return '#dc3545'; // Rojo para poco completado
+  }
+
+  getProgressIcon(progress: number): string {
+    if (progress === 100) return '✓';
+    if (progress >= 75) return '○';
+    if (progress >= 50) return '◐';
+    return '○';
+  }
+
+  /**
+   * Verifica si ya se han guardado datos para un tipo específico
+   */
+  hasSavedData(type: string): boolean {
+    const wizardState = this.wizardStateService.getState();
+    
+    switch (type) {
+      case 'propietario':
+        return !!(wizardState.captureData?.propietario);
+      case 'inquilino':
+        return !!(wizardState.captureData?.inquilino);
+      case 'fiador':
+        return !!(wizardState.captureData?.fiador);
+      case 'inmueble':
+        return !!(wizardState.captureData?.inmueble);
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Verifica si todos los tabs están completos (100%)
+   */
+  areAllTabsComplete(): boolean {
+    return this.completionProgress.propietario === 100 &&
+           this.completionProgress.inquilino === 100 &&
+           this.completionProgress.fiador === 100 &&
+           this.completionProgress.inmueble === 100;
+  }
+
 }
