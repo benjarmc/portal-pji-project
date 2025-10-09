@@ -6,7 +6,7 @@ export interface ValidationRequest {
   name: string;
   email: string;
   type: 'arrendador' | 'arrendatario' | 'aval';
-  quotationId: string;
+  quotationId?: string; // Hacer quotationId opcional también
   policyId?: string; // Agregar policyId opcional
 }
 

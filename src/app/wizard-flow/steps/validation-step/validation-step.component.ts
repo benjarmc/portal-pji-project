@@ -656,8 +656,10 @@ export class ValidationStepComponent implements OnInit {
     const quotationId = wizardState.quotationId;
     const policyId = wizardState.policyId;
     
-    if (!quotationId) {
-      console.error('❌ Falta quotationId para iniciar validación');
+    // Verificar que al menos uno de los IDs esté disponible
+    if (!quotationId && !policyId) {
+      console.error('❌ Falta quotationId o policyId para iniciar validación');
+      console.error('📊 Estado del wizard:', wizardState);
       return;
     }
     
@@ -666,12 +668,12 @@ export class ValidationStepComponent implements OnInit {
       name: validationData.name,
       email: validationData.email,
       type: validationData.type,
-      quotationId,
-      policyId: policyId || undefined // Incluir policyId si está disponible
+      quotationId: quotationId || undefined, // Enviar quotationId si está disponible
+      policyId: policyId || undefined // Enviar policyId si está disponible
     };
     
     console.log(`🚀 Iniciando validación a través del backend para ${validationData.type}:`, validationRequest);
-    console.log(`📋 Datos enviados: quotationId=${quotationId}, policyId=${policyId}`);
+    console.log(`📋 Datos enviados: quotationId=${quotationId || 'N/A'}, policyId=${policyId || 'N/A'}`);
     
     // Iniciar validación en el backend (el backend se encarga de VDID)
     this.validationService.startValidation(validationRequest).subscribe({
