@@ -9,7 +9,7 @@ import { WizardStateService } from '../../../../services/wizard-state.service';
 import { ValidationService, ValidationRequest } from '../../../../services/validation.service';
 import { Plan } from '../../../../models/plan.model';
 import { ActivatedRoute } from '@angular/router';
-
+import { LoggerService } from '../../../../services/logger.service';
 export interface AlternativePlan {
   id: string;
   name: string;
@@ -65,7 +65,8 @@ export class ValidationStepComponent implements OnInit {
     private quotationsService: QuotationsService,
     private wizardStateService: WizardStateService,
     private validationService: ValidationService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private logger: LoggerService
   ) {}
 
   alternativePlans: AlternativePlan[] = [];
@@ -122,7 +123,7 @@ export class ValidationStepComponent implements OnInit {
       const planId = params['plan'];
       
       if (quotationNumber && planId) {
-        console.log('🎯 Llegamos desde email con cotización:', quotationNumber);
+        this.logger.log('🎯 Llegamos desde email con cotización:', quotationNumber);
         this.isFromEmail = true;
         this.quotationNumber = quotationNumber;
         
@@ -142,7 +143,7 @@ export class ValidationStepComponent implements OnInit {
     const wizardState = this.wizardStateService.getState();
     
     if (wizardState.quotationNumber && wizardState.quotationId) {
-      console.log('🎯 Cotización encontrada en estado del wizard:', wizardState.quotationNumber);
+      this.logger.log('🎯 Cotización encontrada en estado del wizard:', wizardState.quotationNumber);
       this.isFromWizard = true;
       this.quotationNumber = wizardState.quotationNumber;
       
@@ -155,16 +156,16 @@ export class ValidationStepComponent implements OnInit {
    * Cargar cotización desde el estado del wizard
    */
   private loadQuotationFromState(wizardState: any): void {
-    console.log('📊 Cargando cotización desde estado del wizard:', wizardState);
+    this.logger.log('📊 Cargando cotización desde estado del wizard:', wizardState);
     
     // Intentar obtener el monto real desde la cotización
     if (wizardState.quotationId) {
       this.loadQuotationFromAPI(wizardState.quotationId);
     } else {
       // Usar valores por defecto si no hay cotización
-      this.quotationAmount = 299.00;
+      this.quotationAmount = 0; // Ya no se usa precio hardcodeado
       this.quotationCurrency = 'MXN';
-      console.log('💰 Usando monto por defecto:', this.quotationAmount, this.quotationCurrency);
+      this.logger.log('💰 Usando monto por defecto:', this.quotationAmount, this.quotationCurrency);
     }
   }
 
@@ -198,12 +199,12 @@ export class ValidationStepComponent implements OnInit {
       this.quotationAmount += complementPrice;
       this.quotationCurrency = this.selectedPlan.currency || 'MXN';
       
-      console.log('💰 Monto calculado desde plan:', this.quotationAmount, this.quotationCurrency);
+      this.logger.log('💰 Monto calculado desde plan:', this.quotationAmount, this.quotationCurrency);
     } else {
       // Fallback a valor por defecto
-      this.quotationAmount = 299.00;
+      this.quotationAmount = 0; // Ya no se usa precio hardcodeado
       this.quotationCurrency = 'MXN';
-      console.log('💰 Usando monto por defecto (sin plan):', this.quotationAmount, this.quotationCurrency);
+      this.logger.log('💰 Usando monto por defecto (sin plan):', this.quotationAmount, this.quotationCurrency);
     }
   }
 
@@ -215,7 +216,7 @@ export class ValidationStepComponent implements OnInit {
       const wizardState = this.wizardStateService.getState();
       return wizardState.userData?.rentaMensual || 0;
     } catch (error) {
-      console.error('❌ Error obteniendo renta mensual del estado:', error);
+      this.logger.error('❌ Error obteniendo renta mensual del estado:', error);
       return 0;
     }
   }
@@ -267,13 +268,13 @@ export class ValidationStepComponent implements OnInit {
     // Buscar la cotización por número
     // Por ahora usamos un valor por defecto, pero podrías implementar un endpoint
     // para buscar cotizaciones por número
-    console.log('📊 Cargando detalles de cotización:', quotationNumber);
+    this.logger.log('📊 Cargando detalles de cotización:', quotationNumber);
     
     // Simular obtención de monto (reemplazar con llamada real a la API)
-    this.quotationAmount = 299.00; // Este valor debería venir de la API
+    this.quotationAmount = 0; // Ya no se usa precio hardcodeado
     this.quotationCurrency = 'MXN';
     
-    console.log('💰 Monto de cotización:', this.quotationAmount, this.quotationCurrency);
+    this.logger.log('💰 Monto de cotización:', this.quotationAmount, this.quotationCurrency);
   }
 
   /**
@@ -300,11 +301,11 @@ export class ValidationStepComponent implements OnInit {
               selected: false
             })) : []
           }));
-          console.log('Planes cargados con complementos:', this.alternativePlans);
+          this.logger.log('Planes cargados con complementos:', this.alternativePlans);
         }
       },
       error: (error) => {
-        console.error('Error al cargar planes:', error);
+        this.logger.error('Error al cargar planes:', error);
         // Fallback a planes por defecto si hay error
         this.loadDefaultPlans();
       }
@@ -312,36 +313,12 @@ export class ValidationStepComponent implements OnInit {
   }
 
   /**
-   * Planes por defecto en caso de error
+   * Planes por defecto en caso de error - eliminado para evitar conflictos con API
    */
   loadDefaultPlans() {
-    this.alternativePlans = [
-      { 
-        id: 'default-juridica', 
-        name: 'Póliza Jurídica Digital', 
-        description: 'Protección esencial para tu arrendamiento.',
-        price: 0,
-        currency: 'MXN',
-        features: ['Falta de pago', 'Abandono', 'Devolución voluntaria']
-      },
-      { 
-        id: 'default-investigacion', 
-        name: 'Investigación Digital (Más Popular)', 
-        description: 'Cobertura ampliada y negociación de contrato.',
-        price: 0,
-        currency: 'MXN',
-        features: ['Intervención legal', 'Negociación de contrato', 'Asesoría jurídica'],
-        isPopular: true
-      },
-      { 
-        id: 'default-total', 
-        name: 'Protección Total', 
-        description: 'Máxima protección legal y financiera.',
-        price: 0,
-        currency: 'MXN',
-        features: ['Recuperación judicial', 'Cobertura completa', 'Soporte 24/7']
-      }
-    ];
+    // Ya no se cargan planes hardcodeados, todo debe venir de la API
+    this.alternativePlans = [];
+    this.logger.warning('⚠️ No se pudieron cargar planes desde la API');
   }
 
   onNext() {
@@ -349,16 +326,16 @@ export class ValidationStepComponent implements OnInit {
   }
 
   onSelectPlan(planId: string) {
-    console.log('Plan seleccionado:', planId);
+    this.logger.log('Plan seleccionado:', planId);
     this.selectedPlan = this.alternativePlans.find(plan => plan.id === planId) || null;
-    console.log('Plan encontrado:', this.selectedPlan);
-    console.log('Complementos disponibles:', this.selectedPlan?.complementaryPlans);
+    this.logger.log('Plan encontrado:', this.selectedPlan);
+    this.logger.log('Complementos disponibles:', this.selectedPlan?.complementaryPlans);
     this.selectPlan.emit(planId);
   }
 
   onComplementChange() {
     // Recalcular total cuando cambian los complementos
-    console.log('Complementos actualizados:', this.selectedPlan?.complementaryPlans);
+    this.logger.log('Complementos actualizados:', this.selectedPlan?.complementaryPlans);
   }
 
   getTotalPrice(): number {
@@ -382,15 +359,9 @@ export class ValidationStepComponent implements OnInit {
       return this.selectedPlan.complementaryPlans;
     }
     
-    // Complementos de ejemplo cuando no hay plan seleccionado
-    return [
-      { id: '1', name: 'Complemento 1', price: 99.00, currency: 'MXN', selected: false },
-      { id: '2', name: 'Complemento 2', price: 99.00, currency: 'MXN', selected: false },
-      { id: '3', name: 'Complemento 3', price: 99.00, currency: 'MXN', selected: false },
-      { id: '4', name: 'Complemento 4', price: 99.00, currency: 'MXN', selected: false },
-      { id: '5', name: 'Complemento 5', price: 99.00, currency: 'MXN', selected: false },
-      { id: '6', name: 'Complemento 6', price: 99.00, currency: 'MXN', selected: false }
-    ];
+    // Ya no se devuelven complementos hardcodeados, todo debe venir de la API
+    this.logger.warning('⚠️ No hay complementos disponibles desde la API');
+    return [];
   }
 
   onGoToStart() {
@@ -413,14 +384,14 @@ export class ValidationStepComponent implements OnInit {
     const userTypeFromState = wizardState.userData?.tipoUsuario;
     this.userType = userTypeFromState || 'arrendador';
     
-    console.log('👤 Configurando validaciones para tipo de usuario:', this.userType);
+    this.logger.log('👤 Configurando validaciones para tipo de usuario:', this.userType);
     
     // Verificar si ya hay validationRequirements guardados en el estado
     if (wizardState.validationRequirements && wizardState.validationRequirements.length > 0) {
-      console.log('📋 Cargando validationRequirements existentes del estado:', wizardState.validationRequirements);
+      this.logger.log('📋 Cargando validationRequirements existentes del estado:', wizardState.validationRequirements);
       this.validationRequirements = wizardState.validationRequirements;
       this.completedValidations = this.validationRequirements.filter(req => req.completed).length;
-      console.log(`✅ Validaciones cargadas: ${this.completedValidations}/${this.validationRequirements.length} completadas`);
+      this.logger.log(`✅ Validaciones cargadas: ${this.completedValidations}/${this.validationRequirements.length} completadas`);
     } else {
       // Configurar validaciones según tipo de usuario (primera vez)
       switch (this.userType) {
@@ -453,11 +424,11 @@ export class ValidationStepComponent implements OnInit {
         validationRequirements: this.validationRequirements
       });
       
-      console.log('✅ Validaciones configuradas y guardadas:', this.validationRequirements);
+      this.logger.log('✅ Validaciones configuradas y guardadas:', this.validationRequirements);
     }
     
     this.totalValidations = this.validationRequirements.length;
-    console.log(`📊 Total de validaciones: ${this.totalValidations}`);
+    this.logger.log(`📊 Total de validaciones: ${this.totalValidations}`);
   }
 
   /**
@@ -468,12 +439,12 @@ export class ValidationStepComponent implements OnInit {
     const policyId = wizardState.policyId;
     
     if (policyId) {
-      console.log(`🔍 Cargando validaciones existentes para policyId: ${policyId}`);
+      this.logger.log(`🔍 Cargando validaciones existentes para policyId: ${policyId}`);
       
       this.validationService.getValidationsByPolicy(policyId).subscribe({
         next: (response) => {
           if (response.success && response.data && response.data.length > 0) {
-            console.log(`✅ Encontradas ${response.data.length} validaciones existentes para policyId ${policyId}:`, response.data);
+            this.logger.log(`✅ Encontradas ${response.data.length} validaciones existentes para policyId ${policyId}:`, response.data);
             
             // Actualizar validationRequirements con los UUIDs existentes
             response.data.forEach(existingValidation => {
@@ -486,7 +457,7 @@ export class ValidationStepComponent implements OnInit {
                   this.completedValidations++;
                 }
                 
-                console.log(`🔄 Actualizado requirement para ${existingValidation.type}:`, {
+                this.logger.log(`🔄 Actualizado requirement para ${existingValidation.type}:`, {
                   uuid: requirement.uuid,
                   completed: requirement.completed,
                   status: existingValidation.status
@@ -499,17 +470,17 @@ export class ValidationStepComponent implements OnInit {
               validationRequirements: this.validationRequirements
             });
             
-            console.log(`📊 Estado actualizado: ${this.completedValidations}/${this.totalValidations} validaciones completadas`);
+            this.logger.log(`📊 Estado actualizado: ${this.completedValidations}/${this.totalValidations} validaciones completadas`);
           } else {
-            console.log(`ℹ️ No se encontraron validaciones existentes para policyId ${policyId}`);
+            this.logger.log(`ℹ️ No se encontraron validaciones existentes para policyId ${policyId}`);
           }
         },
         error: (error) => {
-          console.error(`❌ Error cargando validaciones existentes para policyId ${policyId}:`, error);
+          this.logger.error(`❌ Error cargando validaciones existentes para policyId ${policyId}:`, error);
         }
       });
     } else {
-      console.log('ℹ️ No hay policyId disponible, saltando carga de validaciones existentes');
+      this.logger.log('ℹ️ No hay policyId disponible, saltando carga de validaciones existentes');
     }
   }
 
@@ -519,8 +490,8 @@ export class ValidationStepComponent implements OnInit {
   private loadPaymentInfo(): void {
     const wizardState = this.wizardStateService.getState();
     
-    console.log('📊 wizardState completo en validation-step:', wizardState);
-    console.log('🔍 Campos específicos de póliza:', {
+    this.logger.log('📊 wizardState completo en validation-step:', wizardState);
+    this.logger.log('🔍 Campos específicos de póliza:', {
       policyId: wizardState.policyId,
       policyNumber: wizardState.policyNumber,
       paymentResult: wizardState.paymentResult,
@@ -530,12 +501,12 @@ export class ValidationStepComponent implements OnInit {
     
     // Verificar si hay información de pago en el estado
     if (wizardState.paymentResult) {
-      console.log('📋 paymentResult encontrado en wizardState:', wizardState.paymentResult);
-      console.log('🔍 Campos de paymentResult:');
-      console.log('  - policyId:', wizardState.paymentResult.policyId);
-      console.log('  - policyNumber:', wizardState.paymentResult.policyNumber);
-      console.log('  - paymentId:', wizardState.paymentResult.paymentId);
-      console.log('  - status:', wizardState.paymentResult.status);
+      this.logger.log('📋 paymentResult encontrado en wizardState:', wizardState.paymentResult);
+      this.logger.log('🔍 Campos de paymentResult:');
+      this.logger.log('  - policyId:', wizardState.paymentResult.policyId);
+      this.logger.log('  - policyNumber:', wizardState.paymentResult.policyNumber);
+      this.logger.log('  - paymentId:', wizardState.paymentResult.paymentId);
+      this.logger.log('  - status:', wizardState.paymentResult.status);
       
       this.paymentResult = wizardState.paymentResult;
       this.policyGenerated = true;
@@ -544,18 +515,18 @@ export class ValidationStepComponent implements OnInit {
       // El monto real se guarda en el paso de pago
       this.paymentAmount = wizardState.paymentAmount || this.quotationAmount;
       
-      console.log('💰 Monto asignado desde paymentResult:', {
+      this.logger.log('💰 Monto asignado desde paymentResult:', {
         wizardStatePaymentAmount: wizardState.paymentAmount,
         quotationAmount: this.quotationAmount,
         finalPaymentAmount: this.paymentAmount
       });
       
-      console.log('✅ paymentResult asignado al componente de validación');
+      this.logger.log('✅ paymentResult asignado al componente de validación');
     } else if (wizardState.policyId && wizardState.policyNumber) {
-      console.log('📋 Datos de póliza encontrados directamente en wizardState');
-      console.log('🔍 Campos directos de póliza:');
-      console.log('  - policyId:', wizardState.policyId);
-      console.log('  - policyNumber:', wizardState.policyNumber);
+      this.logger.log('📋 Datos de póliza encontrados directamente en wizardState');
+      this.logger.log('🔍 Campos directos de póliza:');
+      this.logger.log('  - policyId:', wizardState.policyId);
+      this.logger.log('  - policyNumber:', wizardState.policyNumber);
       
       // Crear paymentResult desde los campos directos
       this.paymentResult = {
@@ -571,16 +542,16 @@ export class ValidationStepComponent implements OnInit {
       this.policyGenerated = true;
       this.paymentAmount = wizardState.paymentAmount || this.quotationAmount;
       
-      console.log('💰 Monto asignado desde campos directos:', {
+      this.logger.log('💰 Monto asignado desde campos directos:', {
         wizardStatePaymentAmount: wizardState.paymentAmount,
         quotationAmount: this.quotationAmount,
         finalPaymentAmount: this.paymentAmount
       });
       
-      console.log('✅ Datos de póliza asignados al componente de validación desde campos directos');
+      this.logger.log('✅ Datos de póliza asignados al componente de validación desde campos directos');
     } else {
-      console.log('⚠️ No hay paymentResult ni datos de póliza en wizardState');
-      console.log('📊 wizardState completo:', wizardState);
+      this.logger.log('⚠️ No hay paymentResult ni datos de póliza en wizardState');
+      this.logger.log('📊 wizardState completo:', wizardState);
     }
   }
 
@@ -592,7 +563,7 @@ export class ValidationStepComponent implements OnInit {
     if (requirement && !requirement.completed) {
       requirement.completed = true;
       this.completedValidations++;
-      console.log(`✅ Validación ${type} completada. Progreso: ${this.completedValidations}/${this.totalValidations}`);
+      this.logger.log(`✅ Validación ${type} completada. Progreso: ${this.completedValidations}/${this.totalValidations}`);
       
       // Guardar validationRequirements actualizados en el estado
       this.wizardStateService.saveState({
@@ -601,23 +572,23 @@ export class ValidationStepComponent implements OnInit {
       
       // Sincronizar con el backend para persistir los validationRequirements
       this.wizardStateService.syncWithBackendCorrected(this.wizardStateService.getState()).then(() => {
-        console.log('✅ validationRequirements actualizados sincronizados con el backend');
+        this.logger.log('✅ validationRequirements actualizados sincronizados con el backend');
       }).catch(error => {
-        console.error('❌ Error sincronizando validationRequirements actualizados con backend:', error);
+        this.logger.error('❌ Error sincronizando validationRequirements actualizados con backend:', error);
       });
       
       // Mostrar mensaje de éxito para esta validación
-      console.log(`🎯 Validación de ${type} completada exitosamente`);
-      console.log(`📧 El enlace de verificación fue enviado y completado`);
+      this.logger.log(`🎯 Validación de ${type} completada exitosamente`);
+      this.logger.log(`📧 El enlace de verificación fue enviado y completado`);
       
       // Si todas las validaciones están completadas, permitir continuar
       if (this.completedValidations === this.totalValidations) {
-        console.log('🎉 Todas las validaciones completadas');
+        this.logger.log('🎉 Todas las validaciones completadas');
         this.validationStatus = 'success';
         
         // Mostrar mensaje de éxito
-        console.log('🎯 Todas las validaciones de identidad han sido completadas exitosamente');
-        console.log('🚀 El usuario puede continuar al siguiente paso');
+        this.logger.log('🎯 Todas las validaciones de identidad han sido completadas exitosamente');
+        this.logger.log('🚀 El usuario puede continuar al siguiente paso');
         
         // Aquí podrías mostrar una notificación visual al usuario
         // o actualizar la UI para mostrar el botón de continuar
@@ -629,7 +600,7 @@ export class ValidationStepComponent implements OnInit {
    * Iniciar proceso de validación para un tipo específico
    */
   startValidation(type: string): void {
-    console.log(`🚀 Iniciando validación para: ${type}`);
+    this.logger.log(`🚀 Iniciando validación para: ${type}`);
     
     // Establecer el tipo de validación actual
     this.currentValidationType = type as 'arrendador' | 'arrendatario' | 'aval';
@@ -637,7 +608,7 @@ export class ValidationStepComponent implements OnInit {
     // Si ya tenemos un UUID para esta validación, mostrar directamente el modal
     const requirement = this.validationRequirements.find(req => req.type === type);
     if (requirement && requirement.uuid) {
-      console.log(`🔑 Validación ya iniciada para ${type}, UUID: ${requirement.uuid}`);
+      this.logger.log(`🔑 Validación ya iniciada para ${type}, UUID: ${requirement.uuid}`);
       // Mostrar información de la validación en progreso
     } else {
       // Si no hay UUID, abrir el modal para recoger datos y crear la validación
@@ -649,7 +620,7 @@ export class ValidationStepComponent implements OnInit {
    * Manejar envío de datos del modal
    */
   onValidationDataSubmit(validationData: ValidationData): void {
-    console.log('📝 Datos de validación recibidos:', validationData);
+    this.logger.log('📝 Datos de validación recibidos:', validationData);
     
     // Obtener datos necesarios del estado del wizard
     const wizardState = this.wizardStateService.getState();
@@ -658,8 +629,8 @@ export class ValidationStepComponent implements OnInit {
     
     // Verificar que al menos uno de los IDs esté disponible
     if (!quotationId && !policyId) {
-      console.error('❌ Falta quotationId o policyId para iniciar validación');
-      console.error('📊 Estado del wizard:', wizardState);
+      this.logger.error('❌ Falta quotationId o policyId para iniciar validación');
+      this.logger.error('📊 Estado del wizard:', wizardState);
       return;
     }
     
@@ -672,26 +643,26 @@ export class ValidationStepComponent implements OnInit {
       policyId: policyId || undefined // Enviar policyId si está disponible
     };
     
-    console.log(`🚀 Iniciando validación a través del backend para ${validationData.type}:`, validationRequest);
-    console.log(`📋 Datos enviados: quotationId=${quotationId || 'N/A'}, policyId=${policyId || 'N/A'}`);
+    this.logger.log(`🚀 Iniciando validación a través del backend para ${validationData.type}:`, validationRequest);
+    this.logger.log(`📋 Datos enviados: quotationId=${quotationId || 'N/A'}, policyId=${policyId || 'N/A'}`);
     
     // Iniciar validación en el backend (el backend se encarga de VDID)
     this.validationService.startValidation(validationRequest).subscribe({
       next: (response) => {
         if (response.success && response.data) {
-          console.log('✅ Validación iniciada exitosamente en el backend:', response.data);
+          this.logger.log('✅ Validación iniciada exitosamente en el backend:', response.data);
           
           // Guardar UUID en el requerimiento
           const requirement = this.validationRequirements.find(req => req.type === validationData.type);
           if (requirement) {
             requirement.uuid = response.data.uuid;
             requirement.completed = false; // Marcar como en progreso
-            console.log(`🔑 UUID asignado a ${validationData.type}:`, response.data.uuid);
+            this.logger.log(`🔑 UUID asignado a ${validationData.type}:`, response.data.uuid);
           }
           
           // Mostrar mensaje de éxito
-          console.log(`✅ Enlace de verificación enviado a ${validationData.email}`);
-          console.log(`📧 El backend se encargó de crear la verificación VDID y enviar el email`);
+          this.logger.log(`✅ Enlace de verificación enviado a ${validationData.email}`);
+          this.logger.log(`📧 El backend se encargó de crear la verificación VDID y enviar el email`);
           
           // Guardar validationRequirements actualizados en el estado
           this.wizardStateService.saveState({
@@ -700,20 +671,20 @@ export class ValidationStepComponent implements OnInit {
           
           // Sincronizar con el backend para persistir los validationRequirements
           this.wizardStateService.syncWithBackendCorrected(this.wizardStateService.getState()).then(() => {
-            console.log('✅ validationRequirements sincronizados con el backend');
+            this.logger.log('✅ validationRequirements sincronizados con el backend');
           }).catch(error => {
-            console.error('❌ Error sincronizando validationRequirements con backend:', error);
+            this.logger.error('❌ Error sincronizando validationRequirements con backend:', error);
           });
           
           // Cerrar el modal
           this.showValidationModal = false;
           
         } else {
-          console.error('❌ Error iniciando validación en el backend:', response.message);
+          this.logger.error('❌ Error iniciando validación en el backend:', response.message);
         }
       },
       error: (error) => {
-        console.error('❌ Error en servicio de validación:', error);
+        this.logger.error('❌ Error en servicio de validación:', error);
       }
     });
   }
@@ -737,7 +708,7 @@ export class ValidationStepComponent implements OnInit {
       return;
     }
 
-    console.log('🔍 Verificando estado de validaciones pendientes...');
+    this.logger.log('🔍 Verificando estado de validaciones pendientes...');
 
     pendingValidations.forEach(requirement => {
       if (requirement.uuid) {
@@ -745,7 +716,7 @@ export class ValidationStepComponent implements OnInit {
           next: (response) => {
             if (response.success && response.data) {
               const status = response.data.status;
-              console.log(`📊 Estado de validación ${requirement.type}:`, status);
+              this.logger.log(`📊 Estado de validación ${requirement.type}:`, status);
 
               if (status === 'COMPLETED') {
                 this.markValidationCompleted(requirement.type);
@@ -753,7 +724,7 @@ export class ValidationStepComponent implements OnInit {
             }
           },
           error: (error) => {
-            console.error(`❌ Error verificando estado de ${requirement.type}:`, error);
+            this.logger.error(`❌ Error verificando estado de ${requirement.type}:`, error);
           }
         });
       }
@@ -766,22 +737,22 @@ export class ValidationStepComponent implements OnInit {
   resendVerification(type: string): void {
     const requirement = this.validationRequirements.find(req => req.type === type);
     if (!requirement || !requirement.uuid) {
-      console.error('❌ No se puede reenviar: UUID no disponible');
+      this.logger.error('❌ No se puede reenviar: UUID no disponible');
       return;
     }
 
-    console.log(`📧 Reenviando verificación para ${type}...`);
+    this.logger.log(`📧 Reenviando verificación para ${type}...`);
 
     this.validationService.resendVerification(requirement.uuid).subscribe({
       next: (response) => {
         if (response.success) {
-          console.log(`✅ Verificación reenviada exitosamente a ${type}`);
+          this.logger.log(`✅ Verificación reenviada exitosamente a ${type}`);
         } else {
-          console.error('❌ Error reenviando verificación:', response.message);
+          this.logger.error('❌ Error reenviando verificación:', response.message);
         }
       },
       error: (error) => {
-        console.error('❌ Error en servicio de reenvío:', error);
+        this.logger.error('❌ Error en servicio de reenvío:', error);
       }
     });
   }
@@ -795,6 +766,6 @@ export class ValidationStepComponent implements OnInit {
       this.checkValidationStatuses();
     }, 30000); // 30 segundos
 
-    console.log('⏰ Verificación automática de estado iniciada (cada 30 segundos)');
+    this.logger.log('⏰ Verificación automática de estado iniciada (cada 30 segundos)');
   }
 } 

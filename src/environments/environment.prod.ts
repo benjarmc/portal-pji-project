@@ -1,6 +1,7 @@
 // Environment de PRODUCCIÓN - Este archivo se usa cuando se ejecuta ng build --configuration production
 export const environment = {
     production: true,
+    debug: false, // Deshabilitar logs en producción
     api: {
         baseUrl: 'https://backend.pjionline.com.mx/api',
         timeout: 30000,
@@ -18,8 +19,11 @@ export const environment = {
 };
 
 // Verificar que este environment se esté usando
-console.log('🚀 Environment de PRODUCCIÓN cargado:', {
-    production: environment.production,
-    apiUrl: environment.api.baseUrl,
-    timestamp: new Date().toISOString()
-});
+if (environment.debug) {
+    console.log('🚀 Environment de PRODUCCIÓN cargado:', {
+        production: environment.production,
+        apiUrl: environment.api.baseUrl,
+        debug: environment.debug,
+        timestamp: new Date().toISOString()
+    });
+}

@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 
 import { PropietarioData, InquilinoData, FiadorData, InmuebleData } from '../wizard/wizard-flow/steps/data-entry-step/data-entry-step.component';
-
+import { LoggerService } from './logger.service';
 export interface ContractData {
   // Datos básicos del usuario
   userData: {
@@ -40,17 +40,17 @@ export interface ContractData {
 })
 export class ContractPdfService {
 
-  constructor() { }
+  constructor(private logger: LoggerService) { }
 
   /**
    * Genera el HTML del contrato con los datos dinámicos
    */
   generateContractHtml(data: ContractData): string {
-    console.log('🔄 ContractPdfService.generateContractHtml() ejecutado');
-    console.log('📋 Datos recibidos para generar contrato:', data);
+    this.logger.log('🔄 ContractPdfService.generateContractHtml() ejecutado');
+    this.logger.log('📋 Datos recibidos para generar contrato:', data);
     
     const template = this.getContractTemplate();
-    console.log('📄 Template del contrato obtenido, longitud:', template.length);
+    this.logger.log('📄 Template del contrato obtenido, longitud:', template.length);
     
     // Reemplazar variables básicas
     let html = template
@@ -138,8 +138,8 @@ export class ContractPdfService {
     const contractContent = `<div class="contract-content">${html}</div>`;
     
     const finalHtml = coverPage + contractContent;
-    console.log('✅ HTML del contrato generado exitosamente, longitud total:', finalHtml.length);
-    console.log('📋 Primeros 500 caracteres del HTML:', finalHtml.substring(0, 500));
+    this.logger.log('✅ HTML del contrato generado exitosamente, longitud total:', finalHtml.length);
+    this.logger.log('📋 Primeros 500 caracteres del HTML:', finalHtml.substring(0, 500));
     
     return finalHtml;
   }
@@ -154,7 +154,7 @@ export class ContractPdfService {
     
     if (data.inmueble?.vigenciaInicio && data.inmueble?.vigenciaFin) {
       // Usar fechas reales del inmueble
-      console.log('📅 Fechas recibidas en ContractPdfService:', {
+      this.logger.log('📅 Fechas recibidas en ContractPdfService:', {
         vigenciaInicio: data.inmueble.vigenciaInicio,
         vigenciaFin: data.inmueble.vigenciaFin
       });
@@ -186,7 +186,7 @@ export class ContractPdfService {
       startDate = startDateParsed;
       endDate = endDateParsed;
       
-      console.log('📅 Fechas procesadas correctamente:', {
+      this.logger.log('📅 Fechas procesadas correctamente:', {
         startDate: startDate.toLocaleDateString('es-MX'),
         endDate: endDate.toLocaleDateString('es-MX')
       });
@@ -197,7 +197,7 @@ export class ContractPdfService {
       endDate = new Date(currentDate);
       endDate.setFullYear(endDate.getFullYear() + 1);
       
-      console.log('📅 Usando fechas por defecto (no hay fechas de vigencia)');
+      this.logger.log('📅 Usando fechas por defecto (no hay fechas de vigencia)');
     }
 
     // Calcular la duración real entre las fechas
@@ -205,7 +205,7 @@ export class ContractPdfService {
       const diffTime = Math.abs(end.getTime() - start.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
-      console.log('📅 Calculando duración:', {
+      this.logger.log('📅 Calculando duración:', {
         startDate: start.toLocaleDateString('es-MX'),
         endDate: end.toLocaleDateString('es-MX'),
         diffDays: diffDays
@@ -236,7 +236,7 @@ export class ContractPdfService {
     };
 
     const duration = calculateDuration(startDate, endDate);
-    console.log('📅 Duración calculada:', duration);
+    this.logger.log('📅 Duración calculada:', duration);
 
     const formatDate = (date: Date) => {
       const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 
@@ -666,7 +666,7 @@ export class ContractPdfService {
 
       return pdf.output('blob');
     } catch (error) {
-      console.error('Error generando PDF:', error);
+      this.logger.error('Error generando PDF:', error);
       throw error;
     }
   }
@@ -724,7 +724,7 @@ export class ContractPdfService {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Error generando PDF:', error);
+      this.logger.error('Error generando PDF:', error);
       throw error;
     }
   }
@@ -733,9 +733,9 @@ export class ContractPdfService {
    * Obtiene el template del contrato de arrendamiento
    */
   private getContractTemplate(): string {
-    console.log('📄 Obteniendo template del contrato...');
+    this.logger.log('📄 Obteniendo template del contrato...');
     const template = this.generateFullContractTemplate();
-    console.log('📄 Template obtenido, longitud:', template.length);
+    this.logger.log('📄 Template obtenido, longitud:', template.length);
     return template;
   }
 

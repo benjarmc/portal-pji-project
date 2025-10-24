@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService, ApiResponse } from './api.service';
-
+import { LoggerService } from './logger.service';
 export interface ValidationRequest {
   name: string;
   email: string;
@@ -34,14 +34,14 @@ export interface ValidationStatusResponse {
 export class ValidationService {
   private readonly endpoint = '/validation';
 
-  constructor(private apiService: ApiService) {}
+  constructor(private apiService: ApiService, private logger: LoggerService) {}
 
   /**
    * Iniciar proceso de validación de identidad
    * El backend se encargará de crear la verificación en VDID y enviar el email
    */
   startValidation(validationRequest: ValidationRequest): Observable<ApiResponse<ValidationResponse>> {
-    console.log('🚀 Iniciando validación a través del backend:', validationRequest);
+    this.logger.log('🚀 Iniciando validación a través del backend:', validationRequest);
     return this.apiService.post<ValidationResponse>(`${this.endpoint}/start`, validationRequest);
   }
 

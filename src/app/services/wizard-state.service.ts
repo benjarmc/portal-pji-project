@@ -4,7 +4,7 @@ import { BehaviorSubject, Observable, of, catchError, Subject } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import { ApiService, ApiResponse } from './api.service';
 import { WizardSessionService } from './wizard-session.service';
-
+import { LoggerService } from './logger.service';
 export interface WizardState {
   // Campos principales del backend (estructura completa)
   id?: string;                    // UUID generado por el backend
@@ -133,7 +133,8 @@ export class WizardStateService {
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object,
     private apiService: ApiService,
-    private wizardSessionService: WizardSessionService
+    private wizardSessionService: WizardSessionService,
+    private logger: LoggerService
   ) {
     this.initializeState();
     this.setupActivityDebounce();
@@ -215,25 +216,25 @@ export class WizardStateService {
     try {
       const currentSessionId = sessionId || this.getState().sessionId;
       if (!currentSessionId) {
-        console.warn('⚠️ No hay sessionId para eliminar');
+        this.logger.warning('⚠️ No hay sessionId para eliminar');
         return false;
       }
 
-      console.log('🗑️ Eliminando sesión de la BD:', currentSessionId);
+      this.logger.log('🗑️ Eliminando sesión de la BD:', currentSessionId);
       const response = await this.wizardSessionService.deleteSession(currentSessionId).toPromise();
       
       // Manejar tanto respuesta envuelta como directa
       const actualResponse = (response as any).data || response;
       
       if (actualResponse && actualResponse.deleted) {
-        console.log('✅ Sesión eliminada exitosamente de la BD');
+        this.logger.log('✅ Sesión eliminada exitosamente de la BD');
         return true;
       } else {
-        console.warn('⚠️ No se pudo eliminar la sesión de la BD:', actualResponse);
+        this.logger.warning('⚠️ No se pudo eliminar la sesión de la BD:', actualResponse);
         return false;
       }
     } catch (error) {
-      console.error('❌ Error eliminando sesión de la BD:', error);
+      this.logger.error('❌ Error eliminando sesión de la BD:', error);
       return false;
     }
   }
@@ -304,12 +305,12 @@ export class WizardStateService {
           sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(updatedState));
           return updatedState;
         } else {
-          console.log('⏰ Estado de sesión expirado o inválido');
+          this.logger.log('⏰ Estado de sesión expirado o inválido');
           this.clearState();
         }
       }
     } catch (error) {
-      console.error('❌ Error al cargar el estado del wizard:', error);
+      this.logger.error('❌ Error al cargar el estado del wizard:', error);
     }
 
     return this.getDefaultState();
@@ -396,18 +397,18 @@ export class WizardStateService {
       
       // Solo loggear cambios importantes de paso
       if (newState.currentStep !== currentState.currentStep) {
-        console.log(`🔄 Paso del wizard: ${currentState.currentStep} → ${newState.currentStep}`);
+        this.logger.log(`🔄 Paso del wizard: ${currentState.currentStep} → ${newState.currentStep}`);
       }
 
       // Solo sincronizar con backend si hay cambios importantes (no solo lastActivity)
       if (this.hasImportantChanges(currentState, newState)) {
         this.syncWithBackendCorrected(newState).catch(error => {
-          console.error('Error sincronizando con backend:', error);
+          this.logger.error('Error sincronizando con backend:', error);
         });
       }
 
     } catch (error) {
-      console.error('❌ Error guardando estado del wizard:', error);
+      this.logger.error('❌ Error guardando estado del wizard:', error);
     }
   }
 
@@ -452,7 +453,7 @@ export class WizardStateService {
       const data = await response.json();
       return data.ip || 'unknown';
     } catch (error) {
-      console.warn('No se pudo obtener IP pública:', error);
+      this.logger.warning('No se pudo obtener IP pública:', error);
       return 'unknown';
     }
   }
@@ -473,7 +474,7 @@ export class WizardStateService {
       const sessionId = state.sessionId;
       
       if (!sessionId) {
-        console.warn('⚠️ No hay sessionId para sincronizar');
+        this.logger.warning('⚠️ No hay sessionId para sincronizar');
         return;
       }
 
@@ -481,7 +482,7 @@ export class WizardStateService {
       const stepData = this.mapStateToStepData(state);
       const currentStepData = stepData[`step${state.currentStep}` as keyof WizardStepData] || {};
       
-      console.log('📡 Enviando datos del paso actual al backend:', {
+      this.logger.log('📡 Enviando datos del paso actual al backend:', {
         sessionId,
         step: state.currentStep,
         stepData: currentStepData,
@@ -518,17 +519,17 @@ export class WizardStateService {
         updateData
       ).toPromise();
 
-      console.log('✅ Backend actualizado con datos del paso', state.currentStep);
+      this.logger.log('✅ Backend actualizado con datos del paso', state.currentStep);
 
       // 3. Obtener la respuesta actualizada del backend
       const backendResponse = await this.wizardSessionService.getSession(sessionId).toPromise();
       if (!backendResponse) {
-        console.warn('⚠️ No se pudo obtener la respuesta del backend');
+        this.logger.warning('⚠️ No se pudo obtener la respuesta del backend');
         return;
       }
 
       const backendData = (backendResponse as any).data || backendResponse;
-      console.log('📋 Datos actualizados obtenidos del backend:', {
+      this.logger.log('📋 Datos actualizados obtenidos del backend:', {
         selectedPlan: backendData.selectedPlan,
         selectedPlanName: backendData.selectedPlanName,
         currentStep: backendData.currentStep,
@@ -578,14 +579,14 @@ export class WizardStateService {
         this.stateSubject.next(syncedState);
       }
 
-      console.log('✅ SessionStorage sincronizado con backend:', {
+      this.logger.log('✅ SessionStorage sincronizado con backend:', {
         selectedPlan: syncedState.selectedPlan,
         selectedPlanName: syncedState.selectedPlanName,
         currentStep: syncedState.currentStep
       });
 
     } catch (error) {
-      console.error('❌ Error sincronizando con backend:', error);
+      this.logger.error('❌ Error sincronizando con backend:', error);
       throw error;
     } finally {
       this.syncInProgress = false;
@@ -606,14 +607,14 @@ export class WizardStateService {
           const backendResponse = await this.wizardSessionService.getSession(sessionId).toPromise();
           if (backendResponse) {
             backendData = (backendResponse as any).data || backendResponse;
-            console.log('📋 Datos del backend obtenidos para preservar campos:', {
+            this.logger.log('📋 Datos del backend obtenidos para preservar campos:', {
               selectedPlan: backendData.selectedPlan,
               selectedPlanName: backendData.selectedPlanName,
               quotationNumber: backendData.quotationNumber
             });
           }
         } catch (error) {
-          console.warn('⚠️ No se pudieron obtener datos del backend para preservar campos:', error);
+          this.logger.warning('⚠️ No se pudieron obtener datos del backend para preservar campos:', error);
         }
       }
       
@@ -637,7 +638,7 @@ export class WizardStateService {
         if (createSessionResponse && createSessionResponse.data) {
           const newSessionId = (createSessionResponse.data as any).sessionId;
           if (newSessionId !== sessionId) {
-            console.log('🔄 Actualizando sessionId local:', sessionId, '→', newSessionId);
+            this.logger.log('🔄 Actualizando sessionId local:', sessionId, '→', newSessionId);
             state.sessionId = newSessionId;
             // Actualizar el estado local con el nuevo sessionId
             if (isPlatformBrowser(this.platformId)) {
@@ -673,7 +674,7 @@ export class WizardStateService {
         // ✅ Asegurar que los campos derivados estén sincronizados
         // Si stepData tiene datos pero los campos derivados están vacíos, actualizarlos
         if (stepData.step0?.tipoUsuario && !state.userData?.tipoUsuario) {
-          console.log('🔄 Sincronizando tipoUsuario desde stepData.step0:', stepData.step0.tipoUsuario);
+          this.logger.log('🔄 Sincronizando tipoUsuario desde stepData.step0:', stepData.step0.tipoUsuario);
           state.userData = { ...state.userData, tipoUsuario: stepData.step0.tipoUsuario };
           if (isPlatformBrowser(this.platformId)) {
             sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(state));
@@ -682,7 +683,7 @@ export class WizardStateService {
         
         // Sincronizar datos del formulario principal desde stepData.step1
         if (stepData.step1 && (stepData.step1.nombre || stepData.step1.telefono || stepData.step1.correo || stepData.step1.rentaMensual)) {
-          console.log('🔄 Sincronizando datos del formulario desde stepData.step1:', stepData.step1);
+          this.logger.log('🔄 Sincronizando datos del formulario desde stepData.step1:', stepData.step1);
           state.userData = {
             ...state.userData,
             name: stepData.step1.nombre,
@@ -698,7 +699,7 @@ export class WizardStateService {
         
         // Sincronizar datos de pago desde stepData.step2
         if (stepData.step2 && stepData.step2.paymentMethod && !state.paymentData) {
-          console.log('🔄 Sincronizando datos de pago desde stepData.step2:', stepData.step2);
+          this.logger.log('🔄 Sincronizando datos de pago desde stepData.step2:', stepData.step2);
           state.paymentData = {
             method: stepData.step2.paymentMethod,
             cardData: stepData.step2.cardData
@@ -710,7 +711,7 @@ export class WizardStateService {
         
         // Sincronizar datos de validación desde stepData.step3
         if (stepData.step3 && stepData.step3.validationCode && !state.paymentResult) {
-          console.log('🔄 Sincronizando datos de validación desde stepData.step3:', stepData.step3);
+          this.logger.log('🔄 Sincronizando datos de validación desde stepData.step3:', stepData.step3);
           state.paymentResult = {
             validationCode: stepData.step3.validationCode
           };
@@ -721,7 +722,7 @@ export class WizardStateService {
         
         // Sincronizar datos de captura desde stepData.step4
         if (stepData.step4 && (stepData.step4.propietario || stepData.step4.inquilino || stepData.step4.inmueble) && !state.contractData) {
-          console.log('🔄 Sincronizando datos de captura desde stepData.step4:', stepData.step4);
+          this.logger.log('🔄 Sincronizando datos de captura desde stepData.step4:', stepData.step4);
           state.contractData = {
             propietario: stepData.step4.propietario,
             inquilino: stepData.step4.inquilino,
@@ -735,7 +736,7 @@ export class WizardStateService {
         
         // Sincronizar datos de contrato desde stepData.step6
         if (stepData.step6 && stepData.step6.contractTerms && !state.contractData?.contractTerms) {
-          console.log('🔄 Sincronizando datos de contrato desde stepData.step6:', stepData.step6);
+          this.logger.log('🔄 Sincronizando datos de contrato desde stepData.step6:', stepData.step6);
           state.contractData = {
             ...state.contractData,
             contractTerms: stepData.step6.contractTerms,
@@ -774,7 +775,7 @@ export class WizardStateService {
             validationResult: state.validationResult
           };
           
-          console.log('📡 Sincronizando estado completo con backend:', {
+          this.logger.log('📡 Sincronizando estado completo con backend:', {
             sessionId: sessionIdToUse,
             step: state.currentStep,
             stepDataKeys: Object.keys(stepData),
@@ -821,7 +822,7 @@ export class WizardStateService {
               if (activeSessionResponse && activeSessionResponse.success && activeSessionResponse.data) {
                 const recoveredSessionId = (activeSessionResponse.data as any).sessionId;
                 if (recoveredSessionId && recoveredSessionId !== currentSessionId) {
-                  console.log('♻️ Recuperado sessionId por IP:', currentSessionId, '→', recoveredSessionId);
+                  this.logger.log('♻️ Recuperado sessionId por IP:', currentSessionId, '→', recoveredSessionId);
                   currentSessionId = recoveredSessionId;
                   state.sessionId = recoveredSessionId;
                   if (isPlatformBrowser(this.platformId)) {
@@ -861,7 +862,7 @@ export class WizardStateService {
               if (activeSessionResponse && activeSessionResponse.success && activeSessionResponse.data) {
                 const recoveredSessionId = (activeSessionResponse.data as any).sessionId;
                 if (recoveredSessionId && recoveredSessionId !== currentSessionId) {
-                  console.log('♻️ Recuperado sessionId por IP (complete-step):', currentSessionId, '→', recoveredSessionId);
+                  this.logger.log('♻️ Recuperado sessionId por IP (complete-step):', currentSessionId, '→', recoveredSessionId);
                   currentSessionId = recoveredSessionId;
                   state.sessionId = recoveredSessionId;
                   if (isPlatformBrowser(this.platformId)) {
@@ -885,10 +886,10 @@ export class WizardStateService {
         }
       }
 
-      console.log(`✅ Estado sincronizado con backend para sesión ${currentSessionId}`);
+      this.logger.log(`✅ Estado sincronizado con backend para sesión ${currentSessionId}`);
 
     } catch (error) {
-      console.error('❌ Error sincronizando con backend:', error);
+      this.logger.error('❌ Error sincronizando con backend:', error);
       throw error;
     } finally {
       this.syncInProgress = false;
@@ -998,7 +999,7 @@ export class WizardStateService {
       if (response && response.success && response.data) {
         const session = response.data as any;
         
-        console.log('📡 Datos recibidos del backend para restaurar sesión:', {
+        this.logger.log('📡 Datos recibidos del backend para restaurar sesión:', {
           sessionId: session.sessionId,
           policyId: session.policyId,
           policyNumber: session.policyNumber,
@@ -1009,7 +1010,7 @@ export class WizardStateService {
           status: session.status
         });
         
-        console.log('🔍 Análisis de datos de póliza:', {
+        this.logger.log('🔍 Análisis de datos de póliza:', {
           hasPolicyId: !!session.policyId,
           hasPolicyNumber: !!session.policyNumber,
           hasPaymentResult: !!session.paymentResult,
@@ -1023,7 +1024,7 @@ export class WizardStateService {
         const hasPaymentResult = !!session.paymentResult;
         const shouldBeInValidationStep = hasPolicyData || hasPaymentResult;
         
-        console.log('🎯 Análisis de paso correcto:', {
+        this.logger.log('🎯 Análisis de paso correcto:', {
           currentStepFromBackend: session.currentStep,
           hasPolicyData: hasPolicyData,
           hasPaymentResult: hasPaymentResult,
@@ -1035,7 +1036,7 @@ export class WizardStateService {
         const adjustedCurrentStep = shouldBeInValidationStep && session.currentStep < 3 ? 3 : session.currentStep;
         
         if (adjustedCurrentStep !== session.currentStep) {
-          console.log('🔄 Ajustando currentStep:', {
+          this.logger.log('🔄 Ajustando currentStep:', {
             original: session.currentStep,
             adjusted: adjustedCurrentStep,
             reason: 'Hay datos de póliza, debe estar en paso de validación'
@@ -1083,18 +1084,18 @@ export class WizardStateService {
         sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(frontendState));
         this.stateSubject.next(frontendState);
         
-        console.log('💾 Estado restaurado guardado en sessionStorage:', {
+        this.logger.log('💾 Estado restaurado guardado en sessionStorage:', {
           policyId: frontendState.policyId,
           policyNumber: frontendState.policyNumber,
           paymentResult: frontendState.paymentResult,
           currentStep: frontendState.currentStep
         });
         
-        console.log(`✅ Estado restaurado desde backend para sesión ${sessionId}`);
+        this.logger.log(`✅ Estado restaurado desde backend para sesión ${sessionId}`);
         return frontendState;
       }
     } catch (error) {
-      console.error('❌ Error restaurando desde backend:', error);
+      this.logger.error('❌ Error restaurando desde backend:', error);
     }
     
     return null;
@@ -1113,9 +1114,9 @@ export class WizardStateService {
       ).toPromise();
       
       await this.saveState({ userId });
-      console.log(`✅ Sesión ${state.sessionId} vinculada al usuario ${userId}`);
+      this.logger.log(`✅ Sesión ${state.sessionId} vinculada al usuario ${userId}`);
     } catch (error) {
-      console.error('❌ Error vinculando usuario:', error);
+      this.logger.error('❌ Error vinculando usuario:', error);
       throw error;
     }
   }
@@ -1132,9 +1133,9 @@ export class WizardStateService {
         {}
       ).toPromise();
       
-      console.log(`✅ Sesión ${state.sessionId} completada`);
+      this.logger.log(`✅ Sesión ${state.sessionId} completada`);
     } catch (error) {
-      console.error('❌ Error completando sesión:', error);
+      this.logger.error('❌ Error completando sesión:', error);
       throw error;
     }
   }
@@ -1150,10 +1151,10 @@ export class WizardStateService {
       
       // Sincronizar con el backend para guardar los pasos completados
       await this.syncWithBackendCorrected(this.getState()).catch(error => {
-        console.error('❌ Error sincronizando pasos completados con backend:', error);
+        this.logger.error('❌ Error sincronizando pasos completados con backend:', error);
       });
       
-      console.log(`✅ Paso ${step} marcado como completado y sincronizado con backend`);
+      this.logger.log(`✅ Paso ${step} marcado como completado y sincronizado con backend`);
     }
   }
 
@@ -1184,9 +1185,9 @@ export class WizardStateService {
     try {
       sessionStorage.removeItem(this.SESSION_KEY);
       this.stateSubject.next(null);
-      console.log('🧹 Estado del wizard limpiado de sessionStorage');
+      this.logger.log('🧹 Estado del wizard limpiado de sessionStorage');
     } catch (error) {
-      console.error('❌ Error limpiando estado del wizard:', error);
+      this.logger.error('❌ Error limpiando estado del wizard:', error);
     }
   }
 
@@ -1203,7 +1204,7 @@ export class WizardStateService {
         return this.isStateValid(state);
       }
     } catch (error) {
-      console.error('❌ Error verificando estado guardado:', error);
+      this.logger.error('❌ Error verificando estado guardado:', error);
     }
     
     return false;
@@ -1307,11 +1308,11 @@ export class WizardStateService {
           createOnly: true // Crear nueva sesión sin reutilizar por IP
         }).toPromise();
         
-        console.log(`✅ Estado restaurado desde cotización ${quotationNumber}`);
+        this.logger.log(`✅ Estado restaurado desde cotización ${quotationNumber}`);
         return restoredState;
       }
     } catch (error) {
-      console.error('❌ Error restaurando desde URL de cotización:', error);
+      this.logger.error('❌ Error restaurando desde URL de cotización:', error);
     }
     
     return null;
@@ -1334,7 +1335,7 @@ export class WizardStateService {
         
         if (actualData && actualData.sessionId) {
           const activeSessionId = actualData.sessionId;
-        console.log('✅ Sesión activa encontrada para esta IP:', activeSessionId);
+        this.logger.log('✅ Sesión activa encontrada para esta IP:', activeSessionId);
         
         // Actualizar el estado local con el sessionId de la sesión activa
         const updatedState = {
@@ -1351,7 +1352,7 @@ export class WizardStateService {
         }
       }
     } catch (error) {
-      console.log('⚠️ No se encontró sesión activa para esta IP, continuando con lógica normal');
+      this.logger.log('⚠️ No se encontró sesión activa para esta IP, continuando con lógica normal');
     }
     
     // SEGUNDO: Si no hay sesión activa para la IP, verificar si la sesión local existe
@@ -1366,7 +1367,7 @@ export class WizardStateService {
           }
         }
       } catch (error) {
-        console.log('⚠️ Sesión local no encontrada en backend, creando nueva');
+        this.logger.log('⚠️ Sesión local no encontrada en backend, creando nueva');
       }
     }
     
@@ -1403,11 +1404,11 @@ export class WizardStateService {
         }
         
         this.stateSubject.next(updatedState);
-        console.log('✅ Nueva sesión creada:', createdSessionId);
+        this.logger.log('✅ Nueva sesión creada:', createdSessionId);
         return createdSessionId;
       }
     } catch (error) {
-      console.error('❌ Error creando sesión:', error);
+      this.logger.error('❌ Error creando sesión:', error);
     }
     
     return newSessionId;
@@ -1419,7 +1420,7 @@ export class WizardStateService {
   async checkActiveSessionByIp(): Promise<string | null> {
     try {
       const publicIp = await this.getPublicIp();
-      console.log('publicIp: ', publicIp);
+      this.logger.log('publicIp: ', publicIp);
       const activeSessionResponse = await this.apiService.get(`${this.API_ENDPOINT}/ip/${publicIp}`).toPromise();
       
       if (activeSessionResponse) {
@@ -1427,12 +1428,12 @@ export class WizardStateService {
         const actualData = (activeSessionResponse as any).data || activeSessionResponse;
         
         if (actualData && actualData.sessionId) {
-          console.log('✅ Sesión activa encontrada por IP:', actualData.sessionId);
+          this.logger.log('✅ Sesión activa encontrada por IP:', actualData.sessionId);
           return actualData.sessionId;
         }
       }
     } catch (error) {
-      console.log('⚠️ No se encontró sesión activa para esta IP:', error);
+      this.logger.log('⚠️ No se encontró sesión activa para esta IP:', error);
     }
     return null;
   }
@@ -1490,7 +1491,7 @@ export class WizardStateService {
         }
       ).toPromise();
     } catch (error) {
-      console.error('Error actualizando paso de sesión:', error);
+      this.logger.error('Error actualizando paso de sesión:', error);
       throw error;
     }
   }

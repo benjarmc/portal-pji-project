@@ -6,7 +6,7 @@ import { PlansService } from '../../../../services/plans.service';
 import { WizardStateService } from '../../../../services/wizard-state.service';
 import { CreateQuotationDto } from '../../../../models/quotation.model';
 import { Plan } from '../../../../models/plan.model';
-
+import { LoggerService } from '../../../../services/logger.service';
 interface ComplementaryPlan {
   id: string;
   name: string;
@@ -40,7 +40,8 @@ export class MainDataStepComponent implements OnInit {
     private fb: FormBuilder,
     private quotationsService: QuotationsService,
     private plansService: PlansService,
-    private wizardStateService: WizardStateService
+    private wizardStateService: WizardStateService,
+    private logger: LoggerService
   ) {
     this.mainDataForm = this.fb.group({
       // Datos personales
@@ -57,7 +58,7 @@ export class MainDataStepComponent implements OnInit {
   }
 
   ngOnInit() {
-    console.log('MainDataStepComponent ngOnInit - selectedPlan:', this.selectedPlan);
+    this.logger.log('MainDataStepComponent ngOnInit - selectedPlan:', this.selectedPlan);
     
     // Cargar estado guardado del usuario
     this.loadSavedUserData();
@@ -66,12 +67,12 @@ export class MainDataStepComponent implements OnInit {
       this.mainDataForm.patchValue({ plan: this.selectedPlan });
       this.loadPlanDetails();
     } else {
-      console.log('No hay plan seleccionado');
+      this.logger.log('No hay plan seleccionado');
     }
     
     // Escuchar cambios en la renta mensual para recalcular precios
     this.mainDataForm.get('rentaMensual')?.valueChanges.subscribe(() => {
-      console.log('💰 Renta mensual cambiada, recalculando precios...');
+      this.logger.log('💰 Renta mensual cambiada, recalculando precios...');
     });
   }
 
@@ -80,10 +81,10 @@ export class MainDataStepComponent implements OnInit {
    */
   private loadSavedUserData(): void {
     const savedState = this.wizardStateService.getState();
-    console.log('📋 Estado guardado del wizard:', savedState);
+    this.logger.log('📋 Estado guardado del wizard:', savedState);
     
     if (savedState.userData && Object.keys(savedState.userData).length > 0) {
-      console.log('👤 Datos del usuario encontrados:', savedState.userData);
+      this.logger.log('👤 Datos del usuario encontrados:', savedState.userData);
       
       // Cargar datos del usuario en el formulario
       const userData = savedState.userData;
@@ -94,9 +95,9 @@ export class MainDataStepComponent implements OnInit {
         rentaMensual: userData.rentaMensual || ''
       });
       
-      console.log('✅ Datos del usuario cargados en el formulario');
+      this.logger.log('✅ Datos del usuario cargados en el formulario');
     } else {
-      console.log('⚠️ No hay datos del usuario guardados');
+      this.logger.log('⚠️ No hay datos del usuario guardados');
     }
   }
 
@@ -104,30 +105,30 @@ export class MainDataStepComponent implements OnInit {
    * Cargar detalles del plan seleccionado con sus complementos
    */
   private loadPlanDetails(): void {
-    console.log('🔄 loadPlanDetails() llamado con selectedPlan:', this.selectedPlan);
+    this.logger.log('🔄 loadPlanDetails() llamado con selectedPlan:', this.selectedPlan);
     if (this.selectedPlan) {
-      console.log('📡 Llamando a plansService.getPlanById...');
+      this.logger.log('📡 Llamando a plansService.getPlanById...');
       // Usar el endpoint que devuelve plan + complementos
       this.plansService.getPlanById(this.selectedPlan).subscribe({
         next: (response) => {
-          console.log('📥 Respuesta recibida:', response);
+          this.logger.log('📥 Respuesta recibida:', response);
           if (response.success && response.data) {
             this.selectedPlanData = response.data;
-            console.log('✅ Plan cargado con complementos:', this.selectedPlanData);
-            console.log('🔗 Complementos disponibles:', this.selectedPlanData.complementaryPlans);
-            console.log('📊 selectedPlanData actualizado:', this.selectedPlanData);
+            this.logger.log('✅ Plan cargado con complementos:', this.selectedPlanData);
+            this.logger.log('🔗 Complementos disponibles:', this.selectedPlanData.complementaryPlans);
+            this.logger.log('📊 selectedPlanData actualizado:', this.selectedPlanData);
           } else {
-            console.warn('⚠️ Respuesta sin éxito:', response);
+            this.logger.warning('⚠️ Respuesta sin éxito:', response);
           }
         },
         error: (error) => {
-          console.error('❌ Error cargando plan:', error);
+          this.logger.error('❌ Error cargando plan:', error);
           // Fallback: intentar cargar solo el plan básico
           this.loadBasicPlan();
         }
       });
     } else {
-      console.warn('⚠️ No hay selectedPlan para cargar');
+      this.logger.warning('⚠️ No hay selectedPlan para cargar');
     }
   }
 
@@ -140,11 +141,11 @@ export class MainDataStepComponent implements OnInit {
         next: (response) => {
           if (response.success && response.data) {
             this.selectedPlanData = response.data;
-            console.log('Plan básico cargado (sin complementos):', this.selectedPlanData);
+            this.logger.log('Plan básico cargado (sin complementos):', this.selectedPlanData);
           }
         },
         error: (error) => {
-          console.error('Error cargando plan básico:', error);
+          this.logger.error('Error cargando plan básico:', error);
         }
       });
     }
@@ -159,7 +160,7 @@ export class MainDataStepComponent implements OnInit {
         this.selectedComplementos.splice(index, 1);
       }
     }
-    console.log('Complementos seleccionados:', this.selectedComplementos);
+    this.logger.log('Complementos seleccionados:', this.selectedComplementos);
   }
 
   getComplementaryPlans(): ComplementaryPlan[] {
@@ -218,8 +219,8 @@ export class MainDataStepComponent implements OnInit {
 
   async onNext() {
     if (this.mainDataForm.valid) {
-      console.log('onNext llamado en MainDataStepComponent');
-      console.log('Form value:', this.mainDataForm.value);
+      this.logger.log('onNext llamado en MainDataStepComponent');
+      this.logger.log('Form value:', this.mainDataForm.value);
       
       // Guardar estado del usuario antes de continuar
       this.saveUserData();
@@ -232,18 +233,18 @@ export class MainDataStepComponent implements OnInit {
         const quotationData = await this.createQuotation();
         
         if (quotationData) {
-          console.log('Cotización creada exitosamente:', quotationData);
+          this.logger.log('Cotización creada exitosamente:', quotationData);
           // Emitir evento con los datos de la cotización (no solo el formulario)
           this.next.emit(quotationData);
         }
       } catch (error: any) {
-        console.error('Error creando cotización:', error);
+        this.logger.error('Error creando cotización:', error);
         this.quotationError = error.message || 'Error creando cotización';
       } finally {
         this.isCreatingQuotation = false;
       }
     } else {
-      console.log('Formulario inválido');
+      this.logger.log('Formulario inválido');
       this.markFormGroupTouched();
     }
   }
@@ -274,7 +275,7 @@ export class MainDataStepComponent implements OnInit {
    */
   async sendQuotationByEmail(): Promise<void> {
     if (this.mainDataForm.valid) {
-      console.log('📧 Enviando cotización por correo...');
+      this.logger.log('📧 Enviando cotización por correo...');
       
       // Guardar estado del usuario antes de enviar
       this.saveUserData();
@@ -284,52 +285,52 @@ export class MainDataStepComponent implements OnInit {
 
       try {
         // Crear cotización primero
-        console.log('🔄 Paso 1: Creando cotización...');
+        this.logger.log('🔄 Paso 1: Creando cotización...');
         const quotationData = await this.createQuotation();
-        console.log('📊 Cotización creada:', quotationData);
+        this.logger.log('📊 Cotización creada:', quotationData);
         
         // El backend devuelve quotationId, pero el modelo del frontend usa id
         const quotationId = quotationData?.quotationId || quotationData?.id;
         
         if (quotationData && quotationId) {
-          console.log('✅ Cotización creada, enviando por correo...');
-          console.log('🆔 ID de cotización:', quotationId);
+          this.logger.log('✅ Cotización creada, enviando por correo...');
+          this.logger.log('🆔 ID de cotización:', quotationId);
           
           // Enviar cotización por correo
-          console.log('📡 Paso 2: Llamando a sendQuotationEmail...');
+          this.logger.log('📡 Paso 2: Llamando a sendQuotationEmail...');
           this.quotationsService.sendQuotationEmail(quotationId).subscribe({
             next: (response) => {
-              console.log('📥 Respuesta del envío:', response);
+              this.logger.log('📥 Respuesta del envío:', response);
               if (response.success) {
-                console.log('📧 Cotización enviada por correo exitosamente');
+                this.logger.log('📧 Cotización enviada por correo exitosamente');
                 // Mostrar mensaje de éxito
                 this.quotationError = '';
                 // Emitir evento con el número de cotización
                 const quotationNumber = quotationData.quotationNumber || 'N/A';
                 this.goToFinish.emit(quotationNumber);
               } else {
-                console.error('❌ Error enviando cotización por correo:', response.message);
+                this.logger.error('❌ Error enviando cotización por correo:', response.message);
                 this.quotationError = response.message || 'Error enviando cotización por correo';
               }
             },
             error: (error) => {
-              console.error('❌ Error enviando cotización por correo:', error);
-              console.error('❌ Detalles del error:', error.error, error.status, error.message);
+              this.logger.error('❌ Error enviando cotización por correo:', error);
+              this.logger.error('❌ Detalles del error:', { error: error.error, status: error.status, message: error.message });
               this.quotationError = 'Error enviando cotización por correo';
             }
           });
         } else {
-          console.error('❌ No se pudo obtener ID de cotización:', quotationData);
+          this.logger.error('❌ No se pudo obtener ID de cotización:', quotationData);
           this.quotationError = 'Error: No se pudo crear la cotización';
         }
       } catch (error: any) {
-        console.error('❌ Error creando cotización para envío por correo:', error);
+        this.logger.error('❌ Error creando cotización para envío por correo:', error);
         this.quotationError = error.message || 'Error creando cotización';
       } finally {
         this.isCreatingQuotation = false;
       }
     } else {
-      console.log('Formulario inválido para envío por correo');
+      this.logger.log('Formulario inválido para envío por correo');
       this.markFormGroupTouched();
     }
   }
@@ -354,7 +355,7 @@ export class MainDataStepComponent implements OnInit {
       throw new Error('Los datos del plan no están disponibles');
     }
 
-    console.log('📋 Creando cotización para plan:', this.selectedPlan);
+    this.logger.log('📋 Creando cotización para plan:', this.selectedPlan);
 
     // Crear DTO simplificado con solo los campos disponibles
     const quotationDto: CreateQuotationDto = {
@@ -383,13 +384,13 @@ export class MainDataStepComponent implements OnInit {
       }
     };
 
-    console.log('📤 Enviando cotización:', quotationDto);
+    this.logger.log('📤 Enviando cotización:', quotationDto);
 
     return new Promise((resolve, reject) => {
       this.quotationsService.createQuotation(quotationDto).subscribe({
         next: (response) => {
           if (response.success && response.data) {
-            console.log('✅ Cotización creada exitosamente:', response.data);
+            this.logger.log('✅ Cotización creada exitosamente:', response.data);
             // Crear objeto con datos completos para el componente de pago
             const quotationData = {
               ...response.data,
@@ -397,20 +398,20 @@ export class MainDataStepComponent implements OnInit {
               quotationCurrency: this.selectedPlanData?.currency || 'MXN', // Agregar moneda
               userId: response.data.userId, // Agregar userId del usuario creado
               plan: {
-                name: this.selectedPlanData?.name || 'Póliza Jurídica Digital',
+                name: this.selectedPlanData?.name || '', // Ya no se usa nombre hardcodeado
                 price: this.getTotalPrice()
               }
             };
-            console.log('📊 Datos completos de cotización para pago:', quotationData);
+            this.logger.log('📊 Datos completos de cotización para pago:', quotationData);
             this.mainDataForm.patchValue({ quotationId: response.data.id });
             resolve(quotationData); // Resolve with the enriched data
           } else {
-            console.error('❌ Error en respuesta:', response);
+            this.logger.error('❌ Error en respuesta:', response);
             reject(new Error(response.message || 'Error creando cotización'));
           }
         },
         error: (error) => {
-          console.error('❌ Error HTTP:', error);
+          this.logger.error('❌ Error HTTP:', error);
           // Intentar obtener más detalles del error
           let errorMessage = 'Error interno del servidor';
           if (error.error && error.error.message) {

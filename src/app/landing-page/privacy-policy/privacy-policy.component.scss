@@ -1,3 +1,5 @@
+@use "sass:color";
+
 // Los estilos principales están ahora en styles.scss
 // Este archivo solo contiene estilos específicos del componente si los hay
 
@@ -33,7 +35,7 @@ $shadow-lg: 0 8px 25px rgba(0, 0, 0, 0.08);
   cursor: pointer;
 
   &:hover {
-    background-color: $hover-bg or darken($bg-color, 10%);
+    background-color: if($hover-bg, $hover-bg, color.adjust($bg-color, $lightness: -10%));
     transform: translateY(-2px);
   }
 }

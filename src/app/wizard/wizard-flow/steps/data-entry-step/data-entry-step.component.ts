@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { WizardStateService } from '../../../../services/wizard-state.service';
 import { CaptureDataService } from '../../../../services/capture-data.service';
-
+import { LoggerService } from '../../../../services/logger.service';
 export interface PropietarioData {
   fechaAlta: string;
   curp: string;
@@ -152,7 +152,8 @@ export class DataEntryStepComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private wizardStateService: WizardStateService,
-    private captureDataService: CaptureDataService
+    private captureDataService: CaptureDataService,
+    private logger: LoggerService
   ) {
     this.initializeForms();
   }
@@ -303,9 +304,9 @@ export class DataEntryStepComponent implements OnInit {
   private loadExistingData() {
     const state = this.wizardStateService.getState();
     
-    console.log('🔍 [DEBUG] Estado completo del wizard:', state);
-    console.log('🔍 [DEBUG] policyId disponible:', state?.policyId);
-    console.log('🔍 [DEBUG] contractData disponible:', state?.contractData);
+    this.logger.log('🔍 [DEBUG] Estado completo del wizard:', state);
+    this.logger.log('🔍 [DEBUG] policyId disponible:', state?.policyId);
+    this.logger.log('🔍 [DEBUG] contractData disponible:', state?.contractData);
     
     // Primero cargar desde el estado local del wizard
     if (state && state.contractData) {
@@ -313,77 +314,77 @@ export class DataEntryStepComponent implements OnInit {
       
       if (contractData.propietario) {
         this.propietarioForm.patchValue(contractData.propietario);
-        console.log('✅ Datos de propietario cargados desde estado local');
+        this.logger.log('✅ Datos de propietario cargados desde estado local');
       }
       if (contractData.inquilino) {
         this.inquilinoForm.patchValue(contractData.inquilino);
-        console.log('✅ Datos de inquilino cargados desde estado local');
+        this.logger.log('✅ Datos de inquilino cargados desde estado local');
       }
       if (contractData.fiador) {
         this.fiadorForm.patchValue(contractData.fiador);
-        console.log('✅ Datos de fiador cargados desde estado local');
+        this.logger.log('✅ Datos de fiador cargados desde estado local');
       }
       if (contractData.inmueble) {
         this.inmuebleForm.patchValue(contractData.inmueble);
-        console.log('✅ Datos de inmueble cargados desde estado local');
+        this.logger.log('✅ Datos de inmueble cargados desde estado local');
       }
     }
 
     // También intentar cargar desde el backend usando policyId
     if (state && state.policyId) {
-      console.log('🚀 Iniciando carga desde backend con policyId:', state.policyId);
+      this.logger.log('🚀 Iniciando carga desde backend con policyId:', state.policyId);
       this.loadDataFromBackendByPolicy(state.policyId);
     } else {
-      console.log('⚠️ No hay policyId disponible para cargar desde backend');
+      this.logger.log('⚠️ No hay policyId disponible para cargar desde backend');
     }
   }
 
   private loadDataFromBackendByPolicy(policyId: string) {
-    console.log('📡 Cargando datos de captura desde el backend por policyId:', policyId);
+    this.logger.log('📡 Cargando datos de captura desde el backend por policyId:', policyId);
     
     this.captureDataService.getAllCaptureDataByPolicy(policyId).subscribe({
       next: (response) => {
-        console.log('📡 Respuesta completa del backend:', response);
+        this.logger.log('📡 Respuesta completa del backend:', response);
         if (response.success && response.data) {
           const data = response.data;
-          console.log('📡 Datos recibidos del backend:', data);
+          this.logger.log('📡 Datos recibidos del backend:', data);
           
           // Solo actualizar formularios si no tienen datos locales
           if (data.propietario && !this.propietarioForm.get('nombre')?.value) {
-            console.log('📝 Llenando formulario de propietario con:', data.propietario);
+            this.logger.log('📝 Llenando formulario de propietario con:', data.propietario);
             this.propietarioForm.patchValue(data.propietario);
-            console.log('✅ Datos de propietario cargados desde backend por policyId');
+            this.logger.log('✅ Datos de propietario cargados desde backend por policyId');
           } else if (data.propietario) {
-            console.log('⚠️ Formulario de propietario ya tiene datos, no se sobrescribe');
+            this.logger.log('⚠️ Formulario de propietario ya tiene datos, no se sobrescribe');
           }
           
           if (data.inquilino && !this.inquilinoForm.get('nombre')?.value) {
-            console.log('📝 Llenando formulario de inquilino con:', data.inquilino);
+            this.logger.log('📝 Llenando formulario de inquilino con:', data.inquilino);
             this.inquilinoForm.patchValue(data.inquilino);
-            console.log('✅ Datos de inquilino cargados desde backend por policyId');
+            this.logger.log('✅ Datos de inquilino cargados desde backend por policyId');
           } else if (data.inquilino) {
-            console.log('⚠️ Formulario de inquilino ya tiene datos, no se sobrescribe');
+            this.logger.log('⚠️ Formulario de inquilino ya tiene datos, no se sobrescribe');
           }
           
           if (data.fiador && !this.fiadorForm.get('nombre')?.value) {
-            console.log('📝 Llenando formulario de fiador con:', data.fiador);
+            this.logger.log('📝 Llenando formulario de fiador con:', data.fiador);
             this.fiadorForm.patchValue(data.fiador);
-            console.log('✅ Datos de fiador cargados desde backend por policyId');
+            this.logger.log('✅ Datos de fiador cargados desde backend por policyId');
           } else if (data.fiador) {
-            console.log('⚠️ Formulario de fiador ya tiene datos, no se sobrescribe');
+            this.logger.log('⚠️ Formulario de fiador ya tiene datos, no se sobrescribe');
           }
           
           if (data.inmueble && !this.inmuebleForm.get('calle')?.value) {
-            console.log('📝 Llenando formulario de inmueble con:', data.inmueble);
+            this.logger.log('📝 Llenando formulario de inmueble con:', data.inmueble);
             this.inmuebleForm.patchValue(data.inmueble);
-            console.log('✅ Datos de inmueble cargados desde backend por policyId');
+            this.logger.log('✅ Datos de inmueble cargados desde backend por policyId');
           } else if (data.inmueble) {
-            console.log('⚠️ Formulario de inmueble ya tiene datos, no se sobrescribe');
+            this.logger.log('⚠️ Formulario de inmueble ya tiene datos, no se sobrescribe');
           }
           
           // IMPORTANTE: Guardar los datos cargados en wizardState.captureData
           // para que hasSavedData() funcione correctamente
-          console.log('💾 Guardando datos cargados en wizardState.captureData');
+          this.logger.log('💾 Guardando datos cargados en wizardState.captureData');
           const currentState = this.wizardStateService.getState();
           this.wizardStateService.saveState({
             captureData: {
@@ -394,22 +395,22 @@ export class DataEntryStepComponent implements OnInit {
               inmueble: data.inmueble || currentState.captureData?.inmueble
             }
           });
-          console.log('✅ Datos guardados en wizardState.captureData para verificación de hasSavedData()');
+          this.logger.log('✅ Datos guardados en wizardState.captureData para verificación de hasSavedData()');
         } else {
-          console.log('⚠️ Respuesta del backend no exitosa o sin datos:', response);
+          this.logger.log('⚠️ Respuesta del backend no exitosa o sin datos:', response);
         }
       },
       error: (error) => {
-        console.log('❌ Error cargando datos desde backend:', error);
-        console.log('❌ Error details:', error.error);
-        console.log('❌ Error message:', error.message);
-        console.log('❌ Error status:', error.status);
+        this.logger.log('❌ Error cargando datos desde backend:', error);
+        this.logger.log('❌ Error details:', error.error);
+        this.logger.log('❌ Error message:', error.message);
+        this.logger.log('❌ Error status:', error.status);
       }
     });
   }
 
   private loadDataFromBackend(userId: string) {
-    console.log('📡 Cargando datos de captura desde el backend...');
+    this.logger.log('📡 Cargando datos de captura desde el backend...');
     
     this.captureDataService.getAllCaptureData(userId).subscribe({
       next: (response) => {
@@ -419,27 +420,27 @@ export class DataEntryStepComponent implements OnInit {
           // Solo actualizar formularios si no tienen datos locales
           if (data.propietario && !this.propietarioForm.get('nombre')?.value) {
             this.propietarioForm.patchValue(data.propietario);
-            console.log('✅ Datos de propietario cargados desde backend');
+            this.logger.log('✅ Datos de propietario cargados desde backend');
           }
           
           if (data.inquilino && !this.inquilinoForm.get('nombre')?.value) {
             this.inquilinoForm.patchValue(data.inquilino);
-            console.log('✅ Datos de inquilino cargados desde backend');
+            this.logger.log('✅ Datos de inquilino cargados desde backend');
           }
           
           if (data.fiador && !this.fiadorForm.get('nombre')?.value) {
             this.fiadorForm.patchValue(data.fiador);
-            console.log('✅ Datos de fiador cargados desde backend');
+            this.logger.log('✅ Datos de fiador cargados desde backend');
           }
           
           if (data.inmueble && !this.inmuebleForm.get('calle')?.value) {
             this.inmuebleForm.patchValue(data.inmueble);
-            console.log('✅ Datos de inmueble cargados desde backend');
+            this.logger.log('✅ Datos de inmueble cargados desde backend');
           }
         }
       },
       error: (error) => {
-        console.log('ℹ️ No hay datos guardados en el backend aún:', error.message);
+        this.logger.log('ℹ️ No hay datos guardados en el backend aún:', error.message);
         // No es un error crítico, simplemente no hay datos guardados
       }
     });
@@ -450,12 +451,12 @@ export class DataEntryStepComponent implements OnInit {
   }
 
   onNext() {
-    console.log('🚀 onNext() ejecutado - avanzando al siguiente paso');
+    this.logger.log('🚀 onNext() ejecutado - avanzando al siguiente paso');
     
     // Guardar explícitamente los datos capturados en el wizardState
     const currentState = this.wizardStateService.getState();
-    console.log('💾 Guardando datos de captura en wizardState antes de navegar al contrato');
-    console.log('📊 Datos actuales de captureData:', currentState.captureData);
+    this.logger.log('💾 Guardando datos de captura en wizardState antes de navegar al contrato');
+    this.logger.log('📊 Datos actuales de captureData:', currentState.captureData);
     
     // Asegurar que los datos estén guardados
     this.wizardStateService.saveState({
@@ -468,7 +469,7 @@ export class DataEntryStepComponent implements OnInit {
       }
     });
     
-    console.log('✅ Datos guardados, emitiendo evento next');
+    this.logger.log('✅ Datos guardados, emitiendo evento next');
     this.next.emit();
   }
 
@@ -512,7 +513,7 @@ export class DataEntryStepComponent implements OnInit {
   }
 
   private saveToBackend(userId: string, data: any) {
-    console.log('💾 Guardando datos de captura en el backend...');
+    this.logger.log('💾 Guardando datos de captura en el backend...');
     this.isSaving = true;
     this.saveStatus = 'saving';
     
@@ -523,7 +524,7 @@ export class DataEntryStepComponent implements OnInit {
       inmueble: data.inmueble
     }).subscribe({
       next: (response) => {
-        console.log('✅ Datos de captura guardados en el backend:', response);
+        this.logger.log('✅ Datos de captura guardados en el backend:', response);
         this.isSaving = false;
         this.saveStatus = 'saved';
         
@@ -533,7 +534,7 @@ export class DataEntryStepComponent implements OnInit {
         }, 2000);
       },
       error: (error) => {
-        console.error('❌ Error guardando datos de captura:', error);
+        this.logger.error('❌ Error guardando datos de captura:', error);
         this.isSaving = false;
         this.saveStatus = 'error';
         
@@ -571,7 +572,7 @@ export class DataEntryStepComponent implements OnInit {
         this.fiadorForm.patchValue({ [fieldName]: file });
       }
       
-      console.log(`📁 Archivo seleccionado para ${fieldName}:`, file.name);
+      this.logger.log(`📁 Archivo seleccionado para ${fieldName}:`, file.name);
     }
   }
 
@@ -589,15 +590,15 @@ export class DataEntryStepComponent implements OnInit {
     } else if (formType === 'fiador') {
       this.fiadorForm.patchValue({ [fieldName]: null });
     }
-    console.log(`🗑️ Archivo limpiado para ${fieldName}`);
+    this.logger.log(`🗑️ Archivo limpiado para ${fieldName}`);
   }
 
   // Métodos para guardar datos de cada tab
   async savePropietarioData(): Promise<void> {
-    console.log('🚀 savePropietarioData() ejecutado');
+    this.logger.log('🚀 savePropietarioData() ejecutado');
     
     if (!this.isPropietarioFormValid()) {
-      console.warn('⚠️ Formulario de propietario no válido - campos obligatorios faltantes');
+      this.logger.warning('⚠️ Formulario de propietario no válido - campos obligatorios faltantes');
       return;
     }
 
@@ -608,8 +609,8 @@ export class DataEntryStepComponent implements OnInit {
       const wizardState = this.wizardStateService.getState();
       const propietarioData = this.propietarioForm.value;
       
-      console.log('💾 Guardando datos de propietario:', propietarioData);
-      console.log('📋 policyId disponible:', wizardState.policyId);
+      this.logger.log('💾 Guardando datos de propietario:', propietarioData);
+      this.logger.log('📋 policyId disponible:', wizardState.policyId);
 
       const response = await this.captureDataService.createPropietario(
         wizardState.userId || this.generateTempUserId(),
@@ -620,7 +621,7 @@ export class DataEntryStepComponent implements OnInit {
       ).toPromise();
 
       if (response?.success) {
-        console.log('✅ Propietario guardado exitosamente:', response.data);
+        this.logger.log('✅ Propietario guardado exitosamente:', response.data);
         this.saveStatus = 'saved';
         
         // Actualizar el estado del wizard
@@ -634,7 +635,7 @@ export class DataEntryStepComponent implements OnInit {
         throw new Error('Error en la respuesta del servidor');
       }
     } catch (error) {
-      console.error('❌ Error guardando propietario:', error);
+      this.logger.error('❌ Error guardando propietario:', error);
       this.saveStatus = 'error';
     } finally {
       this.isSaving = false;
@@ -647,7 +648,7 @@ export class DataEntryStepComponent implements OnInit {
 
   async saveInquilinoData(): Promise<void> {
     if (!this.isInquilinoFormValid()) {
-      console.warn('⚠️ Formulario de inquilino no válido - campos obligatorios faltantes');
+      this.logger.warning('⚠️ Formulario de inquilino no válido - campos obligatorios faltantes');
       return;
     }
 
@@ -658,8 +659,8 @@ export class DataEntryStepComponent implements OnInit {
       const wizardState = this.wizardStateService.getState();
       const inquilinoData = this.inquilinoForm.value;
       
-      console.log('💾 Guardando datos de inquilino:', inquilinoData);
-      console.log('📋 policyId disponible:', wizardState.policyId);
+      this.logger.log('💾 Guardando datos de inquilino:', inquilinoData);
+      this.logger.log('📋 policyId disponible:', wizardState.policyId);
 
       // Filtrar campos que no existen en el backend y convertir archivos a strings
       const { comprobanteIngresos3, comprobanteIngresos4, ...filteredData } = inquilinoData;
@@ -675,7 +676,7 @@ export class DataEntryStepComponent implements OnInit {
         comprobanteIngresos2: filteredData.comprobanteIngresos2 ? (filteredData.comprobanteIngresos2 as File).name : ''
       };
       
-      console.log('🔍 Datos procesados para enviar:', processedData);
+      this.logger.log('🔍 Datos procesados para enviar:', processedData);
 
       const response = await this.captureDataService.createInquilino(
         wizardState.userId || this.generateTempUserId(),
@@ -686,7 +687,7 @@ export class DataEntryStepComponent implements OnInit {
       ).toPromise();
 
       if (response?.success) {
-        console.log('✅ Inquilino guardado exitosamente:', response.data);
+        this.logger.log('✅ Inquilino guardado exitosamente:', response.data);
         this.saveStatus = 'saved';
         
         // Actualizar el estado del wizard
@@ -700,7 +701,7 @@ export class DataEntryStepComponent implements OnInit {
         throw new Error('Error en la respuesta del servidor');
       }
     } catch (error) {
-      console.error('❌ Error guardando inquilino:', error);
+      this.logger.error('❌ Error guardando inquilino:', error);
       this.saveStatus = 'error';
     } finally {
       this.isSaving = false;
@@ -713,7 +714,7 @@ export class DataEntryStepComponent implements OnInit {
 
   async saveFiadorData(): Promise<void> {
     if (!this.isFiadorFormValid()) {
-      console.warn('⚠️ Formulario de fiador no válido - campos obligatorios faltantes');
+      this.logger.warning('⚠️ Formulario de fiador no válido - campos obligatorios faltantes');
       return;
     }
 
@@ -724,8 +725,8 @@ export class DataEntryStepComponent implements OnInit {
       const wizardState = this.wizardStateService.getState();
       const fiadorData = this.fiadorForm.value;
       
-      console.log('💾 Guardando datos de fiador:', fiadorData);
-      console.log('📋 policyId disponible:', wizardState.policyId);
+      this.logger.log('💾 Guardando datos de fiador:', fiadorData);
+      this.logger.log('📋 policyId disponible:', wizardState.policyId);
 
       // Convertir archivos a strings (nombres de archivo o vacío) y manejar fechas
       const processedData = {
@@ -742,7 +743,7 @@ export class DataEntryStepComponent implements OnInit {
           : null
       };
       
-      console.log('🔍 Datos procesados para enviar:', processedData);
+      this.logger.log('🔍 Datos procesados para enviar:', processedData);
 
       const response = await this.captureDataService.createFiador(
         wizardState.userId || this.generateTempUserId(),
@@ -753,7 +754,7 @@ export class DataEntryStepComponent implements OnInit {
       ).toPromise();
 
       if (response?.success) {
-        console.log('✅ Fiador guardado exitosamente:', response.data);
+        this.logger.log('✅ Fiador guardado exitosamente:', response.data);
         this.saveStatus = 'saved';
         
         // Actualizar el estado del wizard
@@ -767,7 +768,7 @@ export class DataEntryStepComponent implements OnInit {
         throw new Error('Error en la respuesta del servidor');
       }
     } catch (error) {
-      console.error('❌ Error guardando fiador:', error);
+      this.logger.error('❌ Error guardando fiador:', error);
       this.saveStatus = 'error';
     } finally {
       this.isSaving = false;
@@ -780,7 +781,7 @@ export class DataEntryStepComponent implements OnInit {
 
   async saveInmuebleData(): Promise<void> {
     if (!this.isInmuebleFormValid()) {
-      console.warn('⚠️ Formulario de inmueble no válido - campos obligatorios faltantes');
+      this.logger.warning('⚠️ Formulario de inmueble no válido - campos obligatorios faltantes');
       return;
     }
 
@@ -791,8 +792,8 @@ export class DataEntryStepComponent implements OnInit {
       const wizardState = this.wizardStateService.getState();
       const inmuebleData = this.inmuebleForm.value;
       
-      console.log('💾 Guardando datos de inmueble:', inmuebleData);
-      console.log('📋 policyId disponible:', wizardState.policyId);
+      this.logger.log('💾 Guardando datos de inmueble:', inmuebleData);
+      this.logger.log('📋 policyId disponible:', wizardState.policyId);
 
       // Manejar fechas: enviar null si están vacías
       const processedData = {
@@ -811,7 +812,7 @@ export class DataEntryStepComponent implements OnInit {
           : null
       };
       
-      console.log('🔍 Datos procesados para enviar:', processedData);
+      this.logger.log('🔍 Datos procesados para enviar:', processedData);
 
       const response = await this.captureDataService.createInmueble(
         wizardState.userId || this.generateTempUserId(),
@@ -822,7 +823,7 @@ export class DataEntryStepComponent implements OnInit {
       ).toPromise();
 
       if (response?.success) {
-        console.log('✅ Inmueble guardado exitosamente:', response.data);
+        this.logger.log('✅ Inmueble guardado exitosamente:', response.data);
         this.saveStatus = 'saved';
         
         // Actualizar el estado del wizard
@@ -836,7 +837,7 @@ export class DataEntryStepComponent implements OnInit {
         throw new Error('Error en la respuesta del servidor');
       }
     } catch (error) {
-      console.error('❌ Error guardando inmueble:', error);
+      this.logger.error('❌ Error guardando inmueble:', error);
       this.saveStatus = 'error';
     } finally {
       this.isSaving = false;

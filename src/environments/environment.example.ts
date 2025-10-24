@@ -1,5 +1,6 @@
 export const environment = {
     production: false,
+    debug: true, // Controlar logs: true para mostrar, false para ocultar
     vdid: {
         publicKey: 'TU_VDID_PUBLIC_KEY',
         privateKey: 'TU_VDID_PRIVATE_KEY',

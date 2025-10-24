@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-
+import { LoggerService } from './logger.service';
 export interface VdidCreateVerificationRequest {
   email: string;
   name: string;
@@ -33,7 +33,7 @@ export class VdidApiService {
   private readonly baseUrl = 'https://veridocid.azure-api.net/api/id/v3';
   private readonly apiKey = environment.vdid?.apiKey || '';
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private logger: LoggerService) {}
 
   /**
    * Crear una nueva verificación en VDID
@@ -54,7 +54,7 @@ export class VdidApiService {
       }
     };
 
-    console.log('🚀 Creando verificación VDID:', payload);
+    this.logger.log('🚀 Creando verificación VDID:', payload);
     
     return this.http.post<VdidCreateVerificationResponse>(
       `${this.baseUrl}/createVerification`,

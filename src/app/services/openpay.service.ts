@@ -1,6 +1,6 @@
 import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-
+import { LoggerService } from './logger.service';
 declare global {
   interface Window {
     OpenPay: any;
@@ -37,14 +37,17 @@ export interface OpenPayErrorResponse {
 export class OpenPayService {
   private isConfigured = false;
 
-  constructor(@Inject(PLATFORM_ID) private platformId: Object) {}
+  constructor(
+    @Inject(PLATFORM_ID) private platformId: Object,
+    private logger: LoggerService
+  ) {}
 
   /**
    * Configura OpenPay con las credenciales
    */
   configure(merchantId: string, publicKey: string, sandboxMode: boolean = false): void {
     if (!isPlatformBrowser(this.platformId) || !window.OpenPay) {
-      console.warn('OpenPay no está disponible en el servidor');
+      this.logger.warning('OpenPay no está disponible en el servidor');
       return;
     }
 
@@ -53,9 +56,9 @@ export class OpenPayService {
       window.OpenPay.setApiKey(publicKey);
       window.OpenPay.setSandboxMode(sandboxMode);
       this.isConfigured = true;
-      console.log('OpenPay configurado correctamente');
+      this.logger.log('OpenPay configurado correctamente');
     } catch (error) {
-      console.error('Error configurando OpenPay:', error);
+      this.logger.error('Error configurando OpenPay:', error);
     }
   }
 

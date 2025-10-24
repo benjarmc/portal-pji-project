@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders, HttpParams, HttpErrorResponse } from '@angular
 import { Observable, throwError } from 'rxjs';
 import { catchError, timeout } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+import { LoggerService } from './logger.service';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -27,7 +28,10 @@ export class ApiService {
   private readonly baseUrl = environment.api.baseUrl;
   private readonly timeout = environment.api.timeout;
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private logger: LoggerService
+  ) {}
 
   /**
    * GET request
@@ -117,7 +121,7 @@ export class ApiService {
       }
     }
 
-    console.error('API Error:', error);
+    this.logger.error('API Error:', error);
     return throwError(() => new Error(errorMessage));
   }
 

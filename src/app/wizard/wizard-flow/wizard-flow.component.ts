@@ -13,7 +13,7 @@ import { SeoService } from '../../services/seo.service';
 import { WizardStateService, WizardState } from '../../services/wizard-state.service';
 import { WizardSessionService } from '../../services/wizard-session.service';
 import { ContinueWizardModalComponent } from '../../components/continue-wizard-modal/continue-wizard-modal.component';
-
+import { LoggerService } from '../../services/logger.service';
 @Component({
   selector: 'app-wizard-flow',
   standalone: true,
@@ -38,7 +38,7 @@ export class WizardFlowComponent implements OnInit {
     const oldValue = this._currentStep || 0;
     this._currentStep = value;
     
-    console.log('🔄 currentStep cambiado:', {
+    this.logger.log('🔄 currentStep cambiado:', {
       de: oldValue,
       a: value,
       stepNameDe: this.getStepName(oldValue),
@@ -99,11 +99,12 @@ export class WizardFlowComponent implements OnInit {
     private router: Router,
     private seoService: SeoService,
     public wizardStateService: WizardStateService,
-    private wizardSessionService: WizardSessionService
+    private wizardSessionService: WizardSessionService,
+    private logger: LoggerService
   ) {}
 
   ngOnInit() {
-    console.log('🚀 ngOnInit iniciado - Estado inicial:', {
+    this.logger.log('🚀 ngOnInit iniciado - Estado inicial:', {
       currentStep: this.currentStep,
       stepName: this.getStepName(this.currentStep),
       wizardStateCurrentStep: this.wizardStateService.getState().currentStep
@@ -118,7 +119,7 @@ export class WizardFlowComponent implements OnInit {
     // Configurar SEO
     this.setupSEO();
     
-    console.log('🚀 ngOnInit completado - Estado final:', {
+    this.logger.log('🚀 ngOnInit completado - Estado final:', {
       currentStep: this.currentStep,
       stepName: this.getStepName(this.currentStep),
       wizardStateCurrentStep: this.wizardStateService.getState().currentStep
@@ -161,20 +162,20 @@ export class WizardFlowComponent implements OnInit {
       const planId = urlParams.get('plan');
       
       if (sessionId) {
-        console.log('🎯 WIZARD SessionId detectado en URL:', { sessionId, step });
+        this.logger.log('🎯 WIZARD SessionId detectado en URL:', { sessionId, step });
         
         // Cargar el estado de la sesión existente
         this.loadSessionState(sessionId, step ? parseInt(step) : undefined);
         
       } else if (planId) {
-        console.log('🎯 Plan detectado en URL (modo legacy):', planId);
+        this.logger.log('🎯 Plan detectado en URL (modo legacy):', planId);
         
         // Crear nueva sesión con el plan seleccionado
         this.createNewSessionWithPlan(planId);
         
       } else {
         // Si no hay sessionId ni plan, crear nueva sesión
-        console.log('🆕 Creando nueva sesión');
+        this.logger.log('🆕 Creando nueva sesión');
         this.initializeNewSession();
       }
     }
@@ -187,23 +188,23 @@ export class WizardFlowComponent implements OnInit {
     try {
       // PRIMERO: Intentar usar el sessionId de la URL
       try {
-        console.log('🔍 Intentando cargar sesión desde URL:', sessionId);
+        this.logger.log('🔍 Intentando cargar sesión desde URL:', sessionId);
         const sessionData = await this.wizardSessionService.getSession(sessionId).toPromise();
-        console.log('📡 Respuesta del backend para sesión:', sessionData);
+        this.logger.log('📡 Respuesta del backend para sesión:', sessionData);
         
         if (sessionData) {
           // Verificar si viene envuelto en ApiResponse o directamente
           const actualData = (sessionData as any).data || sessionData;
           
           if (actualData && actualData.sessionId) {
-            console.log('📊 Estado de sesión cargado desde URL:', actualData);
+            this.logger.log('📊 Estado de sesión cargado desde URL:', actualData);
             this.restoreSessionState(actualData, targetStep);
             return;
           }
         }
       } catch (error) {
-        console.log('⚠️ Sesión de URL no encontrada, buscando sesión activa por IP');
-        console.error('❌ Error detallado:', error);
+        this.logger.log('⚠️ Sesión de URL no encontrada, buscando sesión activa por IP');
+        this.logger.error('❌ Error detallado:', error);
       }
       
       // SEGUNDO: Si no funciona, buscar sesión activa por IP (sin crear nueva)
@@ -218,7 +219,7 @@ export class WizardFlowComponent implements OnInit {
           const actualData = (sessionData as any).data || sessionData;
           
           if (actualData && actualData.sessionId) {
-            console.log('📊 Estado de sesión cargado desde IP:', actualData);
+            this.logger.log('📊 Estado de sesión cargado desde IP:', actualData);
             this.restoreSessionState(actualData, targetStep);
             return;
           }
@@ -226,17 +227,17 @@ export class WizardFlowComponent implements OnInit {
       }
       
       // CUARTO: Si no hay sesión activa, crear nueva
-      console.log('⚠️ No hay sesión activa, creando nueva');
+      this.logger.log('⚠️ No hay sesión activa, creando nueva');
       this.initializeNewSession();
       
     } catch (error) {
-      console.error('❌ Error cargando sesión:', error);
+      this.logger.error('❌ Error cargando sesión:', error);
       this.initializeNewSession();
     }
   }
 
   private restoreSessionState(sessionData: any, targetStep?: number): void {
-    console.log('🔄 restoreSessionState llamado con:', {
+    this.logger.log('🔄 restoreSessionState llamado con:', {
       sessionDataCurrentStep: sessionData.currentStep,
       targetStep: targetStep,
       sessionId: sessionData.sessionId,
@@ -248,7 +249,7 @@ export class WizardFlowComponent implements OnInit {
     // Restaurar el estado del wizard
     this.currentStep = targetStep || sessionData.currentStep;
     
-    console.log('🎯 currentStep establecido:', {
+    this.logger.log('🎯 currentStep establecido:', {
       targetStep: targetStep,
       sessionDataCurrentStep: sessionData.currentStep,
       finalCurrentStep: this.currentStep,
@@ -256,7 +257,7 @@ export class WizardFlowComponent implements OnInit {
       stepName: this.getStepName(this.currentStep)
     });
     
-    console.log('🔍 Verificando estado del wizard después de establecer currentStep:', {
+    this.logger.log('🔍 Verificando estado del wizard después de establecer currentStep:', {
       currentStep: this.currentStep,
       stepName: this.getStepName(this.currentStep),
       wizardStateCurrentStep: this.wizardStateService.getState().currentStep
@@ -268,7 +269,7 @@ export class WizardFlowComponent implements OnInit {
     this.quotationNumber = sessionData.quotationNumber || ''; // ✅ Usar objeto principal
     this.userId = sessionData.userId || '';
     
-    console.log('📊 Datos restaurados para el modal:', {
+    this.logger.log('📊 Datos restaurados para el modal:', {
       currentStep: this.currentStep,
       selectedPlan: this.selectedPlan,
       selectedPlanName: this.selectedPlanName,
@@ -284,9 +285,9 @@ export class WizardFlowComponent implements OnInit {
     this.modalPolicyNumber = sessionData.policyNumber || null;
     this.modalCompletedSteps = this.calculateCompletedSteps(sessionData.stepData || {});
     
-    console.log('🔍 stepData usado para calcular progreso:', sessionData.stepData);
+    this.logger.log('🔍 stepData usado para calcular progreso:', sessionData.stepData);
     
-    console.log('📊 Variables del modal llenadas:', {
+    this.logger.log('📊 Variables del modal llenadas:', {
       modalCurrentStep: this.modalCurrentStep,
       modalSelectedPlan: this.modalSelectedPlan,
       modalQuotationNumber: this.modalQuotationNumber,
@@ -299,11 +300,11 @@ export class WizardFlowComponent implements OnInit {
     // Sincronizar el currentStep con wizardStateService
     this.wizardStateService.saveState({ currentStep: this.currentStep });
     
-    console.log('🔄 currentStep sincronizado con wizardStateService:', this.currentStep);
+    this.logger.log('🔄 currentStep sincronizado con wizardStateService:', this.currentStep);
     
     // Verificar si hay conflicto después de sincronizar
     const wizardStateAfterSync = this.wizardStateService.getState();
-    console.log('🔍 Estado del wizard después de sincronizar:', {
+    this.logger.log('🔍 Estado del wizard después de sincronizar:', {
       componentCurrentStep: this.currentStep,
       wizardStateCurrentStep: wizardStateAfterSync.currentStep,
       areTheyEqual: this.currentStep === wizardStateAfterSync.currentStep
@@ -313,13 +314,13 @@ export class WizardFlowComponent implements OnInit {
     this.canGoBack = targetStep ? false : true;
     this.isFromQuotationUrl = !!targetStep;
     
-    console.log('✅ Estado de sesión restaurado y sincronizado con BD');
+    this.logger.log('✅ Estado de sesión restaurado y sincronizado con BD');
     
     // Mostrar modal de continuar si se refrescó la página (no si se navegó desde selección de plan)
     const navigatedFromPlan = sessionStorage.getItem('navigatedFromPlan') === 'true';
     const isPageRefresh = !navigatedFromPlan;
     
-    console.log('🔍 Verificando si mostrar modal en restoreSessionState:', {
+    this.logger.log('🔍 Verificando si mostrar modal en restoreSessionState:', {
       currentStep: this.currentStep,
       navigatedFromPlan: navigatedFromPlan,
       isPageRefresh: isPageRefresh,
@@ -327,12 +328,12 @@ export class WizardFlowComponent implements OnInit {
     });
     
     if (this.currentStep > 0 && isPageRefresh) {
-      console.log('🎯 Mostrando modal de continuar (refresco de página)');
+      this.logger.log('🎯 Mostrando modal de continuar (refresco de página)');
       setTimeout(() => {
         this.showContinueModal = true;
       }, 500); // Pequeño delay para asegurar que la UI esté lista
     } else {
-      console.log('🚫 No se muestra modal:', {
+      this.logger.log('🚫 No se muestra modal:', {
         reason: this.currentStep <= 0 ? 'Paso inicial' : 'Navegación desde plan'
       });
     }
@@ -387,7 +388,7 @@ export class WizardFlowComponent implements OnInit {
       validationResult: sessionData.validationResult || stepData.step5?.validationData || null
     };
 
-    console.log('🔄 Sincronizando estado local con BD (estructura completa):', {
+    this.logger.log('🔄 Sincronizando estado local con BD (estructura completa):', {
       id: localState.id,
       sessionId: localState.sessionId,
       currentStep: localState.currentStep,
@@ -446,17 +447,17 @@ export class WizardFlowComponent implements OnInit {
    * Inicializar nueva sesión
    */
   private initializeNewSession(): void {
-    console.log('🆕 initializeNewSession llamado:', {
+    this.logger.log('🆕 initializeNewSession llamado:', {
       currentStepAntes: this.currentStep,
       stepNameAntes: this.getStepName(this.currentStep)
     });
     
     // NO sobrescribir currentStep si ya se estableció desde la sesión del backend
     if (this.currentStep === 0) {
-      console.log('✅ Estableciendo currentStep = 0 (nueva sesión)');
+      this.logger.log('✅ Estableciendo currentStep = 0 (nueva sesión)');
       this.currentStep = 0;
     } else {
-      console.log('✅ Manteniendo currentStep establecido desde sesión:', {
+      this.logger.log('✅ Manteniendo currentStep establecido desde sesión:', {
         currentStep: this.currentStep,
         razon: 'Ya establecido desde sesión del backend'
       });
@@ -466,14 +467,14 @@ export class WizardFlowComponent implements OnInit {
     this.isFromQuotationUrl = false;
     
     // El WizardStateService ya maneja la creación de sesión automáticamente
-    console.log('✅ Nueva sesión inicializada');
+    this.logger.log('✅ Nueva sesión inicializada');
   }
 
   /**
    * Crear nueva sesión con plan seleccionado
    */
   private createNewSessionWithPlan(planId: string): void {
-    console.log('🆕 createNewSessionWithPlan llamado:', {
+    this.logger.log('🆕 createNewSessionWithPlan llamado:', {
       planId: planId,
       currentStepAntes: this.currentStep,
       stepNameAntes: this.getStepName(this.currentStep)
@@ -484,10 +485,10 @@ export class WizardFlowComponent implements OnInit {
     
     // NO sobrescribir currentStep si ya se estableció desde la sesión del backend
     if (this.currentStep === 0) {
-      console.log('✅ Estableciendo currentStep = 0 (nueva sesión)');
+      this.logger.log('✅ Estableciendo currentStep = 0 (nueva sesión)');
       this.currentStep = 0;
     } else {
-      console.log('✅ Manteniendo currentStep establecido desde sesión:', {
+      this.logger.log('✅ Manteniendo currentStep establecido desde sesión:', {
         currentStep: this.currentStep,
         razon: 'Ya establecido desde sesión del backend'
       });
@@ -509,17 +510,17 @@ export class WizardFlowComponent implements OnInit {
       // Reemplazar la URL actual con sessionId
       const newUrl = `/cotizador?session=${sessionId}`;
       window.history.replaceState({}, '', newUrl);
-      console.log('🔄 URL actualizada con sessionId:', newUrl);
+      this.logger.log('🔄 URL actualizada con sessionId:', newUrl);
     }
     
-    console.log('✅ Nueva sesión con plan inicializada');
+    this.logger.log('✅ Nueva sesión con plan inicializada');
   }
 
   /**
    * Restaura el estado del wizard desde el almacenamiento
    */
   private restoreWizardState(): void {
-    console.log('🔄 restoreWizardState iniciado - Estado antes:', {
+    this.logger.log('🔄 restoreWizardState iniciado - Estado antes:', {
       currentStep: this.currentStep,
       stepName: this.getStepName(this.currentStep),
       isFromQuotationUrl: this.isFromQuotationUrl
@@ -527,14 +528,14 @@ export class WizardFlowComponent implements OnInit {
     
     // Solo restaurar si no es desde URL de cotización
     if (this.isFromQuotationUrl) {
-      console.log('🔄 No restaurando estado - llegamos desde URL de cotización');
+      this.logger.log('🔄 No restaurando estado - llegamos desde URL de cotización');
       return;
     }
 
     if (this.wizardStateService.hasSavedState()) {
       const savedState = this.wizardStateService.getState();
       
-      console.log('🔄 Evaluando si sobrescribir currentStep:', {
+      this.logger.log('🔄 Evaluando si sobrescribir currentStep:', {
         currentStepAntes: this.currentStep,
         savedStateCurrentStep: savedState.currentStep,
         stepNameAntes: this.getStepName(this.currentStep),
@@ -544,7 +545,7 @@ export class WizardFlowComponent implements OnInit {
       
       // NUNCA sobrescribir currentStep si ya se estableció desde la sesión del backend
       // Solo restaurar otros campos, pero mantener el currentStep establecido desde la sesión
-      console.log('✅ Manteniendo currentStep establecido desde sesión:', {
+      this.logger.log('✅ Manteniendo currentStep establecido desde sesión:', {
         currentStep: this.currentStep,
         razon: 'Ya establecido desde sesión del backend con lógica inteligente'
       });
@@ -553,7 +554,7 @@ export class WizardFlowComponent implements OnInit {
       this.quotationNumber = savedState.quotationNumber || '';
       this.userId = savedState.userId || '';
       
-      console.log('🔄 Estado del wizard restaurado:', {
+      this.logger.log('🔄 Estado del wizard restaurado:', {
         step: this.currentStep,
         stepName: this.getStepName(this.currentStep),
         plan: this.selectedPlan,
@@ -569,7 +570,7 @@ export class WizardFlowComponent implements OnInit {
       this.modalPolicyNumber = savedState.policyNumber || null;
       this.modalCompletedSteps = this.calculateCompletedSteps(savedState.stepData || {});
       
-      console.log('📊 Variables del modal llenadas desde estado local:', {
+      this.logger.log('📊 Variables del modal llenadas desde estado local:', {
         modalCurrentStep: this.modalCurrentStep,
         modalSelectedPlan: this.modalSelectedPlan,
         modalQuotationNumber: this.modalQuotationNumber,
@@ -583,7 +584,7 @@ export class WizardFlowComponent implements OnInit {
       const navigatedFromPlan = sessionStorage.getItem('navigatedFromPlan') === 'true';
       const isPageRefresh = !navigatedFromPlan;
       
-      console.log('🔍 Verificando si mostrar modal:', {
+      this.logger.log('🔍 Verificando si mostrar modal:', {
         currentStep: this.currentStep,
         navigatedFromPlan: navigatedFromPlan,
         isPageRefresh: isPageRefresh,
@@ -591,12 +592,12 @@ export class WizardFlowComponent implements OnInit {
       });
       
       if (this.currentStep > 0 && isPageRefresh) {
-        console.log('🎯 Mostrando modal de continuar (refresco de página)');
+        this.logger.log('🎯 Mostrando modal de continuar (refresco de página)');
         setTimeout(() => {
           this.showContinueModal = true;
         }, 500); // Pequeño delay para asegurar que la UI esté lista
       } else {
-        console.log('🚫 No se muestra modal:', {
+        this.logger.log('🚫 No se muestra modal:', {
           reason: this.currentStep <= 0 ? 'Paso inicial' : 'Navegación desde plan'
         });
       }
@@ -604,7 +605,7 @@ export class WizardFlowComponent implements OnInit {
       // Limpiar la marca de navegación desde plan
       sessionStorage.removeItem('navigatedFromPlan');
     } else {
-      console.log('🆕 No hay estado guardado - iniciando wizard nuevo');
+      this.logger.log('🆕 No hay estado guardado - iniciando wizard nuevo');
     }
   }
 
@@ -632,16 +633,16 @@ export class WizardFlowComponent implements OnInit {
   }
 
   setCurrentStep(step: number) {
-    console.log(`🔄 setCurrentStep llamado: ${this.currentStep} -> ${step}`);
+    this.logger.log(`🔄 setCurrentStep llamado: ${this.currentStep} -> ${step}`);
     this.currentStep = step;
     this.wizardStateService.saveState({ currentStep: step });
     
     // Sincronizar con el backend para actualizar el paso actual
     this.wizardStateService.syncWithBackendCorrected(this.wizardStateService.getState()).catch(error => {
-      console.error('❌ Error sincronizando cambio de paso con backend:', error);
+      this.logger.error('❌ Error sincronizando cambio de paso con backend:', error);
     });
     
-    console.log(`✅ Paso actualizado a: ${this.currentStep}`);
+    this.logger.log(`✅ Paso actualizado a: ${this.currentStep}`);
   }
 
   // Nuevo método para cuando se envía la cotización por correo
@@ -656,32 +657,32 @@ export class WizardFlowComponent implements OnInit {
     // Generar URL con sessionId para continuar el proceso
     const continueUrl = `${window.location.origin}/cotizador?session=${sessionId}&step=3`;
     
-    console.log('📧 Cotización enviada por email con URL:', continueUrl);
+    this.logger.log('📧 Cotización enviada por email con URL:', continueUrl);
     
     this.setCurrentStep(5); // Ir al paso de finalización
   }
 
   // Nuevo método para cuando se hace clic en "Siguiente y Pagar"
   onNextAndPay(quotationData: any) {
-    console.log('💰 onNextAndPay llamado con datos:', quotationData);
-    console.log('🔍 Estructura completa de quotationData:', JSON.stringify(quotationData, null, 2));
+    this.logger.log('💰 onNextAndPay llamado con datos:', quotationData);
+    this.logger.log('🔍 Estructura completa de quotationData:', JSON.stringify(quotationData, null, 2));
     
     this.currentQuotation = quotationData;
     this.quotationId = quotationData.id || quotationData.quotationId || '';
     this.quotationNumber = quotationData.quotationNumber || '';
     this.userId = quotationData.userId || '';
     
-    console.log('📊 Datos extraídos:');
-    console.log('  - quotationData.id:', quotationData.id);
-    console.log('  - quotationData.quotationId:', quotationData.quotationId);
-    console.log('  - quotationData.quotationNumber:', quotationData.quotationNumber);
-    console.log('  - quotationData.userId:', quotationData.userId);
+    this.logger.log('📊 Datos extraídos:');
+    this.logger.log('  - quotationData.id:', quotationData.id);
+    this.logger.log('  - quotationData.quotationId:', quotationData.quotationId);
+    this.logger.log('  - quotationData.quotationNumber:', quotationData.quotationNumber);
+    this.logger.log('  - quotationData.userId:', quotationData.userId);
     
-    console.log('📊 Datos guardados en wizard:');
-    console.log('  - currentQuotation:', this.currentQuotation);
-    console.log('  - quotationId:', this.quotationId);
-    console.log('  - quotationNumber:', this.quotationNumber);
-    console.log('  - userId:', this.userId);
+    this.logger.log('📊 Datos guardados en wizard:');
+    this.logger.log('  - currentQuotation:', this.currentQuotation);
+    this.logger.log('  - quotationId:', this.quotationId);
+    this.logger.log('  - quotationNumber:', this.quotationNumber);
+    this.logger.log('  - userId:', this.userId);
     
     this.wizardStateService.saveState({
       quotationId: this.quotationId,
@@ -691,7 +692,7 @@ export class WizardFlowComponent implements OnInit {
     
     // Verificar que los datos se guardaron correctamente
     const currentState = this.wizardStateService.getState();
-    console.log('🔍 Estado después de guardar cotización:', {
+    this.logger.log('🔍 Estado después de guardar cotización:', {
       quotationId: currentState.quotationId,
       quotationNumber: currentState.quotationNumber,
       userId: currentState.userId
@@ -699,30 +700,30 @@ export class WizardFlowComponent implements OnInit {
     
     // Sincronizar con el backend para guardar la información del paso 1
     this.wizardStateService.syncWithBackendCorrected(this.wizardStateService.getState()).catch(error => {
-      console.error('❌ Error sincronizando datos del paso 1 con backend:', error);
+      this.logger.error('❌ Error sincronizando datos del paso 1 con backend:', error);
     });
     
     this.setCurrentStep(2); // Ir al paso 2 (PAYMENT) con la cotización creada
-    console.log('✅ Cotización creada, navegando al paso 2 (PAYMENT)');
+    this.logger.log('✅ Cotización creada, navegando al paso 2 (PAYMENT)');
   }
 
   onDataEntryCompleted() {
-    console.log('📝 Captura de datos completada, navegando al contrato');
+    this.logger.log('📝 Captura de datos completada, navegando al contrato');
     this.setCurrentStep(5); // Ir al paso 5 (CONTRACT)
   }
 
   // Nuevo método para cuando se completa el pago
   onPaymentCompleted(paymentResult: any) {
-    console.log('💰 onPaymentCompleted llamado con resultado:', paymentResult);
-    console.log('🔍 Estructura completa de paymentResult:', JSON.stringify(paymentResult, null, 2));
+    this.logger.log('💰 onPaymentCompleted llamado con resultado:', paymentResult);
+    this.logger.log('🔍 Estructura completa de paymentResult:', JSON.stringify(paymentResult, null, 2));
     
     if (paymentResult && paymentResult.success) {
-      console.log('📋 Campos disponibles en paymentResult:');
-      console.log('  - success:', paymentResult.success);
-      console.log('  - paymentId:', paymentResult.paymentId);
-      console.log('  - policyId:', paymentResult.policyId);
-      console.log('  - policyNumber:', paymentResult.policyNumber);
-      console.log('  - status:', paymentResult.status);
+      this.logger.log('📋 Campos disponibles en paymentResult:');
+      this.logger.log('  - success:', paymentResult.success);
+      this.logger.log('  - paymentId:', paymentResult.paymentId);
+      this.logger.log('  - policyId:', paymentResult.policyId);
+      this.logger.log('  - policyNumber:', paymentResult.policyNumber);
+      this.logger.log('  - status:', paymentResult.status);
       
       // Guardar información completa del pago en el estado del wizard
       this.wizardStateService.saveState({
@@ -734,10 +735,10 @@ export class WizardFlowComponent implements OnInit {
       
       // Sincronizar con el backend para guardar la información del pago
       this.wizardStateService.syncWithBackendCorrected(this.wizardStateService.getState()).catch(error => {
-        console.error('❌ Error sincronizando datos del pago con backend:', error);
+        this.logger.error('❌ Error sincronizando datos del pago con backend:', error);
       });
       
-      console.log('✅ Información del pago guardada en el estado del wizard:', {
+      this.logger.log('✅ Información del pago guardada en el estado del wizard:', {
         paymentId: paymentResult.paymentId,
         policyId: paymentResult.policyId,
         policyNumber: paymentResult.policyNumber,
@@ -746,41 +747,41 @@ export class WizardFlowComponent implements OnInit {
       
       // Marcar el paso de pago como completado
       this.wizardStateService.completeStep(2);
-      console.log('✅ Paso de pago marcado como completado');
+      this.logger.log('✅ Paso de pago marcado como completado');
       
       // Avanzar al siguiente paso (validación)
       this.setCurrentStep(3);
-      console.log('✅ Pago completado exitosamente, navegando al paso 3 (VALIDACIÓN)');
+      this.logger.log('✅ Pago completado exitosamente, navegando al paso 3 (VALIDACIÓN)');
       
       // Log del estado actual para debugging
       const currentState = this.wizardStateService.getState();
-      console.log('📊 Estado del wizard después del pago:', {
+      this.logger.log('📊 Estado del wizard después del pago:', {
         currentStep: currentState.currentStep,
         completedSteps: currentState.completedSteps,
         policyId: currentState.policyId
       });
       
     } else {
-      console.warn('⚠️ onPaymentCompleted llamado sin resultado exitoso:', paymentResult);
+      this.logger.warning('⚠️ onPaymentCompleted llamado sin resultado exitoso:', paymentResult);
       // Si no hay resultado exitoso, mantener en el paso de pago
       this.setCurrentStep(2);
     }
   }
 
   simulateValidation() {
-    console.log('Iniciando validación...');
+    this.logger.log('Iniciando validación...');
     setTimeout(() => {
       // Simulación: resultado aleatorio
       const rand = Math.random();
       if (rand < 0.6) {
         this.validationStatus = 'success';
-        console.log('Validación exitosa');
+        this.logger.log('Validación exitosa');
       } else if (rand < 0.85) {
         this.validationStatus = 'intermediate';
-        console.log('Validación intermedia');
+        this.logger.log('Validación intermedia');
       } else {
         this.validationStatus = 'failed';
-        console.log('Validación fallida');
+        this.logger.log('Validación fallida');
       }
     }, 3000);
   }
@@ -798,7 +799,7 @@ export class WizardFlowComponent implements OnInit {
     if (this.currentStep > 0 && this.canGoBack) {
       this.setCurrentStep(this.currentStep - 1);
     } else if (!this.canGoBack) {
-      console.log('⚠️ No se puede retroceder desde email - Navegación bloqueada');
+      this.logger.log('⚠️ No se puede retroceder desde email - Navegación bloqueada');
     }
   }
 
@@ -809,14 +810,14 @@ export class WizardFlowComponent implements OnInit {
   }
 
   onMainDataNext(formData: FormGroup) {
-    console.log('onMainDataNext llamado en WizardFlowComponent');
-    console.log('Form data recibido:', formData.value);
+    this.logger.log('onMainDataNext llamado en WizardFlowComponent');
+    this.logger.log('Form data recibido:', formData.value);
     
     // Extraer ID de cotización del formulario
     const quotationId = formData.get('quotationId')?.value;
     if (quotationId) {
       this.quotationId = quotationId;
-      console.log('ID de cotización obtenido:', this.quotationId);
+      this.logger.log('ID de cotización obtenido:', this.quotationId);
       
       // Guardar en el estado del wizard
       this.wizardStateService.saveState({ 
@@ -829,7 +830,7 @@ export class WizardFlowComponent implements OnInit {
   }
 
   onValidationSelectPlan(planId: string) {
-    console.log('Plan seleccionado en wizard:', planId);
+    this.logger.log('Plan seleccionado en wizard:', planId);
     this.selectedPlan = planId;
     // Mantener en 'completed' para mostrar selección de complementos
     this.validationStatus = 'success';
@@ -870,17 +871,17 @@ export class WizardFlowComponent implements OnInit {
    */
   onContinueWizard(): void {
     this.showContinueModal = false;
-    console.log('✅ Usuario decidió continuar el wizard');
+    this.logger.log('✅ Usuario decidió continuar el wizard');
     
     // Navegar al cotizador con la sesión actual
     const currentState = this.wizardStateService.getState();
     if (currentState.sessionId) {
-      console.log('🎯 Navegando al cotizador con sesión:', currentState.sessionId);
+      this.logger.log('🎯 Navegando al cotizador con sesión:', currentState.sessionId);
       this.router.navigate(['/cotizador'], { 
         queryParams: { session: currentState.sessionId }
       });
     } else {
-      console.warn('⚠️ No hay sessionId para navegar al cotizador');
+      this.logger.warning('⚠️ No hay sessionId para navegar al cotizador');
     }
   }
 
@@ -888,11 +889,11 @@ export class WizardFlowComponent implements OnInit {
    * Maneja la decisión de reiniciar el wizard
    */
   async onRestartWizard() {
-    console.log('🔄 Reiniciando wizard...');
+    this.logger.log('🔄 Reiniciando wizard...');
     
     // 1) Eliminar sesión actual de la BD
     const currentState = this.wizardStateService.getState();
-    console.log('📊 Estado actual antes de eliminar:', {
+    this.logger.log('📊 Estado actual antes de eliminar:', {
       sessionId: currentState.sessionId,
       currentStep: currentState.currentStep,
       status: currentState.status
@@ -900,43 +901,43 @@ export class WizardFlowComponent implements OnInit {
     
     if (currentState.sessionId) {
       try {
-        console.log('🗑️ Eliminando sesión actual de la BD:', currentState.sessionId);
+        this.logger.log('🗑️ Eliminando sesión actual de la BD:', currentState.sessionId);
         const deleted = await this.wizardStateService.deleteSession(currentState.sessionId);
-        console.log('📋 Resultado de eliminación:', deleted);
+        this.logger.log('📋 Resultado de eliminación:', deleted);
         
         if (deleted) {
-          console.log('✅ Sesión actual eliminada de la BD');
+          this.logger.log('✅ Sesión actual eliminada de la BD');
         } else {
-          console.warn('⚠️ No se pudo eliminar la sesión de la BD - intentando marcar como ABANDONED');
+          this.logger.warning('⚠️ No se pudo eliminar la sesión de la BD - intentando marcar como ABANDONED');
           // Fallback: marcar como ABANDONED si no se puede eliminar
           try {
             await this.wizardStateService.updateSessionStatus('ABANDONED');
-            console.log('✅ Sesión marcada como ABANDONED como fallback');
+            this.logger.log('✅ Sesión marcada como ABANDONED como fallback');
           } catch (fallbackError) {
-            console.error('❌ Error en fallback ABANDONED:', fallbackError);
+            this.logger.error('❌ Error en fallback ABANDONED:', fallbackError);
           }
         }
       } catch (error) {
-        console.warn('⚠️ Error eliminando sesión de la BD:', error);
+        this.logger.warning('⚠️ Error eliminando sesión de la BD:', error);
         // Fallback: marcar como ABANDONED
         try {
           await this.wizardStateService.updateSessionStatus('ABANDONED');
-          console.log('✅ Sesión marcada como ABANDONED como fallback');
+          this.logger.log('✅ Sesión marcada como ABANDONED como fallback');
         } catch (fallbackError) {
-          console.error('❌ Error en fallback ABANDONED:', fallbackError);
+          this.logger.error('❌ Error en fallback ABANDONED:', fallbackError);
         }
       }
     } else {
-      console.warn('⚠️ No hay sessionId en el estado actual');
+      this.logger.warning('⚠️ No hay sessionId en el estado actual');
     }
     
     // 2) Limpiar estado del wizard
     this.wizardStateService.clearState();
     
     // 3) Crear nueva sesión
-    console.log('🆕 Creando nueva sesión...');
+    this.logger.log('🆕 Creando nueva sesión...');
     const newSessionId = await this.wizardStateService.createNewSession();
-    console.log('✅ Nueva sesión creada:', newSessionId);
+    this.logger.log('✅ Nueva sesión creada:', newSessionId);
     
     // 4) Resetear propiedades del componente
     this.currentStep = 0;
@@ -951,13 +952,13 @@ export class WizardFlowComponent implements OnInit {
     this.showContinueModal = false;
     
     // 5) Actualizar URL con nueva sesión
-    console.log('🔄 Actualizando URL con nueva sesión:', newSessionId);
+    this.logger.log('🔄 Actualizando URL con nueva sesión:', newSessionId);
     this.router.navigate(['/cotizador'], { 
       queryParams: { session: newSessionId },
       replaceUrl: true // Reemplazar la URL actual
     });
     
-    console.log('✅ Wizard reiniciado con nueva sesión');
+    this.logger.log('✅ Wizard reiniciado con nueva sesión');
   }
 
   /**
@@ -974,51 +975,51 @@ export class WizardFlowComponent implements OnInit {
   private calculateCompletedSteps(stepData: any): number {
     let completedSteps = 0;
     
-    console.log('🔍 Calculando pasos completados desde stepData:', JSON.stringify(stepData, null, 2));
+    this.logger.log('🔍 Calculando pasos completados desde stepData:', JSON.stringify(stepData, null, 2));
     
     // Paso 0: Bienvenida - tipo de usuario
     if (stepData.step0 && stepData.step0.tipoUsuario) {
       completedSteps++;
-      console.log('✅ Paso 0 completado: tipoUsuario');
+      this.logger.log('✅ Paso 0 completado: tipoUsuario');
     }
     
     // Paso 1: Datos principales - si existe step1, significa que se completó
     if (stepData.step1) {
       completedSteps++;
-      console.log('✅ Paso 1 completado: step1 existe');
+      this.logger.log('✅ Paso 1 completado: step1 existe');
     }
     
     // Paso 2: Pago - si existe step2, significa que se completó
     if (stepData.step2) {
       completedSteps++;
-      console.log('✅ Paso 2 completado: step2 existe');
+      this.logger.log('✅ Paso 2 completado: step2 existe');
     }
     
     // Paso 3: Validación - si existe step3, significa que se completó
     if (stepData.step3) {
       completedSteps++;
-      console.log('✅ Paso 3 completado: step3 existe');
+      this.logger.log('✅ Paso 3 completado: step3 existe');
     }
     
     // Paso 4: Captura de datos - si existe step4, significa que se completó
     if (stepData.step4) {
       completedSteps++;
-      console.log('✅ Paso 4 completado: step4 existe');
+      this.logger.log('✅ Paso 4 completado: step4 existe');
     }
     
     // Paso 5: Contrato - si existe step5, significa que se completó
     if (stepData.step5) {
       completedSteps++;
-      console.log('✅ Paso 5 completado: step5 existe');
+      this.logger.log('✅ Paso 5 completado: step5 existe');
     }
     
     // Paso 6: Final - si existe step6, significa que se completó
     if (stepData.step6) {
       completedSteps++;
-      console.log('✅ Paso 6 completado: step6 existe');
+      this.logger.log('✅ Paso 6 completado: step6 existe');
     }
     
-    console.log('📊 Total de pasos completados:', completedSteps);
+    this.logger.log('📊 Total de pasos completados:', completedSteps);
     return completedSteps;
   }
 

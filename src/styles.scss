@@ -104,7 +104,7 @@ $shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   
   &:hover {
-    background-color: $hover-bg or darken($bg-color, 10%);
+    background-color: if($hover-bg, $hover-bg, color.adjust($bg-color, $lightness: -10%));
     transform: translateY(-2px);
   }
 }

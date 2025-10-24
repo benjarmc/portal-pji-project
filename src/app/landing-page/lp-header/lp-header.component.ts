@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
+import { LoggerService } from '../../services/logger.service';
 
 @Component({
   selector: 'app-lp-header',
@@ -23,7 +24,8 @@ export class LpHeaderComponent implements OnInit {
 
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object,
-    private router: Router
+    private router: Router,
+    private logger: LoggerService
   ) { }
 
   ngOnInit(): void {
@@ -39,14 +41,14 @@ export class LpHeaderComponent implements OnInit {
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe((event: NavigationEnd) => {
         this.isPrivacyPage = event.url.includes('/aviso-privacidad');
-        console.log('Ruta detectada:', event.url, 'Es página de privacidad:', this.isPrivacyPage);
+        this.logger.log('Ruta detectada:', event.url, 'Es página de privacidad:', this.isPrivacyPage);
       });
   }
 
   private checkCurrentRoute(): void {
     if (isPlatformBrowser(this.platformId)) {
       this.isPrivacyPage = this.router.url.includes('/aviso-privacidad');
-      console.log('Ruta actual:', this.router.url, 'Es página de privacidad:', this.isPrivacyPage);
+      this.logger.log('Ruta actual:', this.router.url, 'Es página de privacidad:', this.isPrivacyPage);
     }
   }
 

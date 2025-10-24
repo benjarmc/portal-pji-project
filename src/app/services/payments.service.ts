@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { ApiService, ApiResponse } from './api.service';
 import { OpenPayService, OpenPayCardData, OpenPayTokenResponse } from './openpay.service';
-
+import { LoggerService } from './logger.service';
 export interface PaymentData {
   quotationId: string;
   cardData: OpenPayCardData;
@@ -44,7 +44,8 @@ export class PaymentsService {
 
   constructor(
     private apiService: ApiService,
-    private openPayService: OpenPayService
+    private openPayService: OpenPayService,
+    private logger: LoggerService
   ) {}
 
   /**
@@ -110,7 +111,7 @@ export class PaymentsService {
             userId: userId // Enviar userId real si está disponible
           };
 
-          console.log('💰 Payload de pago enviado al backend:', paymentPayload);
+          this.logger.log('💰 Payload de pago enviado al backend:', paymentPayload);
 
           this.apiService.post<PaymentResponse>(`${this.endpoint}/process`, paymentPayload).subscribe({
             next: (response) => observer.next(response),

@@ -5,7 +5,7 @@ import { ValidationService } from '../services/validation.service';
 import { WizardStateService } from '../services/wizard-state.service';
 import { Subject, timer } from 'rxjs';
 import { takeUntil, debounceTime, distinctUntilChanged } from 'rxjs/operators';
-
+import { LoggerService } from '../services/logger.service';
 interface ValidationResult {
   uuid: string;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
@@ -415,7 +415,8 @@ export class ValidationCompleteComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private validationService: ValidationService,
-    private wizardStateService: WizardStateService
+    private wizardStateService: WizardStateService,
+    private logger: LoggerService
   ) {}
 
   ngOnInit(): void {
@@ -465,7 +466,7 @@ export class ValidationCompleteComponent implements OnInit, OnDestroy {
       // Actualizar el estado del wizard
       this.updateWizardState();
       
-      console.log('✅ Validación simulada completada exitosamente');
+      this.logger.log('✅ Validación simulada completada exitosamente');
     }, 2000);
   }
 
@@ -489,7 +490,7 @@ export class ValidationCompleteComponent implements OnInit, OnDestroy {
       }
     });
 
-    console.log('✅ Estado del wizard actualizado con resultado de validación');
+    this.logger.log('✅ Estado del wizard actualizado con resultado de validación');
   }
 
   /**
@@ -584,7 +585,7 @@ export class ValidationCompleteComponent implements OnInit, OnDestroy {
    * Ir al home
    */
   goToHome(): void {
-    console.log('🏠 Yendo al home');
+    this.logger.log('🏠 Yendo al home');
     this.router.navigate(['/']);
   }
 
@@ -592,7 +593,7 @@ export class ValidationCompleteComponent implements OnInit, OnDestroy {
    * Continuar al siguiente paso del wizard
    */
   continueToNextStep(): void {
-    console.log('🚀 Continuando al siguiente paso del wizard');
+    this.logger.log('🚀 Continuando al siguiente paso del wizard');
     
     // Marcar el paso de validación como completado
     this.wizardStateService.completeStep(3); // Paso 3 es validación
@@ -607,7 +608,7 @@ export class ValidationCompleteComponent implements OnInit, OnDestroy {
    * Volver al paso de validación
    */
   retryValidation(): void {
-    console.log('🔄 Volviendo al paso de validación');
+    this.logger.log('🔄 Volviendo al paso de validación');
     
     // Navegar de vuelta al paso de validación
     this.router.navigate(['/cotizador'], { 
@@ -619,7 +620,7 @@ export class ValidationCompleteComponent implements OnInit, OnDestroy {
    * Volver al wizard
    */
   goToWizard(): void {
-    console.log('🔙 Volviendo al wizard');
+    this.logger.log('🔙 Volviendo al wizard');
     this.router.navigate(['/cotizador']);
   }
 }

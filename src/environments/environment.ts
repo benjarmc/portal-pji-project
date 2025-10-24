@@ -1,6 +1,7 @@
 // Environment de DESARROLLO - Este archivo se usa por defecto
 export const environment = {
     production: false,
+    debug: true, // Habilitar logs en desarrollo
     api: {
         baseUrl: 'http://127.0.0.1:3000/api',
         timeout: 30000,
@@ -18,8 +19,11 @@ export const environment = {
 };
 
 // Verificar que este environment se esté usando
-console.log('🔧 Environment de DESARROLLO cargado:', {
-    production: environment.production,
-    apiUrl: environment.api.baseUrl,
-    timestamp: new Date().toISOString()
-});
+if (environment.debug) {
+    console.log('🔧 Environment de DESARROLLO cargado:', {
+        production: environment.production,
+        apiUrl: environment.api.baseUrl,
+        debug: environment.debug,
+        timestamp: new Date().toISOString()
+    });
+}

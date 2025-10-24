@@ -3,7 +3,7 @@ import { Observable, of } from 'rxjs';
 import { catchError, map, switchMap } from 'rxjs/operators';
 import { ApiService, ApiResponse } from './api.service';
 import { Plan, CreatePlanDto, UpdatePlanDto, PlanSearchFilters } from '../models/plan.model';
-import { SAMPLE_PLANS } from '../data/sample-plans';
+import { LoggerService } from './logger.service';
 
 @Injectable({
   providedIn: 'root'
@@ -11,8 +11,11 @@ import { SAMPLE_PLANS } from '../data/sample-plans';
 export class PlansService {
   private readonly endpoint = '/plans';
 
-  constructor(private apiService: ApiService) {
-    console.log('🏗️ PlansService instanciado');
+  constructor(
+    private apiService: ApiService,
+    private logger: LoggerService
+  ) {
+    this.logger.log('🏗️ PlansService instanciado');
   }
 
   /**
@@ -26,14 +29,14 @@ export class PlansService {
    * Obtener todos los planes
    */
   getPlans(): Observable<ApiResponse<Plan[]>> {
-    console.log('🔧 PlansService.getPlans() llamado');
-    console.log('🌐 Intentando conectar con API en:', this.endpoint);
+    this.logger.log('🔧 PlansService.getPlans() llamado');
+    this.logger.log('🌐 Intentando conectar con API en:', this.endpoint);
     
     // Usar la API real ahora que está disponible
     return this.apiService.get<Plan[]>(this.endpoint).pipe(
       // Procesar planes con nueva estructura
       switchMap((response: any) => {
-        console.log('📡 Respuesta raw de la API:', response);
+        this.logger.log('📡 Respuesta raw de la API:', response);
         
         // La API devuelve directamente el array, no ApiResponse
         let allPlans: Plan[] = [];
@@ -54,8 +57,8 @@ export class PlansService {
           // Obtener complementos por separado ya que el endpoint principal no los incluye
           return this.getComplementsFromAPI().pipe(
             map(complementaryPlans => {
-              console.log('📋 Planes principales encontrados:', mainPlans);
-              console.log('🔗 Complementos encontrados:', complementaryPlans);
+              this.logger.log('📋 Planes principales encontrados:', mainPlans);
+              this.logger.log('🔗 Complementos encontrados:', complementaryPlans);
               
               // Procesar planes principales (ya no hay duplicados)
               const processedPlans = mainPlans.map(plan => {
@@ -68,7 +71,7 @@ export class PlansService {
                 };
               });
               
-              console.log('🎯 Planes procesados:', processedPlans);
+              this.logger.log('🎯 Planes procesados:', processedPlans);
               
               return {
                 success: true,
@@ -78,7 +81,7 @@ export class PlansService {
             })
           );
         } else {
-          console.log('⚠️ No se encontraron planes en la respuesta');
+          this.logger.log('⚠️ No se encontraron planes en la respuesta');
           return of({
             success: false,
             data: [],
@@ -87,16 +90,11 @@ export class PlansService {
         }
       }),
       catchError((error: any) => {
-        console.error('❌ Error en PlansService.getPlans():', error);
-        console.error('❌ Detalles del error:', error.error, error.status, error.message);
+        this.logger.error('❌ Error en PlansService.getPlans():', error);
+        this.logger.error('❌ Detalles del error:', { error: error.error, status: error.status, message: error.message });
         
-        // Fallback a planes de muestra si la API falla
-        console.log('🔄 Usando planes de muestra como fallback');
-        return of({
-          success: true,
-          data: SAMPLE_PLANS,
-          message: 'Planes de muestra cargados (API no disponible)'
-        });
+        // Propagar el error sin fallback
+        throw error;
       })
     );
   }
@@ -107,7 +105,7 @@ export class PlansService {
   getPlanById(id: string): Observable<ApiResponse<Plan>> {
     return this.apiService.get<Plan>(`${this.endpoint}/${id}`).pipe(
       switchMap((response: any) => {
-        console.log('📡 getPlanById respuesta raw:', response);
+        this.logger.log('📡 getPlanById respuesta raw:', response);
         
         // El backend devuelve directamente el Plan, no ApiResponse
         if (response && response.id) {
@@ -151,7 +149,7 @@ export class PlansService {
         }
       }),
       catchError((error: any) => {
-        console.error('❌ Error en getPlanById:', error);
+        this.logger.error('❌ Error en getPlanById:', error);
         return of({
           success: false,
           data: undefined,
@@ -174,7 +172,7 @@ export class PlansService {
         return [];
       }),
       catchError((error) => {
-        console.error('❌ Error obteniendo complementos de la API:', error);
+        this.logger.error('❌ Error obteniendo complementos de la API:', error);
         return of([]);
       })
     );
@@ -224,7 +222,7 @@ export class PlansService {
         };
       }),
       catchError((error: any) => {
-        console.error('❌ Error al obtener complementos:', error);
+        this.logger.error('❌ Error al obtener complementos:', error);
         return of({
           success: false,
           data: [],

@@ -1,12 +1,16 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { catchError } from 'rxjs/operators';
 import { throwError } from 'rxjs';
+import { inject } from '@angular/core';
+import { LoggerService } from '../services/logger.service';
 
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
+  const logger = inject(LoggerService);
+  
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
       // Log del error para debugging
-      console.error('HTTP Error Interceptor:', {
+      logger.error('HTTP Error Interceptor:', {
         url: req.url,
         method: req.method,
         status: error.status,

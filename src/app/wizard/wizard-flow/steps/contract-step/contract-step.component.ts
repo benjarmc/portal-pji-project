@@ -4,7 +4,7 @@ import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, FormArray } f
 import { ContractPdfService, ContractData } from '../../../../services/contract-pdf.service';
 import { WizardStateService } from '../../../../services/wizard-state.service';
 import { CaptureDataService } from '../../../../services/capture-data.service';
-
+import { LoggerService } from '../../../../services/logger.service';
 @Component({
   selector: 'app-contract-step',
   standalone: true,
@@ -32,7 +32,8 @@ export class ContractStepComponent implements OnInit {
     private fb: FormBuilder,
     private contractPdfService: ContractPdfService,
     private wizardStateService: WizardStateService,
-    private captureDataService: CaptureDataService
+    private captureDataService: CaptureDataService,
+    private logger: LoggerService
   ) {
     this.contractForm = this.fb.group({
       clausulas: this.fb.array([]),
@@ -42,14 +43,14 @@ export class ContractStepComponent implements OnInit {
   }
 
   ngOnInit() {
-    console.log('🚀 ContractStepComponent ngOnInit() ejecutado');
-    console.log('🔍 Estado inicial del wizard:', this.wizardStateService.getState());
+    this.logger.log('🚀 ContractStepComponent ngOnInit() ejecutado');
+    this.logger.log('🔍 Estado inicial del wizard:', this.wizardStateService.getState());
     this.loadContractData();
     
     // Suscribirse a cambios en el estado del wizard para actualizar el contrato
     this.wizardStateService.stateChanges$.subscribe(() => {
-      console.log('🔄 Estado del wizard cambió, recargando datos del contrato');
-      console.log('🔍 Nuevo estado del wizard:', this.wizardStateService.getState());
+      this.logger.log('🔄 Estado del wizard cambió, recargando datos del contrato');
+      this.logger.log('🔍 Nuevo estado del wizard:', this.wizardStateService.getState());
       this.loadContractData();
     });
   }
@@ -60,18 +61,18 @@ export class ContractStepComponent implements OnInit {
   loadContractData() {
     const state = this.wizardStateService.getState();
     if (state) {
-      console.log('📋 Cargando datos para el contrato desde wizardState:', state);
-      console.log('📋 state.policyId:', state.policyId);
+      this.logger.log('📋 Cargando datos para el contrato desde wizardState:', state);
+      this.logger.log('📋 state.policyId:', state.policyId);
       
       // Si tenemos policyId, cargar datos desde el backend
       if (state.policyId) {
-        console.log('📡 Cargando datos desde backend usando policyId:', state.policyId);
+        this.logger.log('📡 Cargando datos desde backend usando policyId:', state.policyId);
         this.loadDataFromBackendByPolicy(state.policyId);
         return;
       }
       
       // Fallback: crear contrato con datos por defecto
-      console.log('⚠️ No hay policyId, creando contrato con datos por defecto');
+      this.logger.log('⚠️ No hay policyId, creando contrato con datos por defecto');
       this.createContractData(state, {});
     }
   }
@@ -80,27 +81,27 @@ export class ContractStepComponent implements OnInit {
    * Carga datos desde el backend usando policyId
    */
   private loadDataFromBackendByPolicy(policyId: string) {
-    console.log('📡 Cargando datos de captura desde el backend por policyId:', policyId);
+    this.logger.log('📡 Cargando datos de captura desde el backend por policyId:', policyId);
     
     this.captureDataService.getAllCaptureDataByPolicy(policyId).subscribe({
       next: (response) => {
-        console.log('📡 Respuesta completa del backend:', response);
+        this.logger.log('📡 Respuesta completa del backend:', response);
         if (response.success && response.data) {
           const data = response.data;
-          console.log('📡 Datos recibidos del backend:', data);
+          this.logger.log('📡 Datos recibidos del backend:', data);
           
           // Crear el contrato con los datos del backend
           const state = this.wizardStateService.getState();
           this.createContractData(state, data);
         } else {
-          console.log('⚠️ Respuesta del backend no exitosa o sin datos:', response);
+          this.logger.log('⚠️ Respuesta del backend no exitosa o sin datos:', response);
           // Fallback: crear contrato con datos por defecto
           const state = this.wizardStateService.getState();
           this.createContractData(state, {});
         }
       },
       error: (error) => {
-        console.log('❌ Error cargando datos desde backend:', error);
+        this.logger.log('❌ Error cargando datos desde backend:', error);
         // Fallback: crear contrato con datos por defecto
         const state = this.wizardStateService.getState();
         this.createContractData(state, {});
@@ -112,7 +113,7 @@ export class ContractStepComponent implements OnInit {
    * Crea los datos del contrato
    */
   private createContractData(state: any, captureData: any) {
-    console.log('📋 Creando datos del contrato con:', captureData);
+    this.logger.log('📋 Creando datos del contrato con:', captureData);
     
     this.contractData = {
         // Datos básicos del usuario
@@ -242,26 +243,26 @@ export class ContractStepComponent implements OnInit {
           // Formatear fechas para el contrato (evitar problemas de zona horaria)
           vigenciaInicio: (() => {
             const fechaInicio = captureData.inmueble?.vigenciaInicio;
-            console.log('📅 Fecha de inicio de vigencia original:', fechaInicio);
+            this.logger.log('📅 Fecha de inicio de vigencia original:', fechaInicio);
             if (fechaInicio) {
               // Crear fecha sin problemas de zona horaria
               const [year, month, day] = fechaInicio.split('-');
               const fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
               const fechaFormateada = fecha.toLocaleDateString('es-MX');
-              console.log('📅 Fecha de inicio formateada:', fechaFormateada);
+              this.logger.log('📅 Fecha de inicio formateada:', fechaFormateada);
               return fechaFormateada;
             }
             return '01 de enero de 2024';
           })(),
           vigenciaFin: (() => {
             const fechaFin = captureData.inmueble?.vigenciaFin;
-            console.log('📅 Fecha de fin de vigencia original:', fechaFin);
+            this.logger.log('📅 Fecha de fin de vigencia original:', fechaFin);
             if (fechaFin) {
               // Crear fecha sin problemas de zona horaria
               const [year, month, day] = fechaFin.split('-');
               const fecha = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
               const fechaFormateada = fecha.toLocaleDateString('es-MX');
-              console.log('📅 Fecha de fin formateada:', fechaFormateada);
+              this.logger.log('📅 Fecha de fin formateada:', fechaFormateada);
               return fechaFormateada;
             }
             return '31 de diciembre de 2024';
@@ -273,7 +274,7 @@ export class ContractStepComponent implements OnInit {
         requerimientosAdicionales: ''
       };
       
-      console.log('📋 Datos del contrato preparados:', this.contractData);
+      this.logger.log('📋 Datos del contrato preparados:', this.contractData);
       this.generateContractPreview();
   }
 
@@ -281,13 +282,13 @@ export class ContractStepComponent implements OnInit {
    * Genera la vista previa del contrato
    */
   generateContractPreview() {
-    console.log('🔄 generateContractPreview() ejecutado');
+    this.logger.log('🔄 generateContractPreview() ejecutado');
     if (this.contractData) {
-      console.log('📋 Generando HTML del contrato con datos:', this.contractData);
+      this.logger.log('📋 Generando HTML del contrato con datos:', this.contractData);
       this.contractHtml = this.contractPdfService.generateContractHtml(this.contractData);
-      console.log('📋 HTML del contrato generado:', this.contractHtml.substring(0, 200) + '...');
+      this.logger.log('📋 HTML del contrato generado:', this.contractHtml.substring(0, 200) + '...');
     } else {
-      console.log('❌ No hay datos del contrato para generar');
+      this.logger.log('❌ No hay datos del contrato para generar');
     }
   }
 

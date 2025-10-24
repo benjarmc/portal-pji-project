@@ -6,7 +6,7 @@ import { PaymentsService, PaymentData } from '../../../../services/payments.serv
 import { QuotationsService } from '../../../../services/quotations.service';
 import { WizardStateService } from '../../../../services/wizard-state.service';
 import { environment } from '../../../../../environments/environment';
-
+import { LoggerService } from '../../../../services/logger.service';
 @Component({
   selector: 'app-payment-step',
   standalone: true,
@@ -64,7 +64,7 @@ export class PaymentStepComponent implements OnInit {
   years: string[] = [];
 
   // Plan seleccionado y precio (viene del wizard)
-  selectedPlan = 'Póliza Jurídica Digital';
+  selectedPlan = ''; // Ya no se usa nombre hardcodeado
   planPrice = 0;
   quotationNumber = '';
   quotationAmount = 0;
@@ -74,7 +74,8 @@ export class PaymentStepComponent implements OnInit {
     private openPayService: OpenPayService,
     private paymentsService: PaymentsService,
     private quotationsService: QuotationsService,
-    private wizardStateService: WizardStateService
+    private wizardStateService: WizardStateService,
+    private logger: LoggerService
   ) {
     // Generar años de 2 dígitos (actual + 10 años)
     const currentYear = new Date().getFullYear();
@@ -85,9 +86,9 @@ export class PaymentStepComponent implements OnInit {
   }
 
   ngOnInit() {
-    console.log('🔄 PaymentStepComponent ngOnInit');
-    console.log('📊 quotationId recibido:', this.quotationId);
-    console.log('📊 quotationData recibido:', this.quotationData);
+    this.logger.log('🔄 PaymentStepComponent ngOnInit');
+    this.logger.log('📊 quotationId recibido:', this.quotationId);
+    this.logger.log('📊 quotationData recibido:', this.quotationData);
     
     // Configurar OpenPay usando environment
     this.openPayService.configure(
@@ -101,10 +102,10 @@ export class PaymentStepComponent implements OnInit {
 
     // Cargar datos de cotización si están disponibles
     if (this.quotationData) {
-      console.log('✅ Cargando datos de cotización desde quotationData');
+      this.logger.log('✅ Cargando datos de cotización desde quotationData');
       this.loadQuotationData();
     } else {
-      console.log('⚠️ No hay quotationData, intentando cargar desde estado del wizard');
+      this.logger.log('⚠️ No hay quotationData, intentando cargar desde estado del wizard');
       this.loadQuotationFromWizardState();
     }
   }
@@ -114,15 +115,15 @@ export class PaymentStepComponent implements OnInit {
    */
   loadQuotationData() {
     if (this.quotationData) {
-      console.log('📊 Cargando datos de cotización:', this.quotationData);
-      this.selectedPlan = this.quotationData.plan?.name || 'Póliza Jurídica Digital';
+      this.logger.log('📊 Cargando datos de cotización:', this.quotationData);
+      this.selectedPlan = this.quotationData.plan?.name || ''; // Ya no se usa nombre hardcodeado
       this.planPrice = this.quotationData.plan?.price || 0;
       this.quotationNumber = this.quotationData.quotationNumber || '';
       this.quotationAmount = this.quotationData.quotationAmount || 0;
       this.quotationCurrency = this.quotationData.quotationCurrency || 'MXN';
       this.showQuotationSummary = true;
       
-      console.log('💰 Datos cargados - Plan:', this.selectedPlan, 'Monto:', this.quotationAmount);
+      this.logger.log('💰 Datos cargados - Plan:', this.selectedPlan, 'Monto:', this.quotationAmount);
     }
   }
 
@@ -130,47 +131,47 @@ export class PaymentStepComponent implements OnInit {
    * Cargar cotización desde el estado del wizard
    */
   private loadQuotationFromWizardState(): void {
-    console.log('🔍 Intentando cargar cotización desde estado del wizard');
+    this.logger.log('🔍 Intentando cargar cotización desde estado del wizard');
     
     try {
       const wizardState = this.wizardStateService.getState();
-      console.log('📊 Estado del wizard cargado:', wizardState);
+      this.logger.log('📊 Estado del wizard cargado:', wizardState);
       
       // Obtener datos del estado del wizard
       if (wizardState.quotationId && !this.quotationId) {
         this.quotationId = wizardState.quotationId;
-        console.log('🔑 quotationId obtenido del estado:', this.quotationId);
+        this.logger.log('🔑 quotationId obtenido del estado:', this.quotationId);
       }
       
       if (wizardState.quotationNumber) {
         this.quotationNumber = wizardState.quotationNumber;
-        console.log('📋 quotationNumber obtenido del estado:', this.quotationNumber);
+        this.logger.log('📋 quotationNumber obtenido del estado:', this.quotationNumber);
       } else {
-        console.log('⚠️ No hay quotationNumber en el estado del wizard');
+        this.logger.log('⚠️ No hay quotationNumber en el estado del wizard');
       }
       
       if (wizardState.userId && !this.userId) {
         this.userId = wizardState.userId;
-        console.log('👤 userId obtenido del estado:', this.userId);
+        this.logger.log('👤 userId obtenido del estado:', this.userId);
       }
       
       // Si tenemos quotationId, intentar obtener datos de la API
       if (this.quotationId) {
-        console.log('🔍 Obteniendo datos de cotización desde API con ID:', this.quotationId);
+        this.logger.log('🔍 Obteniendo datos de cotización desde API con ID:', this.quotationId);
         this.loadQuotationFromAPI();
       } else {
         // Usar valores por defecto si no hay datos
-        console.log('⚠️ No hay quotationId, usando valores por defecto');
-        this.quotationAmount = 299.00; // Valor por defecto
+        this.logger.log('⚠️ No hay quotationId, usando valores por defecto');
+        this.quotationAmount = 0; // Ya no se usa precio hardcodeado
         this.quotationCurrency = 'MXN';
         this.quotationNumber = 'COT-' + Date.now();
         
-        console.log('💰 Datos por defecto cargados - Monto:', this.quotationAmount);
+        this.logger.log('💰 Datos por defecto cargados - Monto:', this.quotationAmount);
       }
     } catch (error) {
-      console.error('❌ Error cargando estado del wizard:', error);
+      this.logger.error('❌ Error cargando estado del wizard:', error);
       // Usar valores por defecto en caso de error
-      this.quotationAmount = 299.00;
+      this.quotationAmount = 0; // Ya no se usa precio hardcodeado
       this.quotationCurrency = 'MXN';
       this.quotationNumber = 'COT-' + Date.now();
     }
@@ -181,22 +182,22 @@ export class PaymentStepComponent implements OnInit {
    */
   private loadQuotationFromAPI(): void {
     if (!this.quotationId) {
-      console.warn('⚠️ No hay quotationId para cargar desde API');
+      this.logger.warning('⚠️ No hay quotationId para cargar desde API');
       return;
     }
     
-    console.log('🔍 Iniciando llamada a API con quotationId:', this.quotationId);
+    this.logger.log('🔍 Iniciando llamada a API con quotationId:', this.quotationId);
     
     this.quotationsService.getQuotationById(this.quotationId).subscribe({
       next: (response) => {
-        console.log('📡 Respuesta completa de la API:', response);
+        this.logger.log('📡 Respuesta completa de la API:', response);
         
         if (response.success && response.data) {
-          console.log('✅ Datos de cotización obtenidos desde API:', response.data);
-          console.log('💰 finalPrice en response.data:', response.data.finalPrice);
-          console.log('💰 basePrice en response.data:', response.data.basePrice);
-          console.log('📋 quotationNumber en response.data:', response.data.quotationNumber);
-          console.log('📋 plan en response.data:', response.data.plan);
+          this.logger.log('✅ Datos de cotización obtenidos desde API:', response.data);
+          this.logger.log('💰 finalPrice en response.data:', response.data.finalPrice);
+          this.logger.log('💰 basePrice en response.data:', response.data.basePrice);
+          this.logger.log('📋 quotationNumber en response.data:', response.data.quotationNumber);
+          this.logger.log('📋 plan en response.data:', response.data.plan);
           
           // Actualizar datos del componente usando la estructura correcta del modelo
           // Usar finalPrice, basePrice, o precio del plan como fallback
@@ -204,43 +205,43 @@ export class PaymentStepComponent implements OnInit {
           const basePrice = parseFloat(response.data.basePrice || '0');
           const planPrice = parseFloat(response.data.plan?.price || '0');
           
-          console.log('💰 Análisis de precios:');
-          console.log('  - finalPrice:', finalPrice);
-          console.log('  - basePrice:', basePrice);
-          console.log('  - planPrice:', planPrice);
-          console.log('  - ¿finalPrice > 0?', finalPrice > 0);
-          console.log('  - ¿basePrice > 0?', basePrice > 0);
-          console.log('  - ¿planPrice > 0?', planPrice > 0);
+          this.logger.log('💰 Análisis de precios:');
+          this.logger.log('  - finalPrice:', finalPrice);
+          this.logger.log('  - basePrice:', basePrice);
+          this.logger.log('  - planPrice:', planPrice);
+          this.logger.log('  - ¿finalPrice > 0?', finalPrice > 0);
+          this.logger.log('  - ¿basePrice > 0?', basePrice > 0);
+          this.logger.log('  - ¿planPrice > 0?', planPrice > 0);
           
           // TEMPORAL: Forzar uso del precio de la API si está disponible
           if (finalPrice > 0) {
             this.quotationAmount = finalPrice;
-            console.log('✅ Usando finalPrice de la API:', finalPrice);
+            this.logger.log('✅ Usando finalPrice de la API:', finalPrice);
           } else if (basePrice > 0) {
             this.quotationAmount = basePrice;
-            console.log('✅ Usando basePrice de la API:', basePrice);
+            this.logger.log('✅ Usando basePrice de la API:', basePrice);
           } else if (planPrice > 0) {
             this.quotationAmount = planPrice;
-            console.log('✅ Usando planPrice de la API:', planPrice);
+            this.logger.log('✅ Usando planPrice de la API:', planPrice);
           } else {
             // Calcular precio basado en renta mensual si está disponible
             const rentaMensual = response.data.userData?.rentaMensual;
             if (rentaMensual && rentaMensual > 0) {
-              this.quotationAmount = Math.max(299.00, rentaMensual * 0.01);
-              console.log('✅ Calculando precio basado en renta mensual:', rentaMensual, '->', this.quotationAmount);
+              this.quotationAmount = Math.max(0, rentaMensual * 0.01); // Cálculo dinámico sin precio mínimo hardcodeado
+              this.logger.log('✅ Calculando precio basado en renta mensual:', rentaMensual, '->', this.quotationAmount);
             } else {
-              this.quotationAmount = 299.00;
-              console.log('⚠️ Usando precio por defecto (no hay datos de renta)');
+              this.quotationAmount = 0; // Ya no se usa precio hardcodeado
+              this.logger.log('⚠️ Usando precio por defecto (no hay datos de renta)');
             }
           }
           this.quotationCurrency = 'MXN'; // Por defecto MXN
           this.quotationNumber = response.data.quotationNumber || response.data.id || this.quotationId || 'COT-' + Date.now();
-          this.selectedPlan = response.data.plan?.name || 'Póliza Jurídica Digital';
+          this.selectedPlan = response.data.plan?.name || ''; // Ya no se usa nombre hardcodeado
           
-          console.log('💰 Precio final seleccionado:', this.quotationAmount);
-          console.log('💰 ¿Es precio hardcodeado?', this.quotationAmount === 299.00);
+          this.logger.log('💰 Precio final seleccionado:', this.quotationAmount);
+          this.logger.log('💰 Precio obtenido desde API:', this.quotationAmount > 0);
           
-          console.log('💰 Datos de cotización actualizados:', {
+          this.logger.log('💰 Datos de cotización actualizados:', {
             amount: this.quotationAmount,
             currency: this.quotationCurrency,
             number: this.quotationNumber,
@@ -250,13 +251,13 @@ export class PaymentStepComponent implements OnInit {
           // Mostrar el resumen
           this.showQuotationSummary = true;
         } else {
-          console.warn('⚠️ Respuesta de API no exitosa:', response);
+          this.logger.warning('⚠️ Respuesta de API no exitosa:', response);
           this.loadDefaultValues();
         }
       },
       error: (error) => {
-        console.error('❌ Error obteniendo cotización desde API:', error);
-        console.error('❌ Error details:', error.error);
+        this.logger.error('❌ Error obteniendo cotización desde API:', error);
+        this.logger.error('❌ Error details:', error.error);
         this.loadDefaultValues();
       }
     });
@@ -266,13 +267,13 @@ export class PaymentStepComponent implements OnInit {
    * Cargar valores por defecto
    */
   private loadDefaultValues(): void {
-    console.log('🔄 Cargando valores por defecto');
-    this.quotationAmount = 299.00;
+    this.logger.log('🔄 Cargando valores por defecto');
+    this.quotationAmount = 0; // Ya no se usa precio hardcodeado
     this.quotationCurrency = 'MXN';
     this.quotationNumber = 'COT-' + Date.now();
-    this.selectedPlan = 'Póliza Jurídica Digital';
+    this.selectedPlan = ''; // Ya no se usa nombre hardcodeado
     
-    console.log('💰 Valores por defecto cargados:', {
+    this.logger.log('💰 Valores por defecto cargados:', {
       amount: this.quotationAmount,
       currency: this.quotationCurrency,
       number: this.quotationNumber,
@@ -344,8 +345,8 @@ export class PaymentStepComponent implements OnInit {
       // Procesar pago usando el servicio
       this.paymentsService.processPayment(paymentData, this.userId).subscribe({
         next: (response) => {
-          console.log('💰 Procesando respuesta del pago...');
-          console.log('📡 Respuesta completa del pago:', JSON.stringify(response, null, 2));
+          this.logger.log('💰 Procesando respuesta del pago...');
+          this.logger.log('📡 Respuesta completa del pago:', JSON.stringify(response, null, 2));
           
           // Verificar si la respuesta es exitosa (puede venir en response.success o response.data.success)
           const isSuccess = response.success || (response.data && response.data?.success);
@@ -355,7 +356,7 @@ export class PaymentStepComponent implements OnInit {
             const successMessage = response.data?.message || response.message || '¡Pago procesado exitosamente!';
             this.paymentSuccess = successMessage;
             
-            console.log('✅ Pago procesado exitosamente');
+            this.logger.log('✅ Pago procesado exitosamente');
             
             // Limpiar formulario
             this.resetForm();
@@ -372,11 +373,11 @@ export class PaymentStepComponent implements OnInit {
               message: responseData.message || responseData.data?.message || 'Pago procesado exitosamente'
             };
             
-            console.log('📋 paymentResult creado:', paymentResult);
-            console.log('🔍 Campos extraídos:');
-            console.log('  - paymentId:', paymentResult.paymentId);
-            console.log('  - policyId:', paymentResult.policyId);
-            console.log('  - policyNumber:', paymentResult.policyNumber);
+            this.logger.log('📋 paymentResult creado:', paymentResult);
+            this.logger.log('🔍 Campos extraídos:');
+            this.logger.log('  - paymentId:', paymentResult.paymentId);
+            this.logger.log('  - policyId:', paymentResult.policyId);
+            this.logger.log('  - policyNumber:', paymentResult.policyNumber);
             
             // Guardar información del pago en el estado del wizard
             this.wizardStateService.saveState({
@@ -390,7 +391,7 @@ export class PaymentStepComponent implements OnInit {
               }
             });
             
-            console.log('💾 Estado guardado en wizardStateService:', {
+            this.logger.log('💾 Estado guardado en wizardStateService:', {
               paymentResult: paymentResult,
               policyId: paymentResult.policyId !== 'N/A' ? paymentResult.policyId : undefined,
               policyNumber: paymentResult.policyNumber !== 'N/A' ? paymentResult.policyNumber : undefined,
@@ -399,9 +400,9 @@ export class PaymentStepComponent implements OnInit {
             
             // Sincronizar con el backend para guardar los datos del pago
             this.wizardStateService.syncWithBackendCorrected(this.wizardStateService.getState()).then(() => {
-              console.log('✅ Datos del pago sincronizados con el backend');
+              this.logger.log('✅ Datos del pago sincronizados con el backend');
             }).catch(error => {
-              console.error('❌ Error sincronizando datos del pago con backend:', error);
+              this.logger.error('❌ Error sincronizando datos del pago con backend:', error);
             });
             
             // Esperar 3 segundos para que el usuario vea el mensaje
@@ -411,11 +412,11 @@ export class PaymentStepComponent implements OnInit {
           } else {
             const errorMessage = response.message || response.data?.message || 'Error procesando el pago';
             this.paymentError = errorMessage;
-            console.log('❌ Error en pago:', errorMessage);
+            this.logger.log('❌ Error en pago:', errorMessage);
           }
         },
         error: (error) => {
-          console.error('Error en pago:', error);
+          this.logger.error('Error en pago:', error);
           this.paymentError = error.message || 'Error procesando el pago';
         },
         complete: () => {
@@ -424,7 +425,7 @@ export class PaymentStepComponent implements OnInit {
       });
 
     } catch (error: any) {
-      console.error('Error procesando pago:', error);
+      this.logger.error('Error procesando pago:', error);
       this.paymentError = error.message || 'Error inesperado procesando el pago';
       this.isProcessing = false;
     }
@@ -446,13 +447,13 @@ export class PaymentStepComponent implements OnInit {
       next: (response) => {
         if (response.success) {
           this.paymentSuccess = 'Cotización enviada por email exitosamente';
-          console.log('Email enviado:', response);
+          this.logger.log('Email enviado:', response);
         } else {
           this.paymentError = response.message || 'Error enviando la cotización';
         }
       },
       error: (error) => {
-        console.error('Error enviando email:', error);
+        this.logger.error('Error enviando email:', error);
         this.paymentError = error.message || 'Error enviando la cotización';
       },
       complete: () => {
@@ -477,7 +478,7 @@ export class PaymentStepComponent implements OnInit {
   }
 
   onNext() {
-    console.log('🔄 onNext() llamado en PaymentStepComponent');
+    this.logger.log('🔄 onNext() llamado en PaymentStepComponent');
     // Emitir sin datos para navegación manual
     this.next.emit(null);
   }

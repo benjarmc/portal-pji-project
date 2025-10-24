@@ -13,7 +13,7 @@ export interface Plan {
     calculoPrecio?: string;
     requiereFiador?: boolean;
     esAdicional?: boolean;
-    type?: string; // Para compatibilidad con sample-plans
+    type?: string; // Tipo de cobertura
     planPrincipal?: string; // Para complementos
     maxAmount?: number; // Monto máximo de cobertura
   };
