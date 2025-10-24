@@ -35,22 +35,17 @@ export interface Quotation {
 
 export interface CreateQuotationDto {
   planId: string;
-  sessionId?: string; // ID de la sesión del wizard
-  userData: {
+  sessionId?: string; // Session ID (pji_session_ format)
+  wizardSessionId?: string; // Session UUID
+  monthlyRent?: number; // Monthly rent amount from user
+  rentPercentage?: number; // Percentage of rent charged
+  complementAmount?: number; // Amount of selected complements
+  userData?: {
     name: string;
     email: string;
     phone: string;
-    rentaMensual: number;
+    postalCode: string;
   };
-  propertyData: {
-    address: string;
-    type: string;
-    value: number;
-    constructionYear?: number;
-    surface?: number;
-  };
-  notes?: string;
-  additionalData?: Record<string, any>;
 }
 
 export interface QuotationStats {

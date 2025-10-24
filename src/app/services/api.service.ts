@@ -41,7 +41,7 @@ export class ApiService {
     return this.http.get<ApiResponse<T>>(url, { params })
       .pipe(
         timeout(this.timeout),
-        catchError(this.handleError)
+        catchError((error) => this.handleError(error))
       );
   }
 
@@ -53,7 +53,7 @@ export class ApiService {
     return this.http.post<ApiResponse<T>>(url, data)
       .pipe(
         timeout(this.timeout),
-        catchError(this.handleError)
+        catchError((error) => this.handleError(error))
       );
   }
 
@@ -65,7 +65,7 @@ export class ApiService {
     return this.http.put<ApiResponse<T>>(url, data)
       .pipe(
         timeout(this.timeout),
-        catchError(this.handleError)
+        catchError((error) => this.handleError(error))
       );
   }
 
@@ -77,7 +77,7 @@ export class ApiService {
     return this.http.patch<ApiResponse<T>>(url, data)
       .pipe(
         timeout(this.timeout),
-        catchError(this.handleError)
+        catchError((error) => this.handleError(error))
       );
   }
 
@@ -89,7 +89,7 @@ export class ApiService {
     return this.http.delete<ApiResponse<T>>(url)
       .pipe(
         timeout(this.timeout),
-        catchError(this.handleError)
+        catchError((error) => this.handleError(error))
       );
   }
 
@@ -122,7 +122,14 @@ export class ApiService {
     }
 
     this.logger.error('API Error:', error);
-    return throwError(() => new Error(errorMessage));
+    
+    // Crear un error personalizado que mantenga el status code
+    const customError = new Error(errorMessage) as any;
+    customError.status = error.status;
+    customError.statusText = error.statusText;
+    customError.originalError = error;
+    
+    return throwError(() => customError);
   }
 
   /**

@@ -11,6 +11,7 @@ export class WizardHeaderComponent {
   constructor(private router: Router) {}
 
   closeWizard() {
-    this.router.navigate(['/']);
+    // Navegar a la página principal usando window.location para asegurar que funcione en todos los ambientes
+    window.location.href = '/';
   }
 }

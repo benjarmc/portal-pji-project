@@ -599,7 +599,9 @@ export class ValidationCompleteComponent implements OnInit, OnDestroy {
     this.wizardStateService.completeStep(3); // Paso 3 es validación
     
     // Navegar al wizard en el siguiente paso
-    this.router.navigate(['/cotizador'], { 
+    const currentState = this.wizardStateService.getState();
+    const sessionId = currentState.id || currentState.sessionId;
+    this.router.navigate(['/cotizador', sessionId], { 
       queryParams: { step: 4 } // Paso 4 es captura de datos
     });
   }
@@ -611,7 +613,9 @@ export class ValidationCompleteComponent implements OnInit, OnDestroy {
     this.logger.log('🔄 Volviendo al paso de validación');
     
     // Navegar de vuelta al paso de validación
-    this.router.navigate(['/cotizador'], { 
+    const currentState = this.wizardStateService.getState();
+    const sessionId = currentState.id || currentState.sessionId;
+    this.router.navigate(['/cotizador', sessionId], { 
       queryParams: { step: 3 } // Paso 3 es validación
     });
   }
@@ -621,6 +625,9 @@ export class ValidationCompleteComponent implements OnInit, OnDestroy {
    */
   goToWizard(): void {
     this.logger.log('🔙 Volviendo al wizard');
-    this.router.navigate(['/cotizador']);
+    // Navegar al wizard
+    const currentState = this.wizardStateService.getState();
+    const sessionId = currentState.id || currentState.sessionId;
+    this.router.navigate(['/cotizador', sessionId]);
   }
 }

@@ -634,18 +634,27 @@ export class WizardStateService {
           }
         }).toPromise();
         
-        // Actualizar el sessionId si se creó una nueva sesión
+        // Actualizar el sessionId y id si se creó una nueva sesión
         if (createSessionResponse && createSessionResponse.data) {
-          const newSessionId = (createSessionResponse.data as any).sessionId;
+          const responseData = createSessionResponse.data as any;
+          const newSessionId = responseData.sessionId;
+          const newId = responseData.id;
+          
           if (newSessionId !== sessionId) {
             this.logger.log('🔄 Actualizando sessionId local:', sessionId, '→', newSessionId);
             state.sessionId = newSessionId;
-            // Actualizar el estado local con el nuevo sessionId
-            if (isPlatformBrowser(this.platformId)) {
-              sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(state));
-            }
-            this.stateSubject.next(state);
           }
+          
+          if (newId) {
+            this.logger.log('🔄 Actualizando id (UUID) local:', state.id, '→', newId);
+            state.id = newId;
+          }
+          
+          // Actualizar el estado local con los nuevos valores
+          if (isPlatformBrowser(this.platformId)) {
+            sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(state));
+          }
+          this.stateSubject.next(state);
         }
       }
 
@@ -1392,11 +1401,13 @@ export class WizardStateService {
         // Manejar tanto respuesta envuelta como directa
         const actualData = (createSessionResponse as any).data || createSessionResponse;
         const createdSessionId = actualData?.sessionId || newSessionId;
+        const createdId = actualData?.id; // Capturar el UUID generado por el backend
         
-        // Actualizar el estado local con el nuevo sessionId
+        // Actualizar el estado local con el nuevo sessionId y id
         const updatedState = {
           ...currentState,
-          sessionId: createdSessionId
+          sessionId: createdSessionId,
+          id: createdId // Agregar el UUID al estado local
         };
         
         if (isPlatformBrowser(this.platformId)) {
@@ -1404,14 +1415,54 @@ export class WizardStateService {
         }
         
         this.stateSubject.next(updatedState);
-        this.logger.log('✅ Nueva sesión creada:', createdSessionId);
-        return createdSessionId;
+        this.logger.log('✅ Nueva sesión creada:', { sessionId: createdSessionId, id: createdId });
+        
+        // Retornar el id (UUID) si está disponible, sino el sessionId como fallback
+        return createdId || createdSessionId;
       }
     } catch (error) {
       this.logger.error('❌ Error creando sesión:', error);
     }
     
     return newSessionId;
+  }
+
+  /**
+   * Convierte automáticamente sessionId o UUID a id (UUID) si es necesario
+   * Esto permite compatibilidad con URLs antiguas que usan sessionId o UUID
+   */
+  async convertSessionIdToId(sessionId: string): Promise<string> {
+    // Si ya es un UUID (formato xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx), devolverlo tal como está
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(sessionId)) {
+      this.logger.log('✅ Ya es un UUID válido, usando directamente:', sessionId);
+      return sessionId;
+    }
+
+    // Si es un sessionId (formato pji_session_...), buscar la sesión y obtener el id
+    if (sessionId.startsWith('pji_session_')) {
+      try {
+        this.logger.log('🔄 Convirtiendo sessionId a id (UUID):', sessionId);
+        const sessionResponse = await this.apiService.get(`${this.API_ENDPOINT}/${sessionId}`).toPromise();
+        
+        if (sessionResponse) {
+          const actualData = (sessionResponse as any).data || sessionResponse;
+          if (actualData && actualData.id) {
+            this.logger.log('✅ Conversión exitosa sessionId → UUID:', { 
+              sessionId: sessionId, 
+              id: actualData.id 
+            });
+            return actualData.id;
+          }
+        }
+      } catch (error) {
+        this.logger.warning('❌ No se pudo convertir sessionId a id:', error);
+      }
+    }
+
+    // Si no se puede convertir, devolver el sessionId original
+    this.logger.log('⚠️ No se pudo convertir, usando sessionId original:', sessionId);
+    return sessionId;
   }
 
   /**
@@ -1428,8 +1479,14 @@ export class WizardStateService {
         const actualData = (activeSessionResponse as any).data || activeSessionResponse;
         
         if (actualData && actualData.sessionId) {
-          this.logger.log('✅ Sesión activa encontrada por IP:', actualData.sessionId);
-          return actualData.sessionId;
+          // Usar el id (UUID) si está disponible, sino el sessionId como fallback
+          const sessionIdToReturn = actualData.id || actualData.sessionId;
+          this.logger.log('✅ Sesión activa encontrada por IP:', { 
+            sessionId: actualData.sessionId, 
+            id: actualData.id,
+            returning: sessionIdToReturn 
+          });
+          return sessionIdToReturn;
         }
       }
     } catch (error) {
@@ -1459,11 +1516,14 @@ export class WizardStateService {
       }
     }).toPromise();
 
-    const createdSessionId = (createSessionResponse?.data as any)?.sessionId || newSessionId;
+    const responseData = createSessionResponse?.data as any;
+    const createdSessionId = responseData?.sessionId || newSessionId;
+    const createdId = responseData?.id; // Capturar el UUID generado por el backend
 
     const updatedState: WizardState = {
       ...currentState,
       sessionId: createdSessionId,
+      id: createdId, // Agregar el UUID al estado local
       timestamp: Date.now(),
       lastActivity: Date.now()
     };
@@ -1473,7 +1533,10 @@ export class WizardStateService {
     }
     this.stateSubject.next(updatedState);
 
-    return createdSessionId;
+    this.logger.log('✅ Nueva sesión creada:', { sessionId: createdSessionId, id: createdId });
+    
+    // Retornar el id (UUID) si está disponible, sino el sessionId como fallback
+    return createdId || createdSessionId;
   }
 
   /**

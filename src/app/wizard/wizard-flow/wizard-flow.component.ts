@@ -103,7 +103,7 @@ export class WizardFlowComponent implements OnInit {
     private logger: LoggerService
   ) {}
 
-  ngOnInit() {
+  async ngOnInit() {
     this.logger.log('🚀 ngOnInit iniciado - Estado inicial:', {
       currentStep: this.currentStep,
       stepName: this.getStepName(this.currentStep),
@@ -111,7 +111,7 @@ export class WizardFlowComponent implements OnInit {
     });
     
     // Verificar si llegamos desde URL del cotizador
-    this.handleUrlParameters();
+    await this.handleUrlParameters();
     
     // Restaurar estado del wizard después de manejar parámetros de URL
     this.restoreWizardState();
@@ -154,18 +154,46 @@ export class WizardFlowComponent implements OnInit {
   /**
    * Manejar parámetros de la URL del cotizador
    */
-  private handleUrlParameters(): void {
+  private async handleUrlParameters(): Promise<void> {
     if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const sessionId = urlParams.get('session');
-      const step = urlParams.get('step');
-      const planId = urlParams.get('plan');
+      // Obtener parámetros de la ruta
+      const sessionId = this.route.snapshot.paramMap.get('sessionId');
+      const step = this.route.snapshot.queryParamMap.get('step');
+      const planId = this.route.snapshot.queryParamMap.get('plan');
+      
+      // REDIRECCIÓN AUTOMÁTICA: Si se accede con query param session, redirigir a nueva estructura
+      const legacySessionId = this.route.snapshot.queryParamMap.get('session');
+      if (legacySessionId && !sessionId) {
+        this.logger.log('🔄 Redirigiendo URL antigua a nueva estructura:', { 
+          from: `cotizador?session=${legacySessionId}`, 
+          to: `cotizador/${legacySessionId}` 
+        });
+        
+        // Convertir sessionId a UUID si es necesario
+        const convertedSessionId = await this.wizardStateService.convertSessionIdToId(legacySessionId);
+        
+        // Redirigir a la nueva estructura
+        const newUrl = `/cotizador/${convertedSessionId}${step ? `?step=${step}` : ''}`;
+        this.router.navigateByUrl(newUrl, { replaceUrl: true });
+        this.logger.log('✅ Redirección completada:', newUrl);
+        return;
+      }
       
       if (sessionId) {
         this.logger.log('🎯 WIZARD SessionId detectado en URL:', { sessionId, step });
         
+        // Convertir automáticamente sessionId a id (UUID) si es necesario
+        const convertedSessionId = await this.wizardStateService.convertSessionIdToId(sessionId);
+        
+        // Si se convirtió, actualizar la URL a la nueva estructura
+        if (convertedSessionId !== sessionId) {
+          const newUrl = `/cotizador/${convertedSessionId}${step ? `?step=${step}` : ''}`;
+          this.router.navigateByUrl(newUrl, { replaceUrl: true });
+          this.logger.log('🔄 URL actualizada con nueva estructura:', newUrl);
+        }
+        
         // Cargar el estado de la sesión existente
-        this.loadSessionState(sessionId, step ? parseInt(step) : undefined);
+        this.loadSessionState(convertedSessionId, step ? parseInt(step) : undefined);
         
       } else if (planId) {
         this.logger.log('🎯 Plan detectado en URL (modo legacy):', planId);
@@ -196,13 +224,34 @@ export class WizardFlowComponent implements OnInit {
           // Verificar si viene envuelto en ApiResponse o directamente
           const actualData = (sessionData as any).data || sessionData;
           
-          if (actualData && actualData.sessionId) {
+          if (actualData && (actualData.id || actualData.sessionId)) {
             this.logger.log('📊 Estado de sesión cargado desde URL:', actualData);
             this.restoreSessionState(actualData, targetStep);
             return;
           }
         }
       } catch (error) {
+        // Verificar si es un error 404 (sesión no existe)
+        this.logger.log('🔍 Debugging error:', {
+          error: error,
+          errorType: typeof error,
+          errorStatus: (error as any)?.status,
+          errorMessage: (error as any)?.message,
+          is404: error && (error as any).status === 404
+        });
+        
+        if (error && (error as any).status === 404) {
+          this.logger.log('❌ Sesión no existe en la base de datos (404), redirigiendo al home');
+          this.logger.error('❌ Error detallado:', error);
+          
+          // Limpiar estado local
+          this.wizardStateService.clearState();
+          
+          // Redirigir al home
+          this.router.navigate(['/'], { replaceUrl: true });
+          return;
+        }
+        
         this.logger.log('⚠️ Sesión de URL no encontrada, buscando sesión activa por IP');
         this.logger.error('❌ Error detallado:', error);
       }
@@ -212,17 +261,34 @@ export class WizardFlowComponent implements OnInit {
       
       if (activeSessionId) {
         // TERCERO: Obtener el estado de la sesión activa desde el backend
-        const sessionData = await this.wizardSessionService.getSession(activeSessionId).toPromise();
-        
-        if (sessionData) {
-          // Verificar si viene envuelto en ApiResponse o directamente
-          const actualData = (sessionData as any).data || sessionData;
+        try {
+          const sessionData = await this.wizardSessionService.getSession(activeSessionId).toPromise();
           
-          if (actualData && actualData.sessionId) {
-            this.logger.log('📊 Estado de sesión cargado desde IP:', actualData);
-            this.restoreSessionState(actualData, targetStep);
+          if (sessionData) {
+            // Verificar si viene envuelto en ApiResponse o directamente
+            const actualData = (sessionData as any).data || sessionData;
+            
+            if (actualData && (actualData.id || actualData.sessionId)) {
+              this.logger.log('📊 Estado de sesión cargado desde IP:', actualData);
+              this.restoreSessionState(actualData, targetStep);
+              return;
+            }
+          }
+        } catch (error) {
+          // Verificar si es un error 404 (sesión no existe)
+          if (error && (error as any).status === 404) {
+            this.logger.log('❌ Sesión activa no existe en la base de datos (404), redirigiendo al home');
+            this.logger.error('❌ Error detallado:', error);
+            
+            // Limpiar estado local
+            this.wizardStateService.clearState();
+            
+            // Redirigir al home
+            this.router.navigate(['/'], { replaceUrl: true });
             return;
           }
+          
+          this.logger.log('⚠️ Error obteniendo sesión activa por IP:', error);
         }
       }
       
@@ -240,6 +306,7 @@ export class WizardFlowComponent implements OnInit {
     this.logger.log('🔄 restoreSessionState llamado con:', {
       sessionDataCurrentStep: sessionData.currentStep,
       targetStep: targetStep,
+      id: sessionData.id,
       sessionId: sessionData.sessionId,
       policyId: sessionData.policyId,
       policyNumber: sessionData.policyNumber,
@@ -502,15 +569,15 @@ export class WizardFlowComponent implements OnInit {
       currentStep: 0 
     });
     
-    // Redirigir a la URL con sessionId para futuras referencias
+    // Redirigir a la URL con nueva estructura usando id (UUID)
     const currentState = this.wizardStateService.getState();
-    const sessionId = currentState.sessionId;
+    const sessionId = currentState.id || currentState.sessionId; // Usar id si está disponible, sino sessionId como fallback
     
     if (sessionId) {
-      // Reemplazar la URL actual con sessionId
-      const newUrl = `/cotizador?session=${sessionId}`;
-      window.history.replaceState({}, '', newUrl);
-      this.logger.log('🔄 URL actualizada con sessionId:', newUrl);
+      // Usar la nueva estructura de URL: /cotizador/uuid
+      const newUrl = `/cotizador/${sessionId}`;
+      this.router.navigateByUrl(newUrl, { replaceUrl: true });
+      this.logger.log('🔄 URL actualizada con nueva estructura:', newUrl);
     }
     
     this.logger.log('✅ Nueva sesión con plan inicializada');
@@ -659,7 +726,12 @@ export class WizardFlowComponent implements OnInit {
     
     this.logger.log('📧 Cotización enviada por email con URL:', continueUrl);
     
-    this.setCurrentStep(5); // Ir al paso de finalización
+    // Marcar pasos 1 y 2 como completados (proceso de cotización completado)
+    this.wizardStateService.completeStep(1);
+    this.wizardStateService.completeStep(2);
+    
+    // Ir al paso de finalización (finish-step) - proceso completado
+    this.setCurrentStep(6);
   }
 
   // Nuevo método para cuando se hace clic en "Siguiente y Pagar"
@@ -863,7 +935,8 @@ export class WizardFlowComponent implements OnInit {
   closeWizard() {
     // Limpiar estado al cerrar el wizard
     this.wizardStateService.clearState();
-    window.history.back();
+    // Navegar a la página principal usando window.location para asegurar que funcione en todos los ambientes
+    window.location.href = '/';
   }
 
   /**
@@ -877,9 +950,8 @@ export class WizardFlowComponent implements OnInit {
     const currentState = this.wizardStateService.getState();
     if (currentState.sessionId) {
       this.logger.log('🎯 Navegando al cotizador con sesión:', currentState.sessionId);
-      this.router.navigate(['/cotizador'], { 
-        queryParams: { session: currentState.sessionId }
-      });
+      const sessionId = currentState.id || currentState.sessionId;
+      this.router.navigate(['/cotizador', sessionId]);
     } else {
       this.logger.warning('⚠️ No hay sessionId para navegar al cotizador');
     }
@@ -953,8 +1025,8 @@ export class WizardFlowComponent implements OnInit {
     
     // 5) Actualizar URL con nueva sesión
     this.logger.log('🔄 Actualizando URL con nueva sesión:', newSessionId);
-    this.router.navigate(['/cotizador'], { 
-      queryParams: { session: newSessionId },
+    const sessionId = this.wizardStateService.getState().id || newSessionId;
+    this.router.navigate(['/cotizador', sessionId], { 
       replaceUrl: true // Reemplazar la URL actual
     });
     

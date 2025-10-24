@@ -234,7 +234,9 @@ export class LpContentComponent implements OnInit {
     // Marcar en sessionStorage que se navegó desde la selección de plan
     sessionStorage.setItem('navigatedFromPlan', 'true');
     
-    this.router.navigate(['/cotizador'], { queryParams: { session: newSessionId } });
+    // Usar el id (UUID) si está disponible, sino usar sessionId como fallback
+    const sessionIdForUrl = this.wizardStateService.getState().id || newSessionId;
+    this.router.navigate(['/cotizador', sessionIdForUrl]);
   }
 
   async onContinueExisting() {
@@ -349,7 +351,7 @@ export class LpContentComponent implements OnInit {
     // Marcar en sessionStorage que se navegó desde la selección de plan
     sessionStorage.setItem('navigatedFromPlan', 'true');
     
-    this.router.navigate(['/cotizador'], { queryParams: { session: this.existingSessionId } });
+    this.router.navigate(['/cotizador', this.existingSessionId]);
   }
 
   async onRestartNew() {
@@ -454,7 +456,9 @@ export class LpContentComponent implements OnInit {
     // Marcar en sessionStorage que se navegó desde la selección de plan
     sessionStorage.setItem('navigatedFromPlan', 'true');
     
-    this.router.navigate(['/cotizador'], { queryParams: { session: newSessionId } });
+    // Usar el id (UUID) si está disponible, sino usar sessionId como fallback
+    const sessionIdForUrl = this.wizardStateService.getState().id || newSessionId;
+    this.router.navigate(['/cotizador', sessionIdForUrl]);
   }
 
   /**

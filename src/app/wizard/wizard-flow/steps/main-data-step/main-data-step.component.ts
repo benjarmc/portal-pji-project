@@ -215,6 +215,22 @@ export class MainDataStepComponent implements OnInit {
     return this.selectedPlanData.price;
   }
 
+  /**
+   * Obtiene el precio total de los complementos seleccionados
+   */
+  getComplementosPrice(): number {
+    let complementosPrice = 0;
+    
+    const complementaryPlans = this.getComplementaryPlans();
+    complementaryPlans.forEach((complement) => {
+      if (this.selectedComplementos.includes(complement.id)) {
+        complementosPrice += complement.price;
+      }
+    });
+    
+    return complementosPrice;
+  }
+
 
 
   async onNext() {
@@ -225,24 +241,9 @@ export class MainDataStepComponent implements OnInit {
       // Guardar estado del usuario antes de continuar
       this.saveUserData();
       
-      this.isCreatingQuotation = true;
-      this.quotationError = '';
-
-      try {
-        // Crear cotización en el backend
-        const quotationData = await this.createQuotation();
-        
-        if (quotationData) {
-          this.logger.log('Cotización creada exitosamente:', quotationData);
-          // Emitir evento con los datos de la cotización (no solo el formulario)
-          this.next.emit(quotationData);
-        }
-      } catch (error: any) {
-        this.logger.error('Error creando cotización:', error);
-        this.quotationError = error.message || 'Error creando cotización';
-      } finally {
-        this.isCreatingQuotation = false;
-      }
+      // Solo continuar al siguiente paso, NO crear cotización automáticamente
+      this.logger.log('✅ Datos del usuario guardados, continuando al siguiente paso');
+      this.next.emit(this.mainDataForm.value);
     } else {
       this.logger.log('Formulario inválido');
       this.markFormGroupTouched();
@@ -266,8 +267,8 @@ export class MainDataStepComponent implements OnInit {
       userData: userData
     });
     
-    // Marcar este paso como completado
-    this.wizardStateService.completeStep(1);
+    // NO marcar el paso como completado aquí - se hará en wizard-flow cuando se envíe por correo
+    // this.wizardStateService.completeStep(1);
   }
 
   /**
@@ -357,30 +358,19 @@ export class MainDataStepComponent implements OnInit {
 
     this.logger.log('📋 Creando cotización para plan:', this.selectedPlan);
 
-    // Crear DTO simplificado con solo los campos disponibles
+    // Create simplified DTO with only available fields
     const quotationDto: CreateQuotationDto = {
       planId: this.selectedPlan,
-      sessionId: this.wizardStateService.getState().sessionId, // Agregar sessionId
+      sessionId: this.wizardStateService.getState().sessionId, // Session ID (pji_session_ format)
+      wizardSessionId: this.wizardStateService.getState().id, // Session UUID
+      monthlyRent: formValue.rentaMensual, // Monthly rent amount
+      rentPercentage: 0, // Will be calculated in backend
+      complementAmount: this.getComplementosPrice(), // Complement amount
       userData: {
         name: formValue.nombre,
         email: formValue.correo,
         phone: formValue.telefono,
-        rentaMensual: formValue.rentaMensual
-      },
-      propertyData: {
-        address: 'Por definir', // Campo requerido pero no tenemos en el formulario
-        type: 'Inmueble', // Campo requerido pero no tenemos en el formulario
-        value: 0 // Campo requerido pero no tenemos en el formulario
-      },
-      notes: this.selectedComplementos.length > 0 ? `Complementos seleccionados: ${this.selectedComplementos.join(', ')}` : undefined,
-      additionalData: {
-        complementos: this.selectedComplementos,
-        planData: this.selectedPlanData ? {
-          name: this.selectedPlanData.name,
-          price: this.selectedPlanData.price,
-          currency: this.selectedPlanData.currency
-        } : undefined,
-        totalPrice: this.getTotalPrice()
+        postalCode: formValue.codigoPostal || '00000'
       }
     };
 
