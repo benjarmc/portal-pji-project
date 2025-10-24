@@ -1,0 +1,34 @@
+// Los estilos principales del navbar están ahora en styles.scss
+// Este archivo solo contiene estilos específicos del componente si los hay
+
+// Estilos específicos para el icono del toggler
+.navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 1%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+.navbar.navbar-shrink .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%280, 0, 0, 1%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+// Estilos específicos para la página de privacidad
+.navbar-privacy {
+  background-color: #1D4C2C !important; // Verde oscuro PJI
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+  
+  .navbar-brand,
+  .navbar-nav .nav-link {
+    color: white !important;
+    
+    &:hover {
+      color: #A8CF41 !important; // Verde claro PJI
+    }
+  }
+  
+  .navbar-logo {
+    filter: brightness(0) invert(1) !important; // Logo blanco
+  }
+  
+  .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 1%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+  }
+}

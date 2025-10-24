@@ -1,0 +1,14 @@
+// Los estilos principales del footer están ahora en styles.scss
+// Este archivo solo contiene estilos específicos del componente si los hay
+
+// Estilos específicos para enlaces de contacto
+.lp-footer-contact-link {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.3s ease;
+  
+  &:hover {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+}

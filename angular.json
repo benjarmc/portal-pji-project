@@ -47,7 +47,7 @@
               }
             ],
             "styles": [
-              "src/styles.css",
+              "src/styles.scss",
               "node_modules/bootstrap-icons/font/bootstrap-icons.css",
               "node_modules/bootstrap/dist/css/bootstrap.min.css"
             ],
@@ -58,7 +58,16 @@
             "prerender": true,
             "ssr": {
               "entry": "server.ts"
-            }
+            },
+            "allowedCommonJsDependencies": [
+              "canvg",
+              "jspdf",
+              "html2canvas",
+              "core-js",
+              "@babel/runtime",
+              "raf",
+              "rgbcolor"
+            ]
           },
           "configurations": {
             "production": {
@@ -85,7 +94,16 @@
             "development": {
               "optimization": false,
               "extractLicenses": false,
-              "sourceMap": true
+              "sourceMap": true,
+              "allowedCommonJsDependencies": [
+                "canvg",
+                "jspdf",
+                "html2canvas",
+                "core-js",
+                "@babel/runtime",
+                "raf",
+                "rgbcolor"
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -136,7 +154,7 @@
               }
             ],
             "styles": [
-              "src/styles.css",
+              "src/styles.scss",
               "node_modules/bootstrap-icons/font/bootstrap-icons.css",
               "node_modules/bootstrap/dist/css/bootstrap.min.css"
             ],

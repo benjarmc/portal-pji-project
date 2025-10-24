@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 
-import { PropietarioData, InquilinoData, FiadorData, InmuebleData } from '../wizard-flow/steps/data-entry-step/data-entry-step.component';
+import { PropietarioData, InquilinoData, FiadorData, InmuebleData } from '../wizard/wizard-flow/steps/data-entry-step/data-entry-step.component';
 
 export interface ContractData {
   // Datos básicos del usuario

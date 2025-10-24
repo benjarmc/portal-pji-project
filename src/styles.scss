@@ -1,0 +1,1185 @@
+@use "sass:color";
+
+// Importaciones externas
+@import url('https://fonts.googleapis.com/css2?family=Times+New+Roman:wght@400;700&display=swap');
+@import url('bootstrap/dist/css/bootstrap.min.css');
+@import url('primeicons/primeicons.css');
+
+// ============================================
+// CONFIGURACIÓN GLOBAL DE SCROLL
+// ============================================
+
+html {
+  scroll-padding-top: 120px; // Altura del navbar + margen adicional
+  scroll-behavior: smooth;
+}
+
+// ============================================
+// VARIABLES SCSS GLOBALES
+// ============================================
+
+// Colores principales PJI
+$primary-green: #A8CF41;  // Verde principal PJI
+$dark-green: #1D4C2C;     // Verde oscuro PJI
+$white: #FFFFFF;          // Blanco PJI
+$light-gray: #F9F9F9;     // Gris claro PJI
+
+// Colores adicionales
+$color-primary: $dark-green;
+$color-black: #000000;
+$color-accent: $primary-green;
+$color-bg-light: $light-gray;
+$color-gray: #C5C5C5;
+$color-gray-light: #B0B0B0;
+$color-black-50: rgba(0, 0, 0, 0.5);
+$color-gray-dark: #495057;
+$color-gray-medium: #6c757d;
+
+// Tipografía
+$font-family-base: 'Inter', Arial, Helvetica, sans-serif;
+
+// Espaciado
+$spacing-xs: 0.25rem;
+$spacing-sm: 0.5rem;
+$spacing-md: 1rem;
+$spacing-lg: 1.5rem;
+$spacing-xl: 2rem;
+$spacing-xxl: 3rem;
+
+// Bordes
+$border-radius-sm: 0.5rem;
+$border-radius-md: 1rem;
+$border-radius-lg: 1.5rem;
+$border-radius-xl: 2rem;
+
+// Sombras
+$shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+$shadow-md: 0 4px 8px rgba(0, 0, 0, 0.15);
+$shadow-lg: 0 8px 25px rgba(0, 0, 0, 0.08);
+$shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1);
+
+// Variables CSS para compatibilidad
+:root {
+  --color-primary: #{$color-primary};
+  --color-black: #{$color-black};
+  --color-white: #{$white};
+  --color-accent: #{$color-accent};
+  --color-bg-light: #{$color-bg-light};
+  --color-gray: #{$color-gray};
+  --color-gray-light: #{$color-gray-light};
+  --color-black-50: #{$color-black-50};
+  --font-family-base: #{$font-family-base};
+}
+
+// ============================================
+// MIXINS REUTILIZABLES
+// ============================================
+
+// Mixin para justificación de texto
+@mixin text-justify {
+  text-align: justify !important;
+}
+
+// Mixin para fuente base
+@mixin base-font {
+  font-family: $font-family-base;
+}
+
+// Mixin para colores base
+@mixin base-colors {
+  background: $white;
+  color: $color-black;
+}
+
+// Mixin para botones con diferentes variantes
+@mixin button-variant($bg-color, $text-color: $white, $hover-bg: null) {
+  background-color: $bg-color;
+  color: $text-color;
+  border: none;
+  border-radius: $border-radius-sm;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  
+  &:hover {
+    background-color: $hover-bg or darken($bg-color, 10%);
+    transform: translateY(-2px);
+  }
+}
+
+// Mixin para tarjetas
+@mixin card-style($bg-color: $white, $shadow: $shadow-lg) {
+  background-color: $bg-color;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow;
+  transition: all 0.3s ease;
+  border: none;
+  
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12);
+  }
+}
+
+// Mixin para logos
+@mixin logo-style($height: 40px, $bg-color: rgba(255, 255, 255, 0.9), $border-radius: 50%, $padding: 10px) {
+  height: $height;
+  width: auto;
+  object-fit: contain;
+  background-color: $bg-color;
+  border-radius: $border-radius;
+  padding: $padding;
+  box-shadow: $shadow-sm;
+}
+
+// Mixin para responsive
+@mixin mobile {
+  @media (max-width: 768px) {
+    @content;
+  }
+}
+
+@mixin tablet {
+  @media (max-width: 991.98px) {
+    @content;
+  }
+}
+
+@mixin desktop {
+  @media (min-width: 1200px) {
+    @content;
+  }
+}
+
+// ============================================
+// ESTILOS BASE GLOBALES
+// ============================================
+
+body {
+  @include base-font;
+  @include base-colors;
+}
+
+// ============================================
+// ESTILOS PARA CONTRATOS
+// ============================================
+
+.contract-content {
+  @include text-justify;
+  
+  * {
+    @include text-justify;
+  }
+  
+  p, div, span, strong, em, i, b {
+    @include text-justify;
+  }
+}
+
+// ============================================
+// ESTILOS PARA LANDING PAGE
+// ============================================
+
+// Hero section
+.lp-hero {
+  min-height: 60vh;
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  color: $white;
+  background-color: rgba($dark-green, 0.5);
+  background-image: url("assets/hero-bg.jpg");
+  background-blend-mode: multiply;
+}
+
+.lp-hero-content {
+  padding: $spacing-xxl $spacing-xl;
+  border-radius: $border-radius-lg;
+  max-width: 600px;
+  margin: $spacing-xl auto;
+  
+  h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  
+  p {
+    font-size: 1.2rem;
+    margin-bottom: $spacing-lg;
+  }
+  
+  .highlight {
+    color: $color-accent;
+  }
+}
+
+.lp-hero-logo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
+  .hero-logo-img {
+    height: 100px;
+    width: 100px;
+    object-fit: contain;
+    background-color: rgba(255, 255, 255, 0.95);
+    border-radius: 50%;
+    padding: 10px;
+  }
+}
+
+// Botones de acento
+.btn-accent {
+  @include button-variant($color-accent, $white, #8bbf2e);
+  
+  .bi-arrow-right {
+    color: $dark-green;
+    margin: 5px;
+  }
+}
+
+// Estilos específicos del botón en el hero
+.lp-hero-content .btn-accent {
+  background: $color-accent;
+  color: $white;
+  border: none;
+  transition: background 0.2s;
+}
+
+.lp-hero-content .btn-accent:hover {
+  background: #8bbf2e;
+}
+
+.lp-hero .btn-accent .bi-arrow-right {
+  color: $dark-green;
+  margin: 5px;
+}
+
+// Steps section
+.highlight {
+  color: $primary-green;
+}
+
+.step-icon {
+  background-color: $color-accent;
+  color: $dark-green;
+  font-size: 1.8rem;
+  padding: 18px;
+  border-radius: 12px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 56px;
+  height: 56px;
+}
+
+.steps-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.step-line {
+  position: absolute;
+  top: 28px;
+  left: 0;
+  right: 0;
+  height: 5px;
+  margin: 0 auto;
+  max-width: 650px;
+  background-color: $color-accent;
+  z-index: 0;
+}
+
+.step {
+  position: relative;
+  z-index: 1;
+  max-width: 260px;
+}
+
+// Plans section
+.lp-plans {
+  background-color: $light-gray;
+  padding: 80px 16px;
+  
+  h2 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: $spacing-sm;
+    
+    .highlight {
+      color: $color-accent;
+    }
+  }
+  
+  > .container > p {
+    font-size: 1.1rem;
+    color: $color-gray-medium;
+    margin-bottom: $spacing-xxl;
+  }
+}
+
+.lp-plan-card {
+  @include card-style($white, $shadow-lg);
+  padding: $spacing-lg;
+  justify-content: space-between;
+  min-height: 500px;
+  min-width: 300px;
+  
+  h5 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+  }
+}
+
+.lp-card-description {
+  margin: 3.5rem 0;
+  
+  p {
+    font-size: 1rem;
+    font-weight: 400;
+    color: $color-black;
+    line-height: 100%;
+  }
+  
+  strong {
+    display: block;
+    margin-top: $spacing-md;
+    margin-bottom: $spacing-sm;
+    color: #212529;
+  }
+  
+  ul {
+    list-style: disc;
+    padding-left: 20px;
+    margin-bottom: 0;
+    
+    li {
+      margin-bottom: 0.3rem;
+    }
+  }
+}
+
+// Botones de planes
+.lp-plans-cto-button {
+  color: $white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: $border-radius-xl;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  width: 100%;
+  
+  &.lp-plans-cto-button-primary {
+    @include button-variant($color-accent, $white, #8BC34A);
+  }
+  
+  &.lp-plans-cto-button-secondary {
+    @include button-variant($dark-green, $white, #558B2F);
+  }
+  
+  i.bi {
+    font-size: 1.1rem;
+    color: $white;
+  }
+}
+
+// FAQ section
+.lp-faq {
+  background-color: $dark-green;
+  color: $white;
+  padding: 80px 16px;
+  
+  .lp-faq-title {
+    font-size: 38px;
+    font-weight: 700;
+    color: $white;
+    margin-bottom: 60px;
+    
+    .highlight {
+      color: #92B428;
+    }
+  }
+  
+  .lp-faq-list {
+    max-width: 800px;
+    margin: 0 auto;
+    background-color: transparent;
+  }
+  
+  .lp-faq-item {
+    background-color: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 20px 0;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    
+    &:last-child {
+      border-bottom: none;
+    }
+    
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+  }
+  
+  .lp-faq-question {
+    font-size: 18px;
+    font-weight: 600;
+    color: $white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .lp-faq-toggle {
+    font-size: 20px;
+    color: #92B428;
+    transition: transform 0.3s ease;
+  }
+  
+  .lp-faq-answer {
+    font-size: 16px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.6;
+    padding-right: 30px;
+    max-width: 90%;
+  }
+}
+
+// ============================================
+// ESTILOS PARA NAVBAR
+// ============================================
+
+.navbar {
+  padding-top: $spacing-xl;
+  padding-bottom: $spacing-xl;
+  background-color: transparent;
+  transition: padding 0.3s ease-in-out, background-color 0.3s ease-in-out;
+  border-bottom: none;
+  
+  .navbar-nav .nav-link {
+    color: rgba(255, 255, 255, 0.8);
+    
+    &:hover,
+    &.active {
+      color: $color-accent;
+    }
+  }
+  
+  &.navbar-shrink {
+    padding-top: $spacing-md;
+    padding-bottom: $spacing-md;
+    background-color: $white !important;
+    box-shadow: $shadow-md !important;
+    
+    .navbar-brand,
+    .navbar-nav .nav-link {
+      color: var(--bs-body-color) !important;
+      
+      &:hover,
+      &.active {
+        color: $color-accent !important;
+      }
+    }
+  }
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  transition: opacity 0.3s ease-in-out;
+  
+  .navbar-logo {
+    @include logo-style(60px, transparent, 0, 0);
+    max-width: 200px;
+    filter: brightness(0) invert(1);
+    transition: filter 0.3s ease-in-out;
+    box-shadow: none !important;
+  }
+}
+
+.navbar-shrink .navbar-brand .navbar-logo {
+  filter: brightness(0) invert(0);
+}
+
+// ============================================
+// ESTILOS PARA FOOTER
+// ============================================
+
+.lp-footer {
+  background-color: $white; // Cambiado a blanco
+  // background-color: $light-gray; // Tonos grises comentados
+  color: $color-gray-dark;
+  padding: 60px 16px 40px 16px;
+  border-top: 1px solid #e0e0e0;
+  
+  .lp-footer-main {
+    margin-bottom: 40px;
+  }
+  
+  .lp-footer-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #92B428;
+    text-transform: uppercase;
+    margin-bottom: $spacing-md;
+  }
+  
+  .lp-footer-links {
+    padding-left: 0;
+    
+    li {
+      margin-bottom: $spacing-sm;
+    }
+    
+    a {
+      color: $color-gray-dark;
+      text-decoration: none;
+      font-size: 0.95rem;
+      transition: color 0.3s ease;
+      
+      &:hover {
+        color: #92B428;
+      }
+    }
+  }
+  
+  .lp-footer-contact {
+    padding-left: 0;
+    
+    li {
+      color: $color-gray-dark;
+      font-size: 0.95rem;
+      margin-bottom: $spacing-sm;
+    }
+  }
+  
+  .lp-footer-icon {
+    font-size: 1.1rem;
+    color: $color-gray-dark;
+    min-width: 20px;
+  }
+  
+  // Estilos específicos para la columna del logo y redes sociales
+  .col-12.col-md-4.text-center.text-md-end {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .lp-footer-logo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: $spacing-sm;
+    
+    .footer-logo-img {
+      @include logo-style(90px, rgba(255, 255, 255, 0.9), 10px, 10px);
+      max-width: 220px;
+      box-shadow: none !important;
+    }
+  }
+  
+  .lp-footer-social {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: $spacing-md;
+    margin-top: 0;
+  }
+  
+  .lp-footer-social i {
+    font-size: 1.5rem;
+    color: $color-gray-dark;
+    transition: color 0.3s ease;
+  }
+  
+  .lp-social-icon-link:hover i {
+    color: #92B428;
+  }
+  
+  .lp-footer-text-bottom {
+    font-size: 0.85rem;
+    color: $color-gray-medium;
+    line-height: 1.6;
+    margin-bottom: 0;
+    
+    a {
+      color: $color-accent;
+      text-decoration: none;
+      transition: color 0.3s ease;
+      
+      &:hover {
+        color: color.adjust($color-accent, $lightness: -10%);
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
+// ============================================
+// ESTILOS PARA WIZARD
+// ============================================
+
+.wizard-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.city-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, $light-gray 0%, $dark-green 50%, $primary-green 100%);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.9;
+  min-width: 100vw;
+  min-height: 100vh;
+}
+
+.wizard-flow {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  
+  &::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(135deg, $light-gray 0%, $dark-green 50%, $primary-green 100%);
+    z-index: -2;
+    pointer-events: none;
+  }
+}
+
+.wizard-header {
+  position: absolute;
+  top: 39px;
+  left: 88px;
+  right: 88px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  z-index: 10;
+}
+
+.wizard-progress {
+  flex: 1;
+  text-align: center;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.6);
+  border-radius: 2px;
+  margin-bottom: 20px;
+  overflow: hidden;
+  box-shadow: $shadow-sm;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, $primary-green, $dark-green);
+  border-radius: 2px;
+  transition: width 0.5s ease;
+  box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.step-indicators {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.step-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 10px;
+  border-radius: 12px;
+  min-width: 80px;
+  
+  &:hover {
+    transform: translateY(-2px);
+  }
+  
+  .step-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.4);
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    color: $dark-green;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: $font-family-base;
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+    transition: all 0.3s ease;
+    box-shadow: $shadow-sm;
+  }
+  
+  .step-label {
+    font-family: $font-family-base;
+    font-weight: 500;
+    font-size: 12px;
+    color: $white;
+    text-align: center;
+    line-height: 1.2;
+    transition: all 0.3s ease;
+    text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.3);
+  }
+  
+  &.active {
+    .step-number {
+      background-color: $primary-green;
+      border-color: $white;
+      color: $white;
+      box-shadow: 0 0 20px rgba(168, 207, 65, 0.5);
+    }
+    
+    .step-label {
+      color: $white;
+      font-weight: 600;
+    }
+  }
+  
+  &.completed {
+    .step-number {
+      background-color: $dark-green;
+      border-color: $white;
+      color: $white;
+    }
+    
+    .step-label {
+      color: rgba(255, 255, 255, 0.9);
+    }
+  }
+}
+
+.wizard-content {
+  background-color: $white;
+  border-radius: 49px;
+  padding: 40px;
+  width: 100%;
+  max-width: 1154px;
+  min-height: 897px;
+  box-shadow: $shadow-xl;
+  position: relative;
+  margin-top: 125px;
+}
+
+.wizard-step-content {
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.close-button {
+  width: 39px;
+  height: 39px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: $white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    transform: scale(1.1);
+  }
+  
+  svg {
+    width: 20px;
+    height: 20px;
+  }
+}
+
+// ============================================
+// ESTILOS PARA LOGOS
+// ============================================
+
+.logo {
+  display: flex;
+  align-items: center;
+  
+  .logo-img {
+    @include logo-style(40px);
+    max-width: 150px;
+  }
+}
+
+// ============================================
+// ESTILOS PARA RANGOS DE PRECIO
+// ============================================
+
+.price-ranges {
+  background-color: $light-gray;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.price-range-item {
+  border-bottom: 1px solid #e9ecef;
+  margin-bottom: 4px;
+  
+  &:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
+  
+  .fw-bold {
+    font-size: 0.95rem;
+  }
+}
+
+// ============================================
+// MEDIA QUERIES RESPONSIVE
+// ============================================
+
+@include mobile {
+  .lp-hero-content {
+    padding: $spacing-xl $spacing-md;
+    max-width: 100%;
+    
+    h1 {
+      font-size: 1.5rem;
+    }
+  }
+  
+  .lp-plan-card {
+    min-width: 100%;
+    padding: $spacing-md;
+    min-height: unset;
+  }
+  
+  .lp-plans-title,
+  .lp-faq-title {
+    font-size: 2rem;
+  }
+  
+  .lp-card-description {
+    margin: $spacing-md 0;
+    font-size: 0.95rem;
+    
+    strong {
+      margin-top: $spacing-sm;
+      margin-bottom: 0.3rem;
+    }
+  }
+  
+  .lp-faq-list {
+    padding: 0 $spacing-sm;
+  }
+  
+  .lp-plans-cto-button {
+    width: 100%;
+    font-size: 0.95rem;
+    padding: 0.75rem $spacing-sm;
+  }
+  
+  .lp-plan-card-title {
+    font-size: 1.1rem;
+    text-align: center;
+  }
+  
+  .steps-wrapper h5 {
+    font-size: 1rem;
+  }
+  
+  .step-line {
+    max-width: 500px;
+  }
+  
+  .price-ranges {
+    padding: 8px;
+  }
+  
+  .price-range-item {
+    font-size: 0.85rem;
+  }
+  
+  .logo .logo-img {
+    height: 35px;
+    max-width: 120px;
+  }
+  
+  .wizard-header {
+    top: 20px;
+    left: 20px;
+    right: 20px;
+  }
+  
+  .wizard-content {
+    max-width: 95%;
+    margin: 80px auto 0;
+    padding: 20px;
+    border-radius: 30px;
+  }
+  
+  .step-indicators {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 15px;
+  }
+  
+  .step-indicator {
+    min-width: 70px;
+    
+    .step-number {
+      width: 24px;
+      height: 24px;
+      font-size: 11px;
+    }
+    
+    .step-label {
+      font-size: 9px;
+    }
+  }
+  
+  .city-background {
+    top: -200px;
+    left: -400px;
+    width: 2000px;
+    height: 1500px;
+  }
+  
+  .lp-footer-main {
+    text-align: center;
+  }
+  
+  .lp-footer-links,
+  .lp-footer-contact {
+    text-align: center;
+    margin-bottom: $spacing-lg;
+  }
+  
+  .lp-footer-logo {
+    margin-left: auto;
+    margin-right: auto;
+    
+    .footer-logo-img {
+      height: 70px;
+      padding: 8px;
+    }
+  }
+  
+  .lp-footer-social {
+    justify-content: center !important;
+  }
+  
+  .lp-footer-text-bottom {
+    text-align: center !important;
+  }
+}
+
+@include tablet {
+  .lp-plan-card {
+    min-width: 100%;
+    margin-bottom: $spacing-xl;
+    padding: 1.25rem;
+  }
+  
+  .lp-card-description {
+    margin: $spacing-xl 0;
+  }
+  
+  .lp-hero-content {
+    padding: $spacing-xl $spacing-md;
+    max-width: 100%;
+  }
+  
+  .wizard-content {
+    max-width: 90%;
+    margin: 100px auto 0;
+    padding: 30px;
+  }
+  
+  .step-indicators {
+    gap: 5px;
+  }
+  
+  .step-indicator {
+    min-width: 60px;
+    padding: 8px;
+    
+    .step-number {
+      width: 28px;
+      height: 28px;
+      font-size: 12px;
+    }
+    
+    .step-label {
+      font-size: 10px;
+    }
+  }
+}
+
+@media (max-width: 575.98px) {
+  .lp-hero-content h1 {
+    font-size: 1.1rem;
+  }
+  
+  .lp-plan-card {
+    padding: $spacing-sm;
+  }
+  
+  .lp-plans-title,
+  .lp-faq-title {
+    font-size: 1.3rem;
+  }
+  
+  .lp-faq-question {
+    font-size: 1rem;
+  }
+  
+  .lp-faq-answer {
+    font-size: 0.95rem;
+    padding-right: 0;
+  }
+  
+  .lp-footer {
+    padding: 40px 10px 20px 10px;
+  }
+  
+  .lp-footer-title {
+    font-size: 0.9rem;
+  }
+  
+  .lp-footer-links a,
+  .lp-footer-contact li {
+    font-size: 0.9rem;
+  }
+  
+  .lp-footer-icon {
+    font-size: 1rem;
+  }
+  
+  .lp-footer-social i {
+    font-size: 1.3rem;
+  }
+  
+  .lp-footer-text-bottom {
+    font-size: 0.8rem;
+  }
+  
+  .step-indicators {
+    gap: 10px;
+  }
+  
+  .step-indicator {
+    min-width: 60px;
+    
+    .step-number {
+      width: 20px;
+      height: 20px;
+      font-size: 10px;
+    }
+    
+    .step-label {
+      font-size: 8px;
+    }
+  }
+}
+
+@include desktop {
+  .wizard-content {
+    max-width: 1400px;
+    padding: 60px;
+  }
+  
+  .wizard-header {
+    left: 120px;
+    right: 120px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .city-background {
+    background-size: 100% 100%;
+  }
+  
+  .wizard-content {
+    max-width: 1400px;
+    padding: 60px;
+  }
+  
+  .wizard-header {
+    left: 120px;
+    right: 120px;
+  }
+}
+
+@media (min-width: 2560px) {
+  .city-background {
+    background-size: cover;
+    background-position: center center;
+  }
+  
+  .wizard-content {
+    max-width: 1600px;
+    padding: 80px;
+  }
+  
+  .wizard-header {
+    left: 160px;
+    right: 160px;
+  }
+}
+
+@media (min-width: 3440px) {
+  .wizard-content {
+    max-width: 1800px;
+    padding: 100px;
+  }
+  
+  .wizard-header {
+    left: 200px;
+    right: 200px;
+  }
+}

@@ -1,0 +1,175 @@
+// Los estilos principales están ahora en styles.scss
+// Este archivo solo contiene estilos específicos del componente si los hay
+
+// Variables globales disponibles desde styles.scss
+$white: #FFFFFF;
+$color-primary: #1D4C2C;
+$color-accent: #A8CF41;
+$color-gray-dark: #495057;
+$spacing-xl: 2rem;
+$spacing-md: 1rem;
+$spacing-sm: 0.5rem;
+$border-radius-md: 1rem;
+$border-radius-sm: 0.5rem;
+$shadow-lg: 0 8px 25px rgba(0, 0, 0, 0.08);
+
+// Mixin para responsive
+@mixin mobile {
+  @media (max-width: 768px) {
+    @content;
+  }
+}
+
+// Mixin para botones
+@mixin button-variant($bg-color, $text-color: $white, $hover-bg: null) {
+  background-color: $bg-color;
+  color: $text-color;
+  border: none;
+  border-radius: $border-radius-sm;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+
+  &:hover {
+    background-color: $hover-bg or darken($bg-color, 10%);
+    transform: translateY(-2px);
+  }
+}
+
+.privacy-policy-main {
+  min-height: 100vh;
+  background-color: $white;
+  padding-top: 120px; // Espacio para el header fijo
+}
+
+.privacy-policy-header {
+  .privacy-policy-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: $color-primary;
+    margin-bottom: 1rem;
+    
+    @include mobile {
+      font-size: 2rem;
+    }
+  }
+  
+  .privacy-policy-subtitle {
+    font-size: 1.25rem;
+    color: $color-gray-dark;
+    margin-bottom: 2rem;
+  }
+  
+  .privacy-policy-divider {
+    width: 100px;
+    height: 4px;
+    background: linear-gradient(90deg, $color-accent, $color-primary);
+    margin: 0 auto;
+    border-radius: 2px;
+  }
+}
+
+.privacy-policy-content {
+  .privacy-section {
+    margin-bottom: 2.5rem;
+    
+    .privacy-section-title {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: $color-primary;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid $color-accent;
+    }
+    
+    .privacy-subsection {
+      margin-bottom: 1.5rem;
+      
+      .privacy-subsection-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: $color-gray-dark;
+        margin-bottom: 0.75rem;
+      }
+    }
+    
+    .privacy-text {
+      font-size: 1rem;
+      line-height: 1.7;
+      color: $color-gray-dark;
+      margin-bottom: 1rem;
+      text-align: justify;
+      
+      strong {
+        color: $color-primary;
+        font-weight: 600;
+      }
+    }
+    
+    .privacy-list {
+      padding-left: 1.5rem;
+      margin-bottom: 1rem;
+      
+      li {
+        font-size: 1rem;
+        line-height: 1.6;
+        color: $color-gray-dark;
+        margin-bottom: 0.5rem;
+        
+        strong {
+          color: $color-primary;
+          font-weight: 600;
+        }
+      }
+    }
+  }
+}
+
+.privacy-policy-actions {
+  .btn {
+    @include button-variant($color-primary, $white);
+    padding: 0.75rem 2rem;
+    font-size: 1.1rem;
+    border-radius: $border-radius-md;
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: $shadow-lg;
+    }
+  }
+}
+
+// Responsive adjustments
+@include mobile {
+  .privacy-policy-main {
+    padding-top: 100px;
+  }
+  
+  .privacy-policy-content {
+    .privacy-section {
+      .privacy-section-title {
+        font-size: 1.25rem;
+      }
+      
+      .privacy-subsection {
+        .privacy-subsection-title {
+          font-size: 1.1rem;
+        }
+      }
+      
+      .privacy-text {
+        font-size: 0.95rem;
+      }
+      
+      .privacy-list {
+        padding-left: 1rem;
+        
+        li {
+          font-size: 0.95rem;
+        }
+      }
+    }
+  }
+}
