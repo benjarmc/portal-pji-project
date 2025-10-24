@@ -26,31 +26,37 @@ app.use(
 );
 
 /**
- * Handle specific static file requests to avoid 404 errors
+ * Handle favicon requests - redirect to actual favicon
  */
-app.get(['/favicon.ico', '/assets/favicon.ico'], (req, res) => {
-  // Silently ignore favicon requests to avoid console errors
-  res.status(204).end();
+app.get('/favicon.ico', (req, res) => {
+  res.redirect('/assets/favicon.ico');
 });
 
-app.get(['/assets/site.webmanifest', '/site.webmanifest'], (req, res) => {
-  // Silently ignore web manifest requests
-  res.status(204).end();
-});
-
-app.get(['/assets/favicon-16x16.png', '/favicon-16x16.png'], (req, res) => {
-  // Silently ignore favicon requests
-  res.status(204).end();
-});
-
-app.get(['/assets/favicon-32x32.png', '/favicon-32x32.png'], (req, res) => {
-  // Silently ignore favicon requests
-  res.status(204).end();
+/**
+ * Handle web manifest requests
+ */
+app.get('/site.webmanifest', (req, res) => {
+  res.redirect('/assets/site.webmanifest');
 });
 
 // Handle Chrome DevTools requests
 app.get('/es/.well-known/appspecific/com.chrome.devtools.json', (req, res) => {
   res.status(204).end();
+});
+
+// Handle browser extension requests that might cause runtime errors
+app.get('/.well-known/appspecific/com.chrome.devtools.json', (req, res) => {
+  res.status(204).end();
+});
+
+// Handle service worker requests
+app.get('/sw.js', (req, res) => {
+  res.status(404).end();
+});
+
+// Handle manifest requests
+app.get('/manifest.json', (req, res) => {
+  res.redirect('/assets/site.webmanifest');
 });
 
 /**
