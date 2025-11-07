@@ -1,6 +1,7 @@
 import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { LoggerService } from './logger.service';
+import { OpenPayErrorHandler } from '../utils/openpay-error-handler';
 declare global {
   interface Window {
     OpenPay: any;
@@ -132,7 +133,15 @@ export class OpenPayService {
           }
         },
         (error: OpenPayErrorResponse) => {
-          reject(error);
+          // Mejorar manejo de errores con mensajes amigables
+          const friendlyMessage = OpenPayErrorHandler.getErrorMessage(error);
+          const enhancedError = {
+            ...error,
+            message: friendlyMessage,
+            originalDescription: error.description || error.message
+          };
+          this.logger.error('Error creando token de OpenPay:', enhancedError);
+          reject(enhancedError);
         }
       );
     });

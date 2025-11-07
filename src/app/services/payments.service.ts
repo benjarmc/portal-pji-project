@@ -3,6 +3,7 @@ import { Observable } from 'rxjs';
 import { ApiService, ApiResponse } from './api.service';
 import { OpenPayService, OpenPayCardData, OpenPayTokenResponse } from './openpay.service';
 import { LoggerService } from './logger.service';
+import { OpenPayErrorHandler } from '../utils/openpay-error-handler';
 export interface PaymentData {
   quotationId: string;
   cardData: OpenPayCardData;
@@ -115,7 +116,18 @@ export class PaymentsService {
 
           this.apiService.post<PaymentResponse>(`${this.endpoint}/process`, paymentPayload).subscribe({
             next: (response) => observer.next(response),
-            error: (error) => observer.error(error)
+            error: (error) => {
+              // Mejorar manejo de errores del backend
+              const errorData = error.error || error;
+              const friendlyMessage = OpenPayErrorHandler.getErrorMessage(errorData);
+              const enhancedError = {
+                ...error,
+                message: friendlyMessage,
+                originalError: errorData
+              };
+              this.logger.error('Error procesando pago:', enhancedError);
+              observer.error(enhancedError);
+            }
           });
         },
         error: (error) => observer.error(error)
@@ -145,6 +157,13 @@ export class PaymentsService {
   }
 
   /**
+   * Obtener pago por policyId
+   */
+  getPaymentByPolicyId(policyId: string): Observable<ApiResponse<PaymentResponse>> {
+    return this.apiService.get<PaymentResponse>(`${this.endpoint}/policy/${policyId}`);
+  }
+
+  /**
    * Obtener estado de pago por charge ID
    */
   getPaymentStatus(chargeId: string): Observable<ApiResponse<any>> {
@@ -170,5 +189,13 @@ export class PaymentsService {
    */
   getPaymentToken(paymentData: any): Observable<ApiResponse<any>> {
     return this.apiService.post<any>(`${this.endpoint}/tokens`, paymentData);
+  }
+
+  /**
+   * Reenviar correo de confirmación de pago
+   */
+  resendPaymentEmail(paymentId: string): Observable<ApiResponse<{ success: boolean; message: string }>> {
+    this.logger.log(`📧 Reenviando correo de confirmación de pago para paymentId: ${paymentId}`);
+    return this.apiService.post<{ success: boolean; message: string }>(`${this.endpoint}/${paymentId}/resend-email`, {});
   }
 }

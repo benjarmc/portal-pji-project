@@ -65,7 +65,13 @@ export class MainDataStepComponent implements OnInit {
     
     if (this.selectedPlan) {
       this.mainDataForm.patchValue({ plan: this.selectedPlan });
-      this.loadPlanDetails();
+      
+      // ✅ OPTIMIZADO: Solo cargar plan si no está ya cargado
+      if (!this.selectedPlanData || this.selectedPlanData.id !== this.selectedPlan) {
+        this.loadPlanDetails();
+      } else {
+        this.logger.log('📦 Plan ya está cargado, usando datos existentes');
+      }
     } else {
       this.logger.log('No hay plan seleccionado');
     }
@@ -103,9 +109,17 @@ export class MainDataStepComponent implements OnInit {
 
   /**
    * Cargar detalles del plan seleccionado con sus complementos
+   * ✅ OPTIMIZADO: Solo carga si no está ya cargado
    */
   private loadPlanDetails(): void {
     this.logger.log('🔄 loadPlanDetails() llamado con selectedPlan:', this.selectedPlan);
+    
+    // ✅ OPTIMIZADO: Verificar si ya está cargado
+    if (this.selectedPlanData && this.selectedPlanData.id === this.selectedPlan) {
+      this.logger.log('📦 Plan ya está cargado, omitiendo petición');
+      return;
+    }
+    
     if (this.selectedPlan) {
       this.logger.log('📡 Llamando a plansService.getPlanById...');
       // Usar el endpoint que devuelve plan + complementos
@@ -241,9 +255,26 @@ export class MainDataStepComponent implements OnInit {
       // Guardar estado del usuario antes de continuar
       this.saveUserData();
       
-      // Solo continuar al siguiente paso, NO crear cotización automáticamente
-      this.logger.log('✅ Datos del usuario guardados, continuando al siguiente paso');
-      this.next.emit(this.mainDataForm.value);
+      // ✅ CREAR COTIZACIÓN ANTES DE CONTINUAR AL PASO DE PAGO
+      // Esto es necesario porque el paso de pago requiere los datos de la cotización
+      this.isCreatingQuotation = true;
+      this.quotationError = '';
+      
+      try {
+        this.logger.log('🔄 Creando cotización antes de avanzar al paso de pago...');
+        const quotationData = await this.createQuotation();
+        this.logger.log('✅ Cotización creada exitosamente:', quotationData);
+        
+        // Emitir evento con datos de cotización (no solo formulario)
+        this.next.emit(quotationData);
+      } catch (error: any) {
+        this.logger.error('❌ Error creando cotización:', error);
+        this.quotationError = error.message || 'Error creando cotización. Por favor, intenta nuevamente.';
+        // NO avanzar si hay error en la creación de cotización
+        return;
+      } finally {
+        this.isCreatingQuotation = false;
+      }
     } else {
       this.logger.log('Formulario inválido');
       this.markFormGroupTouched();
@@ -275,6 +306,14 @@ export class MainDataStepComponent implements OnInit {
    * Enviar cotización por correo electrónico
    */
   async sendQuotationByEmail(): Promise<void> {
+    this.logger.log('🔵 sendQuotationByEmail() llamado');
+    this.logger.log('📋 Estado del formulario:', {
+      valid: this.mainDataForm.valid,
+      invalid: this.mainDataForm.invalid,
+      errors: this.mainDataForm.errors,
+      value: this.mainDataForm.value
+    });
+    
     if (this.mainDataForm.valid) {
       this.logger.log('📧 Enviando cotización por correo...');
       
@@ -292,10 +331,22 @@ export class MainDataStepComponent implements OnInit {
         
         // El backend devuelve quotationId, pero el modelo del frontend usa id
         const quotationId = quotationData?.quotationId || quotationData?.id;
+        const quotationNumber = quotationData?.quotationNumber || 'N/A';
         
         if (quotationData && quotationId) {
           this.logger.log('✅ Cotización creada, enviando por correo...');
           this.logger.log('🆔 ID de cotización:', quotationId);
+          
+          // ✅ IMPORTANTE: Guardar quotationId y quotationNumber en el estado del wizard
+          // para que se sincronicen con el backend y estén disponibles al recargar
+          this.wizardStateService.saveState({
+            quotationId: quotationId,
+            quotationNumber: quotationNumber,
+            paymentAmount: quotationData.quotationAmount || this.getTotalPrice(),
+            selectedPlanName: quotationData.plan?.name || this.selectedPlanData?.name || ''
+          });
+          
+          this.logger.log('💾 quotationId guardado en estado del wizard:', quotationId);
           
           // Enviar cotización por correo
           this.logger.log('📡 Paso 2: Llamando a sendQuotationEmail...');
@@ -307,7 +358,6 @@ export class MainDataStepComponent implements OnInit {
                 // Mostrar mensaje de éxito
                 this.quotationError = '';
                 // Emitir evento con el número de cotización
-                const quotationNumber = quotationData.quotationNumber || 'N/A';
                 this.goToFinish.emit(quotationNumber);
               } else {
                 this.logger.error('❌ Error enviando cotización por correo:', response.message);
@@ -331,7 +381,8 @@ export class MainDataStepComponent implements OnInit {
         this.isCreatingQuotation = false;
       }
     } else {
-      this.logger.log('Formulario inválido para envío por correo');
+      this.logger.log('❌ Formulario inválido para envío por correo');
+      this.logger.log('📋 Campos con errores:', this.getFormErrors());
       this.markFormGroupTouched();
     }
   }
@@ -429,6 +480,20 @@ export class MainDataStepComponent implements OnInit {
 
   onPrevious() {
     this.previous.emit();
+  }
+
+  /**
+   * Obtener todos los errores del formulario
+   */
+  private getFormErrors(): any {
+    const errors: any = {};
+    Object.keys(this.mainDataForm.controls).forEach(key => {
+      const control = this.mainDataForm.get(key);
+      if (control && control.errors) {
+        errors[key] = control.errors;
+      }
+    });
+    return errors;
   }
 
   /**

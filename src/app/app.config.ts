@@ -6,13 +6,14 @@ import { routes } from './app.routes';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
 import { SeoService } from './services/seo.service';
 import { errorInterceptor } from './interceptors/error.interceptor';
+import { tokenRefreshInterceptor } from './interceptors/token-refresh.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
     provideClientHydration(withEventReplay()),
-    provideHttpClient(withInterceptors([errorInterceptor])),
+    provideHttpClient(withInterceptors([tokenRefreshInterceptor, errorInterceptor])),
     SeoService
   ]
 };

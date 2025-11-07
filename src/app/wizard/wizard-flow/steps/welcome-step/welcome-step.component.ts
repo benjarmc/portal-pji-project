@@ -33,11 +33,18 @@ export class WelcomeStepComponent implements OnInit {
     
     // Configurar debounce para cambios en el formulario
     this.formChangesSubject.pipe(
-      debounceTime(1000) // 1 segundo de debounce
+      debounceTime(1500) // 1.5 segundos de debounce (coincide con el del servicio)
     ).subscribe(tipoUsuario => {
       if (tipoUsuario) {
         this.logger.log('🔄 Tipo de usuario cambiado (debounced):', tipoUsuario);
+        // Solo una llamada a saveState después del debounce
         this.wizardStateService.saveState({
+          stepData: {
+            step0: {
+              tipoUsuario: tipoUsuario,
+              timestamp: new Date()
+            }
+          },
           userData: { tipoUsuario }
         });
         this.logger.log('💾 Tipo de usuario guardado en estado:', tipoUsuario);
@@ -67,23 +74,14 @@ export class WelcomeStepComponent implements OnInit {
     // Escuchar cambios en el tipo de usuario para guardarlo en el estado
     this.welcomeForm.get('tipoUsuario')?.valueChanges.subscribe(tipoUsuario => {
       if (tipoUsuario) {
-        // Actualizar variables locales inmediatamente
+        // Actualizar variables locales inmediatamente para que la UI responda rápido
         this.tipoUsuario = tipoUsuario;
         this.hasUserType = true;
         
-        // Guardar en stepData.step0 (paso inicial)
-        this.wizardStateService.saveState({
-          stepData: {
-            step0: {
-              tipoUsuario: tipoUsuario,
-              timestamp: new Date()
-            }
-          },
-          userData: { tipoUsuario } // Mantener para compatibilidad
-        });
         this.logger.log('💾 Tipo de usuario guardado en step0:', tipoUsuario);
         
-        // Emitir al subject para el debounce
+        // Emitir al subject para el debounce (esto sincronizará con backend después del debounce)
+        // Solo una llamada después del debounce evita múltiples peticiones
         this.formChangesSubject.next(tipoUsuario);
       }
     });
@@ -99,8 +97,8 @@ export class WelcomeStepComponent implements OnInit {
     if (this.welcomeForm.valid) {
       const tipoUsuario = this.welcomeForm.get('tipoUsuario')?.value;
       if (tipoUsuario) {
-        // Guardar en stepData.step0 antes de continuar
-        this.wizardStateService.saveState({
+        // ✅ CAMBIO CRÍTICO: Completar paso → Usar saveAndSync() para persistir en BD
+        this.wizardStateService.saveAndSync({
           stepData: {
             step0: {
               tipoUsuario: tipoUsuario,
@@ -109,9 +107,14 @@ export class WelcomeStepComponent implements OnInit {
           },
           userData: { tipoUsuario }, // Mantener para compatibilidad
           currentStep: 1 // Avanzar al siguiente paso
+        }).then(() => {
+          this.logger.log('🚀 Continuando con tipo de usuario:', tipoUsuario);
+          this.next.emit();
+        }).catch(error => {
+          this.logger.error('❌ Error guardando tipo de usuario:', error);
+          // Aún así permitir continuar, los datos están guardados localmente
+          this.next.emit();
         });
-        this.logger.log('🚀 Continuando con tipo de usuario:', tipoUsuario);
-        this.next.emit();
       }
     } else {
       this.logger.log('⚠️ Formulario inválido, no se puede continuar');

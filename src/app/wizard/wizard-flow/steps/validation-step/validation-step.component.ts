@@ -1,11 +1,14 @@
-import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ValidationDataModalComponent, ValidationData } from '../../../../components/validation-data-modal/validation-data-modal.component';
 import { environment } from '../../../../../environments/environment';
 import { PlansService } from '../../../../services/plans.service';
 import { QuotationsService } from '../../../../services/quotations.service';
+import { PaymentsService } from '../../../../services/payments.service';
+import { ToastService } from '../../../../services/toast.service';
 import { WizardStateService } from '../../../../services/wizard-state.service';
+import { WizardSessionService } from '../../../../services/wizard-session.service';
 import { ValidationService, ValidationRequest } from '../../../../services/validation.service';
 import { Plan } from '../../../../models/plan.model';
 import { ActivatedRoute } from '@angular/router';
@@ -54,7 +57,7 @@ export interface ComplementaryPlan {
   templateUrl: './validation-step.component.html',
   styleUrls: ['./validation-step.component.scss']
 })
-export class ValidationStepComponent implements OnInit {
+export class ValidationStepComponent implements OnInit, OnDestroy {
   @Input() validationStatus: 'pending' | 'success' | 'intermediate' | 'failed' = 'pending';
   @Output() next = new EventEmitter<void>();
   @Output() selectPlan = new EventEmitter<string>();
@@ -63,7 +66,10 @@ export class ValidationStepComponent implements OnInit {
   constructor(
     private plansService: PlansService,
     private quotationsService: QuotationsService,
+    private paymentsService: PaymentsService,
+    private toastService: ToastService,
     private wizardStateService: WizardStateService,
+    private wizardSessionService: WizardSessionService,
     private validationService: ValidationService,
     private route: ActivatedRoute,
     private logger: LoggerService
@@ -71,6 +77,23 @@ export class ValidationStepComponent implements OnInit {
 
   alternativePlans: AlternativePlan[] = [];
   selectedPlan: AlternativePlan | null = null;
+  
+  // Flag para evitar inicialización múltiple
+  private isInitialized = false;
+  
+  // Flag para evitar cargar planes múltiples veces
+  private plansLoaded = false;
+  private isLoadingPlans = false;
+  private loadPlansAttempts = 0;
+  private maxLoadPlansAttempts = 3;
+  
+  // Flag para evitar cargar validaciones múltiples veces
+  private isLoadingValidations = false;
+  private loadValidationsAttempts = 0;
+  private maxLoadValidationsAttempts = 3;
+  
+  // Control de verificación automática
+  private autoStatusCheckInterval: any = null;
 
   // Propiedades para el modal de datos
   showValidationModal = false;
@@ -94,24 +117,40 @@ export class ValidationStepComponent implements OnInit {
   totalValidations: number = 0;
   completedValidations: number = 0;
 
-  ngOnInit() {
+  async ngOnInit() {
+    // ✅ OPTIMIZADO: Evitar doble inicialización
+    if (this.isInitialized) {
+      this.logger.log('⚠️ ValidationStepComponent ya está inicializado, omitiendo ngOnInit duplicado');
+      return;
+    }
+    
+    this.isInitialized = true;
+    this.logger.log('🚀 ValidationStepComponent ngOnInit iniciado');
+    
     // Verificar si llegamos desde email
     this.checkIfFromEmail();
     
-    // La validación se maneja desde el componente padre
-    this.loadPlans();
+    // ✅ NUEVO: Restaurar policyId desde backend si no está en estado local (al recargar)
+    await this.ensurePolicyIdFromSession();
     
     // Configurar validaciones según tipo de usuario
     this.setupValidationRequirements();
     
-    // Cargar información del pago si viene del wizard
-    this.loadPaymentInfo();
+    // Cargar información del pago si viene del wizard (solo lee estado local, no hace peticiones)
+    await this.loadPaymentInfo(); // ✅ Cambiado a async para esperar la recuperación de policyNumber
     
-    // Cargar validaciones existentes si hay policyId
-    this.loadExistingValidations();
+    // ✅ OPTIMIZADO: Solo cargar validaciones existentes si ya se inició al menos una validación
+    // (tiene UUID) o si hay policyId y no hay validaciones en estado local
+    this.loadExistingValidationsIfNeeded();
     
-    // Iniciar verificación automática de estado cada 30 segundos
-    this.startAutoStatusCheck();
+    // ✅ OPTIMIZADO: Solo cargar planes si el estado es 'intermediate' (se necesitan planes alternativos)
+    // o si ya están cargados en el estado local, no hacer petición HTTP
+    if (this.validationStatus === 'intermediate' || this.needsPlansForDisplay()) {
+      this.loadPlans();
+    }
+    
+    // ✅ OPTIMIZADO: Solo iniciar verificación automática si hay validaciones pendientes con UUID
+    this.startAutoStatusCheckIfNeeded();
   }
 
   /**
@@ -278,11 +317,53 @@ export class ValidationStepComponent implements OnInit {
   }
 
   /**
+   * Verificar si se necesitan planes para mostrar en el paso actual
+   */
+  private needsPlansForDisplay(): boolean {
+    // Solo se necesitan planes si el estado es 'intermediate' (para mostrar planes alternativos)
+    // o si ya hay planes cargados en el estado local
+    return this.validationStatus === 'intermediate' || this.alternativePlans.length > 0;
+  }
+
+  /**
    * Carga los planes desde la base de datos
+   * ✅ OPTIMIZADO: Solo carga si realmente se necesitan (estado intermediate)
+   * Evita múltiples llamadas simultáneas y maneja errores 429
    */
   loadPlans() {
+    // ✅ OPTIMIZADO: Solo cargar planes si el estado es 'intermediate'
+    // En estado 'pending' no se necesitan planes, solo se muestran las validaciones
+    if (this.validationStatus !== 'intermediate' && this.alternativePlans.length === 0) {
+      this.logger.log('ℹ️ No se necesitan planes en el paso actual, omitiendo carga');
+      return;
+    }
+    
+    // Si ya se están cargando planes, no hacer otra petición
+    if (this.isLoadingPlans) {
+      this.logger.log('⏳ Planes ya se están cargando, omitiendo llamada duplicada');
+      return;
+    }
+    
+    // Si ya se cargaron planes y hay planes disponibles, no recargar
+    if (this.plansLoaded && this.alternativePlans.length > 0) {
+      this.logger.log('📦 Planes ya cargados, usando cache local');
+      return;
+    }
+    
+    // Si ya se intentó demasiadas veces, no intentar más
+    if (this.loadPlansAttempts >= this.maxLoadPlansAttempts) {
+      this.logger.warning('⚠️ Máximo de intentos alcanzado para cargar planes, usando cache del servicio');
+      return;
+    }
+    
+    this.isLoadingPlans = true;
+    this.loadPlansAttempts++;
+    
     this.plansService.getPlans().subscribe({
       next: (response) => {
+        this.isLoadingPlans = false;
+        this.loadPlansAttempts = 0; // Resetear contador en éxito
+        
         if (response.success && response.data) {
           this.alternativePlans = response.data.map(plan => ({
             id: plan.id,
@@ -301,10 +382,28 @@ export class ValidationStepComponent implements OnInit {
               selected: false
             })) : []
           }));
-          this.logger.log('Planes cargados con complementos:', this.alternativePlans);
+          this.plansLoaded = true;
+          this.logger.log('✅ Planes cargados con complementos:', this.alternativePlans);
         }
       },
       error: (error) => {
+        this.isLoadingPlans = false;
+        
+        // Manejar error 429 con retry con backoff
+        const is429Error = error?.status === 429 || 
+                          error?.message?.includes('429') || 
+                          error?.message?.includes('Too Many Requests');
+        
+        if (is429Error && this.loadPlansAttempts < this.maxLoadPlansAttempts) {
+          const delay = Math.min(1000 * Math.pow(2, this.loadPlansAttempts), 10000); // Backoff exponencial, máximo 10s
+          this.logger.warning(`⚠️ Error 429 al cargar planes, reintentando en ${delay}ms (intento ${this.loadPlansAttempts}/${this.maxLoadPlansAttempts})`);
+          
+          setTimeout(() => {
+            this.loadPlans();
+          }, delay);
+          return;
+        }
+        
         this.logger.error('Error al cargar planes:', error);
         // Fallback a planes por defecto si hay error
         this.loadDefaultPlans();
@@ -432,62 +531,206 @@ export class ValidationStepComponent implements OnInit {
   }
 
   /**
+   * Asegurar que el policyId esté disponible desde la sesión del backend
+   * Esto es necesario cuando se recarga la página y el estado local no tiene el policyId
+   */
+  private async ensurePolicyIdFromSession(): Promise<void> {
+    const wizardState = this.wizardStateService.getState();
+    
+    // Si ya hay policyId en el estado local, no hacer nada (viene de otro paso)
+    if (wizardState.policyId) {
+      this.logger.log('✅ policyId ya disponible en estado local:', wizardState.policyId);
+      return;
+    }
+    
+    // Si no hay sessionId, no podemos restaurar desde backend
+    const sessionId = wizardState.sessionId || wizardState.id;
+    if (!sessionId) {
+      this.logger.log('⚠️ No hay sessionId disponible para restaurar policyId desde backend');
+      return;
+    }
+    
+    // Intentar obtener el policyId desde el backend
+    try {
+      this.logger.log('🔍 No hay policyId en estado local, restaurando desde backend...', { sessionId });
+      
+      const response = await this.wizardSessionService.getSession(sessionId).toPromise();
+      if (response) {
+        const sessionData = (response as any).data || response;
+        
+        if (sessionData.policyId) {
+          this.logger.log('✅ policyId encontrado en backend, actualizando estado local:', sessionData.policyId);
+          
+          // Construir paymentResult si viene del backend pero no está en el estado local
+          let paymentResult = sessionData.paymentResult || wizardState.paymentResult;
+          if (!paymentResult && sessionData.policyId) {
+            paymentResult = {
+              success: true,
+              policyId: sessionData.policyId,
+              policyNumber: sessionData.policyNumber || '',
+              paymentId: sessionData.paymentResult?.paymentId || 'N/A',
+              chargeId: sessionData.paymentResult?.chargeId || 'N/A',
+              status: 'COMPLETED',
+              message: 'Pago procesado exitosamente'
+            };
+          }
+          
+          // Actualizar el estado local con el policyId del backend
+          await this.wizardStateService.saveState({
+            policyId: sessionData.policyId,
+            policyNumber: sessionData.policyNumber || wizardState.policyNumber,
+            paymentResult: paymentResult,
+            paymentAmount: sessionData.paymentAmount || wizardState.paymentAmount
+          });
+          
+          this.logger.log('✅ Estado local actualizado con policyId del backend:', {
+            policyId: sessionData.policyId,
+            policyNumber: sessionData.policyNumber,
+            hasPaymentResult: !!paymentResult
+          });
+        } else {
+          this.logger.log('ℹ️ No hay policyId en la sesión del backend aún');
+        }
+      }
+    } catch (error) {
+      this.logger.error('❌ Error restaurando policyId desde backend:', error);
+      // No lanzar error, continuar con el flujo normal
+    }
+  }
+
+  /**
+   * Determinar si se necesitan cargar validaciones existentes desde el backend
+   * ✅ OPTIMIZADO: Solo hace petición si realmente es necesario
+   */
+  private loadExistingValidationsIfNeeded(): void {
+    const wizardState = this.wizardStateService.getState();
+    const policyId = wizardState.policyId;
+    
+    if (!policyId) {
+      this.logger.log('ℹ️ No hay policyId disponible, saltando carga de validaciones existentes');
+      return;
+    }
+    
+    // Verificar si ya hay UUIDs en validationRequirements (significa que ya se iniciaron validaciones)
+    const hasExistingUUIDs = this.validationRequirements.some(req => req.uuid);
+    
+    if (hasExistingUUIDs) {
+      this.logger.log('✅ Ya hay UUIDs en validationRequirements, cargando datos desde backend para actualizar estados');
+      this.loadExistingValidations();
+      return;
+    }
+    
+    // Si no hay UUIDs, verificar si hay validaciones guardadas en el estado local
+    if (wizardState.validationRequirements && wizardState.validationRequirements.length > 0) {
+      const hasUUIDsInState = wizardState.validationRequirements.some((req: any) => req.uuid);
+      
+      if (hasUUIDsInState) {
+        this.logger.log('✅ Hay UUIDs en el estado local, cargando desde backend para sincronizar');
+        this.loadExistingValidations();
+        return;
+      }
+    }
+    
+    // Si no hay UUIDs ni en el componente ni en el estado local, no hacer petición
+    // Las validaciones aún no se han iniciado, no tiene sentido consultar el backend
+    this.logger.log('ℹ️ No hay validaciones iniciadas aún (sin UUIDs), omitiendo petición al backend');
+  }
+
+  /**
    * Cargar validaciones existentes por policyId si está disponible
+   * ✅ OPTIMIZADO: Maneja errores 429 con retry y backoff
    */
   private loadExistingValidations(): void {
     const wizardState = this.wizardStateService.getState();
     const policyId = wizardState.policyId;
     
-    if (policyId) {
-      this.logger.log(`🔍 Cargando validaciones existentes para policyId: ${policyId}`);
-      
-      this.validationService.getValidationsByPolicy(policyId).subscribe({
-        next: (response) => {
-          if (response.success && response.data && response.data.length > 0) {
-            this.logger.log(`✅ Encontradas ${response.data.length} validaciones existentes para policyId ${policyId}:`, response.data);
-            
-            // Actualizar validationRequirements con los UUIDs existentes
-            response.data.forEach(existingValidation => {
-              const requirement = this.validationRequirements.find(req => req.type === existingValidation.type);
-              if (requirement) {
-                requirement.uuid = existingValidation.uuid;
-                requirement.completed = existingValidation.status === 'COMPLETED';
-                
-                if (requirement.completed) {
-                  this.completedValidations++;
-                }
-                
-                this.logger.log(`🔄 Actualizado requirement para ${existingValidation.type}:`, {
-                  uuid: requirement.uuid,
-                  completed: requirement.completed,
-                  status: existingValidation.status
-                });
-              }
-            });
-            
-            // Actualizar el estado con los validationRequirements actualizados
-            this.wizardStateService.saveState({
-              validationRequirements: this.validationRequirements
-            });
-            
-            this.logger.log(`📊 Estado actualizado: ${this.completedValidations}/${this.totalValidations} validaciones completadas`);
-          } else {
-            this.logger.log(`ℹ️ No se encontraron validaciones existentes para policyId ${policyId}`);
-          }
-        },
-        error: (error) => {
-          this.logger.error(`❌ Error cargando validaciones existentes para policyId ${policyId}:`, error);
-        }
-      });
-    } else {
+    if (!policyId) {
       this.logger.log('ℹ️ No hay policyId disponible, saltando carga de validaciones existentes');
+      return;
     }
+    
+    // Si ya se están cargando validaciones, no hacer otra petición
+    if (this.isLoadingValidations) {
+      this.logger.log('⏳ Validaciones ya se están cargando, omitiendo llamada duplicada');
+      return;
+    }
+    
+    // Si ya se intentó demasiadas veces, no intentar más
+    if (this.loadValidationsAttempts >= this.maxLoadValidationsAttempts) {
+      this.logger.warning('⚠️ Máximo de intentos alcanzado para cargar validaciones');
+      return;
+    }
+    
+    this.isLoadingValidations = true;
+    this.loadValidationsAttempts++;
+    
+    this.logger.log(`🔍 Cargando validaciones existentes para policyId: ${policyId}`);
+    
+    this.validationService.getValidationsByPolicy(policyId).subscribe({
+      next: (response) => {
+        this.isLoadingValidations = false;
+        this.loadValidationsAttempts = 0; // Resetear contador en éxito
+        
+        if (response.success && response.data && response.data.length > 0) {
+          this.logger.log(`✅ Encontradas ${response.data.length} validaciones existentes para policyId ${policyId}:`, response.data);
+          
+          // Actualizar validationRequirements con los UUIDs existentes
+          response.data.forEach(existingValidation => {
+            const requirement = this.validationRequirements.find(req => req.type === existingValidation.type);
+            if (requirement) {
+              requirement.uuid = existingValidation.uuid;
+              requirement.completed = existingValidation.status === 'COMPLETED';
+              
+              if (requirement.completed) {
+                this.completedValidations++;
+              }
+              
+              this.logger.log(`🔄 Actualizado requirement para ${existingValidation.type}:`, {
+                uuid: requirement.uuid,
+                completed: requirement.completed,
+                status: existingValidation.status
+              });
+            }
+          });
+          
+          // Actualizar el estado con los validationRequirements actualizados
+          this.wizardStateService.saveState({
+            validationRequirements: this.validationRequirements
+          });
+          
+          this.logger.log(`📊 Estado actualizado: ${this.completedValidations}/${this.totalValidations} validaciones completadas`);
+        } else {
+          this.logger.log(`ℹ️ No se encontraron validaciones existentes para policyId ${policyId}`);
+        }
+      },
+      error: (error) => {
+        this.isLoadingValidations = false;
+        
+        // Manejar error 429 con retry con backoff
+        const is429Error = error?.status === 429 || 
+                          error?.message?.includes('429') || 
+                          error?.message?.includes('Too Many Requests');
+        
+        if (is429Error && this.loadValidationsAttempts < this.maxLoadValidationsAttempts) {
+          const delay = Math.min(1000 * Math.pow(2, this.loadValidationsAttempts), 10000); // Backoff exponencial, máximo 10s
+          this.logger.warning(`⚠️ Error 429 al cargar validaciones, reintentando en ${delay}ms (intento ${this.loadValidationsAttempts}/${this.maxLoadValidationsAttempts})`);
+          
+          setTimeout(() => {
+            this.loadExistingValidations();
+          }, delay);
+          return;
+        }
+        
+        this.logger.error(`❌ Error cargando validaciones existentes para policyId ${policyId}:`, error);
+      }
+    });
   }
 
   /**
    * Cargar información del pago desde el estado del wizard
+   * ✅ Mejorado: Intenta recuperar policyNumber desde la sesión si no está disponible
    */
-  private loadPaymentInfo(): void {
+  private async loadPaymentInfo(): Promise<void> {
     const wizardState = this.wizardStateService.getState();
     
     this.logger.log('📊 wizardState completo en validation-step:', wizardState);
@@ -499,6 +742,30 @@ export class ValidationStepComponent implements OnInit {
       quotationAmount: this.quotationAmount
     });
     
+    // ✅ Si hay policyId pero no hay policyNumber, intentar recuperarlo desde la sesión
+    if (wizardState.policyId && (!wizardState.policyNumber || wizardState.policyNumber === '' || wizardState.policyNumber === 'N/A')) {
+      this.logger.log('⚠️ Hay policyId pero no hay policyNumber válido, intentando recuperar desde sesión...');
+      try {
+        const sessionId = wizardState.id || wizardState.sessionId;
+        if (sessionId) {
+          const sessionResponse = await this.wizardSessionService.getSession(sessionId).toPromise();
+          if (sessionResponse) {
+            const sessionData = (sessionResponse as any).data || sessionResponse;
+            if (sessionData.policyNumber && sessionData.policyNumber !== '' && sessionData.policyNumber !== 'N/A') {
+              this.logger.log('✅ policyNumber recuperado desde sesión:', sessionData.policyNumber);
+              await this.wizardStateService.saveState({
+                policyNumber: sessionData.policyNumber
+              });
+              // Actualizar wizardState local para usar el valor recuperado
+              wizardState.policyNumber = sessionData.policyNumber;
+            }
+          }
+        }
+      } catch (error) {
+        this.logger.warning('⚠️ No se pudo recuperar policyNumber desde sesión:', error);
+      }
+    }
+    
     // Verificar si hay información de pago en el estado
     if (wizardState.paymentResult) {
       this.logger.log('📋 paymentResult encontrado en wizardState:', wizardState.paymentResult);
@@ -508,7 +775,36 @@ export class ValidationStepComponent implements OnInit {
       this.logger.log('  - paymentId:', wizardState.paymentResult.paymentId);
       this.logger.log('  - status:', wizardState.paymentResult.status);
       
-      this.paymentResult = wizardState.paymentResult;
+      // ✅ Si paymentResult.policyNumber está vacío o es 'N/A', usar el de wizardState
+      const finalPolicyNumber = (wizardState.paymentResult.policyNumber && 
+                                 wizardState.paymentResult.policyNumber !== '' && 
+                                 wizardState.paymentResult.policyNumber !== 'N/A') 
+                                 ? wizardState.paymentResult.policyNumber 
+                                 : (wizardState.policyNumber && 
+                                    wizardState.policyNumber !== '' && 
+                                    wizardState.policyNumber !== 'N/A' 
+                                    ? wizardState.policyNumber 
+                                    : '');
+      
+      this.paymentResult = {
+        ...wizardState.paymentResult,
+        policyNumber: finalPolicyNumber
+      };
+      
+      // Si aún no hay policyNumber, actualizar el estado
+      if (!finalPolicyNumber || finalPolicyNumber === '') {
+        this.logger.warning('⚠️ paymentResult no tiene policyNumber válido, actualizando desde wizardState');
+        await this.wizardStateService.saveState({
+          paymentResult: {
+            ...wizardState.paymentResult,
+            policyNumber: wizardState.policyNumber || ''
+          }
+        });
+        if (this.paymentResult) {
+          this.paymentResult.policyNumber = wizardState.policyNumber || '';
+        }
+      }
+      
       this.policyGenerated = true;
       
       // Obtener el monto del pago desde el estado del wizard
@@ -521,8 +817,12 @@ export class ValidationStepComponent implements OnInit {
         finalPaymentAmount: this.paymentAmount
       });
       
-      this.logger.log('✅ paymentResult asignado al componente de validación');
-    } else if (wizardState.policyId && wizardState.policyNumber) {
+      this.logger.log('✅ paymentResult asignado al componente de validación:', {
+        policyId: this.paymentResult?.policyId,
+        policyNumber: this.paymentResult?.policyNumber,
+        status: this.paymentResult?.status
+      });
+    } else if (wizardState.policyId && wizardState.policyNumber && wizardState.policyNumber !== '' && wizardState.policyNumber !== 'N/A') {
       this.logger.log('📋 Datos de póliza encontrados directamente en wizardState');
       this.logger.log('🔍 Campos directos de póliza:');
       this.logger.log('  - policyId:', wizardState.policyId);
@@ -548,10 +848,19 @@ export class ValidationStepComponent implements OnInit {
         finalPaymentAmount: this.paymentAmount
       });
       
-      this.logger.log('✅ Datos de póliza asignados al componente de validación desde campos directos');
+      this.logger.log('✅ Datos de póliza asignados al componente de validación desde campos directos:', {
+        policyId: this.paymentResult.policyId,
+        policyNumber: this.paymentResult.policyNumber
+      });
     } else {
-      this.logger.log('⚠️ No hay paymentResult ni datos de póliza en wizardState');
+      this.logger.log('⚠️ No hay paymentResult ni datos de póliza válidos en wizardState');
       this.logger.log('📊 wizardState completo:', wizardState);
+      this.logger.log('🔍 Detalles específicos:', {
+        hasPolicyId: !!wizardState.policyId,
+        hasPolicyNumber: !!(wizardState.policyNumber && wizardState.policyNumber !== '' && wizardState.policyNumber !== 'N/A'),
+        hasPaymentResult: !!wizardState.paymentResult,
+        policyNumberValue: wizardState.policyNumber
+      });
     }
   }
 
@@ -565,17 +874,14 @@ export class ValidationStepComponent implements OnInit {
       this.completedValidations++;
       this.logger.log(`✅ Validación ${type} completada. Progreso: ${this.completedValidations}/${this.totalValidations}`);
       
-      // Guardar validationRequirements actualizados en el estado
-      this.wizardStateService.saveState({
-        validationRequirements: this.validationRequirements
-      });
-      
-      // Sincronizar con el backend para persistir los validationRequirements
-      this.wizardStateService.syncWithBackendCorrected(this.wizardStateService.getState()).then(() => {
-        this.logger.log('✅ validationRequirements actualizados sincronizados con el backend');
-      }).catch(error => {
-        this.logger.error('❌ Error sincronizando validationRequirements actualizados con backend:', error);
-      });
+          // Guardar validationRequirements actualizados en el estado (solo localmente)
+          this.wizardStateService.saveState({
+            validationRequirements: this.validationRequirements
+          });
+          
+          // ✅ OPTIMIZADO: Sincronizar con debounce para evitar múltiples peticiones
+          // Usar saveAndSync solo cuando sea crítico, no en cada cambio
+          // La sincronización se hará automáticamente con debounce cuando sea necesario
       
       // Mostrar mensaje de éxito para esta validación
       this.logger.log(`🎯 Validación de ${type} completada exitosamente`);
@@ -664,17 +970,19 @@ export class ValidationStepComponent implements OnInit {
           this.logger.log(`✅ Enlace de verificación enviado a ${validationData.email}`);
           this.logger.log(`📧 El backend se encargó de crear la verificación VDID y enviar el email`);
           
-          // Guardar validationRequirements actualizados en el estado
+          // Guardar validationRequirements actualizados en el estado (solo localmente)
           this.wizardStateService.saveState({
             validationRequirements: this.validationRequirements
           });
           
-          // Sincronizar con el backend para persistir los validationRequirements
-          this.wizardStateService.syncWithBackendCorrected(this.wizardStateService.getState()).then(() => {
-            this.logger.log('✅ validationRequirements sincronizados con el backend');
-          }).catch(error => {
-            this.logger.error('❌ Error sincronizando validationRequirements con backend:', error);
-          });
+          // ✅ OPTIMIZADO: Sincronizar con debounce para evitar múltiples peticiones
+          // Usar saveAndSync solo cuando sea crítico, no en cada cambio
+          // La sincronización se hará automáticamente con debounce cuando sea necesario
+          
+          // ✅ OPTIMIZADO: Iniciar verificación automática si aún no está activa
+          if (!this.autoStatusCheckInterval) {
+            this.startAutoStatusCheckIfNeeded();
+          }
           
           // Cerrar el modal
           this.showValidationModal = false;
@@ -758,14 +1066,90 @@ export class ValidationStepComponent implements OnInit {
   }
 
   /**
+   * Reenviar correo de confirmación de pago
+   */
+  resendPaymentEmail(): void {
+    if (!this.paymentResult || !this.paymentResult.paymentId || this.paymentResult.paymentId === 'N/A') {
+      this.logger.error('❌ No se puede reenviar correo de pago: no hay paymentId disponible');
+      return;
+    }
+
+    this.logger.log(`📧 Reenviando correo de confirmación de pago para paymentId: ${this.paymentResult.paymentId}`);
+
+    this.paymentsService.resendPaymentEmail(this.paymentResult.paymentId).subscribe({
+      next: (response) => {
+        // El backend devuelve { success: true, message: "..." }
+        // Verificar si la respuesta es exitosa (puede estar en response.success o response.data.success)
+        const responseData = response.data || response;
+        const isSuccess = response.success && (responseData?.success !== false);
+        
+        if (isSuccess) {
+          this.logger.log('✅ Correo de confirmación de pago reenviado exitosamente');
+          const message = responseData?.message || response.message || 'Correo de confirmación reenviado exitosamente';
+          this.toastService.success(message);
+        } else {
+          this.logger.error('❌ Error reenviando correo de pago:', responseData?.message || response.message || 'Respuesta inesperada');
+          this.toastService.error('Error al reenviar el correo. Por favor, intenta nuevamente.');
+        }
+      },
+      error: (error) => {
+        this.logger.error('❌ Error en servicio de reenvío de correo de pago:', error);
+        const errorMessage = error?.error?.message || error?.message || 'Error desconocido';
+        this.toastService.error(`Error al reenviar el correo: ${errorMessage}`);
+      }
+    });
+  }
+
+  /**
+   * Determinar si se necesita iniciar la verificación automática de estado
+   * ✅ OPTIMIZADO: Solo inicia si hay validaciones pendientes con UUID
+   */
+  private startAutoStatusCheckIfNeeded(): void {
+    // Verificar si hay validaciones pendientes con UUID
+    const pendingValidations = this.validationRequirements.filter(req => 
+      req.uuid && !req.completed
+    );
+
+    if (pendingValidations.length === 0) {
+      this.logger.log('ℹ️ No hay validaciones pendientes con UUID, omitiendo verificación automática');
+      return;
+    }
+
+    this.logger.log(`⏰ Iniciando verificación automática para ${pendingValidations.length} validación(es) pendiente(s)`);
+    this.startAutoStatusCheck();
+  }
+
+  /**
    * Iniciar verificación automática de estado
+   * ✅ OPTIMIZADO: Solo se llama si hay validaciones pendientes con UUID
    */
   private startAutoStatusCheck(): void {
+    // Evitar múltiples intervalos
+    if (this.autoStatusCheckInterval) {
+      this.logger.log('⏰ Verificación automática ya está activa');
+      return;
+    }
+    
     // Verificar estado cada 30 segundos
-    setInterval(() => {
+    this.autoStatusCheckInterval = setInterval(() => {
       this.checkValidationStatuses();
     }, 30000); // 30 segundos
 
     this.logger.log('⏰ Verificación automática de estado iniciada (cada 30 segundos)');
+  }
+  
+  /**
+   * Limpiar intervalo de verificación automática al destruir el componente
+   */
+  ngOnDestroy(): void {
+    if (this.autoStatusCheckInterval) {
+      clearInterval(this.autoStatusCheckInterval);
+      this.autoStatusCheckInterval = null;
+      this.logger.log('🧹 Verificación automática detenida');
+    }
+    
+    // Resetear flag de inicialización para permitir reinicialización si se vuelve a crear el componente
+    this.isInitialized = false;
+    this.logger.log('🧹 ValidationStepComponent destruido, flags reseteados');
   }
 } 

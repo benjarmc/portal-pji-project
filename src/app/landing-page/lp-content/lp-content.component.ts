@@ -27,6 +27,7 @@ export class LpContentComponent implements OnInit {
   faqOpenIndex: number | null = 0;
   plans: Plan[] = [];
   loadingPlans = true;
+  private plansLoaded = false; // Flag para evitar múltiples llamadas
   // Estado del modal de continuar sesión
   showContinueModal = false;
   pendingPlanId: string | null = null;
@@ -77,27 +78,35 @@ export class LpContentComponent implements OnInit {
 
   /**
    * Carga los planes desde la base de datos
+   * ✅ OPTIMIZADO: Evita múltiples llamadas usando cache del servicio
    */
   loadPlans() {
+    // Si ya se cargaron planes, no recargar
+    if (this.plansLoaded && this.plans.length > 0) {
+      this.logger.log('📦 Planes ya cargados, usando cache');
+      return;
+    }
+    
     this.logger.log('🔍 loadPlans() llamado');
     this.loadingPlans = true;
     
     this.plansService.getPlans().subscribe({
       next: (response) => {
+        this.loadingPlans = false;
         this.logger.log('📡 Respuesta del servicio:', response);
         if (response.success && response.data && response.data.length > 0) {
           this.plans = response.data;
+          this.plansLoaded = true;
           this.logger.log('✅ Planes cargados en landing page:', this.plans);
           this.logger.log('📊 Cantidad de planes:', this.plans.length);
         } else {
           this.logger.log('⚠️ Respuesta sin datos o vacía:', response);
           this.plans = [];
         }
-        this.loadingPlans = false;
       },
       error: (error) => {
-        this.logger.error('❌ Error al cargar planes:', error);
         this.loadingPlans = false;
+        this.logger.error('❌ Error al cargar planes:', error);
         this.plans = [];
       }
     });
@@ -122,121 +131,122 @@ export class LpContentComponent implements OnInit {
     const planName = selectedPlan?.name || 'Plan Desconocido';
     this.logger.log('📋 Plan seleccionado:', { id: planId, name: planName });
 
-    // 1) Verificar si hay sesión activa por IP
+    // 1) Verificar si hay sesión activa por IP (siempre validar con backend)
     this.logger.log('🔍 Verificando sesión activa por IP...');
-    const existingSessionId = await this.wizardStateService.checkActiveSessionByIp();
+    let existingSessionId: string | null = await this.wizardStateService.checkActiveSessionByIp();
     this.logger.log('📋 Resultado de verificación de sesión:', existingSessionId);
 
+    // 2) Si hay sesión activa, validar que existe en el backend antes de mostrar modal
     if (existingSessionId) {
-      this.logger.log('✅ Sesión existente encontrada:', existingSessionId);
-      // Guardar estado para acciones del modal
-      this.existingSessionId = existingSessionId;
-      this.pendingPlanId = planId;
-      
-      // Obtener datos reales de la sesión desde el backend
       try {
-        this.logger.log('📡 Obteniendo datos de la sesión desde el backend...');
+        this.logger.log('📡 Validando sesión existente en el backend...');
         const sessionData = await this.wizardSessionService.getSession(existingSessionId).toPromise();
-        this.logger.log('📊 Respuesta completa del backend:', sessionData);
         
         if (sessionData) {
           // Manejar tanto respuesta envuelta como directa
           const actualData = (sessionData as any).data || sessionData;
-          this.logger.log('📋 Datos procesados de la sesión:', actualData);
           
-          this.modalCurrentStep = actualData.currentStep || 0;
-          this.modalSelectedPlan = actualData.selectedPlan || null; // ✅ Usar objeto principal
-          this.modalSelectedPlanName = actualData.selectedPlanName || null; // ✅ Nombre del plan
-          this.modalQuotationNumber = actualData.stepData?.step3?.quotationNumber || null;
-          this.modalPolicyNumber = actualData.policyNumber || null;
+          // ✅ VALIDAR: Solo mostrar modal si la sesión tiene datos reales (no es solo un estado por defecto)
+          const hasRealData = actualData.currentStep > 0 || 
+                             actualData.selectedPlan || 
+                             actualData.quotationId || 
+                             actualData.policyId ||
+                             (actualData.stepData && Object.keys(actualData.stepData).length > 0);
           
-          // Calcular pasos completados basado en los datos reales
-          this.modalCompletedSteps = this.calculateCompletedSteps(actualData.stepData || {});
-          
-          this.logger.log('📊 Datos del modal desde BD:', {
-            currentStep: this.modalCurrentStep,
-            selectedPlan: this.modalSelectedPlan,
-            quotationNumber: this.modalQuotationNumber,
-            completedSteps: this.modalCompletedSteps,
-            stepData: actualData.stepData
-          });
+          if (hasRealData) {
+            this.logger.log('✅ Sesión válida encontrada con datos reales:', {
+              currentStep: actualData.currentStep,
+              selectedPlan: actualData.selectedPlan,
+              hasQuotation: !!actualData.quotationId,
+              hasPolicy: !!actualData.policyId
+            });
+            
+            // Guardar estado para acciones del modal
+            this.existingSessionId = existingSessionId;
+            this.pendingPlanId = planId;
+            
+            this.modalCurrentStep = actualData.currentStep || 0;
+            this.modalSelectedPlan = actualData.selectedPlan || null;
+            this.modalSelectedPlanName = actualData.selectedPlanName || null;
+            this.modalQuotationNumber = actualData.quotationNumber || actualData.stepData?.step3?.quotationNumber || null;
+            this.modalPolicyNumber = actualData.policyNumber || null;
+            
+            // Calcular pasos completados basado en los datos reales
+            this.modalCompletedSteps = this.calculateCompletedSteps(actualData.stepData || {});
+            
+            this.logger.log('📊 Datos del modal desde BD:', {
+              currentStep: this.modalCurrentStep,
+              selectedPlan: this.modalSelectedPlan,
+              quotationNumber: this.modalQuotationNumber,
+              completedSteps: this.modalCompletedSteps
+            });
+            
+            // Mostrar modal solo si hay datos reales
+            this.showContinueModal = true;
+            return;
+          } else {
+            this.logger.log('⚠️ Sesión encontrada pero sin datos reales, limpiando y creando nueva');
+            // Limpiar estado local si la sesión no tiene datos reales
+            this.wizardStateService.clearState();
+            existingSessionId = null; // Continuar con creación de nueva sesión
+          }
         }
       } catch (error) {
-        this.logger.warning('❌ No se pudieron obtener los datos de la sesión para el modal:', error);
-        // Fallback al estado local si falla la consulta
-        const state = this.wizardStateService.getState();
-        this.modalCurrentStep = state.currentStep || 0;
-        this.modalSelectedPlan = state.selectedPlan || null;
-        this.modalSelectedPlanName = state.selectedPlanName || null;
-        this.modalQuotationNumber = state.quotationNumber || null;
-        this.modalPolicyNumber = state.policyNumber || null;
-        this.modalCompletedSteps = state.completedSteps?.length || 0;
+        const errorStatus = (error as any)?.status;
+        
+        // Si es 404 o 500, la sesión no existe en el backend, limpiar estado local
+        if (errorStatus === 404 || errorStatus === 500) {
+          this.logger.log('❌ Sesión no existe en el backend (404/500), limpiando estado local');
+          this.wizardStateService.clearState();
+          existingSessionId = null; // Continuar con creación de nueva sesión
+        } else if (errorStatus === 429) {
+          // Si es 429, no mostrar modal (no sabemos si la sesión es válida)
+          this.logger.warning('⚠️ Rate limit alcanzado (429), no se puede validar sesión, creando nueva');
+          existingSessionId = null; // Continuar con creación de nueva sesión
+        } else {
+          this.logger.warning('❌ Error validando sesión:', error);
+          existingSessionId = null; // Continuar con creación de nueva sesión
+        }
       }
-      
-      this.logger.log('🎯 Mostrando modal con datos:', {
-        currentStep: this.modalCurrentStep,
-        selectedPlan: this.modalSelectedPlan,
-        quotationNumber: this.modalQuotationNumber,
-        completedSteps: this.modalCompletedSteps
-      });
-      
-      this.showContinueModal = true;
-      return;
     }
-
-    this.logger.log('🆕 No hay sesión existente, creando nueva...');
-    // 3) Si no existe sesión previa, crear una nueva
-    const newSessionId = await this.wizardStateService.createNewSession();
-    await this.wizardStateService.saveState({ 
-      selectedPlan: planId, 
-      selectedPlanName: planName, 
-      currentStep: 0 
-    });
     
-    // Actualizar la sesión en el backend con el plan seleccionado
-    try {
-      this.logger.log('📡 Actualizando nueva sesión en BD con plan:', { id: planId, name: planName });
-      await this.wizardStateService.updateSessionStep(newSessionId, 0, { 
-        selectedPlan: planId, 
-        selectedPlanName: planName,
-        timestamp: new Date() 
-      });
+    // 3) Si no hay sesión válida o no se pudo validar, crear nueva sesión
+    if (!existingSessionId) {
+      this.logger.log('🆕 No hay sesión existente, creando nueva...');
+      // Crear una nueva sesión
+      const newSessionId = await this.wizardStateService.createNewSession();
       
-      // También actualizar el campo selectedPlan separado en la BD
-      await this.wizardStateService.syncWithBackendCorrected({
-        ...this.wizardStateService.getState(),
-        selectedPlan: planId,
-        selectedPlanName: planName
-      });
-      
-      // Obtener la sesión actualizada del backend para sincronizar el estado local
+      // ✅ OPTIMIZADO: Usar saveAndSync() para cambios críticos (seleccionar plan)
+      // Esto guarda localmente Y sincroniza con backend en una sola operación
       try {
-        this.logger.log('📡 Obteniendo sesión actualizada del backend...');
-        const updatedSessionData = await this.wizardSessionService.getSession(newSessionId).toPromise();
-        if (updatedSessionData) {
-          const actualUpdatedData = (updatedSessionData as any).data || updatedSessionData;
-          this.logger.log('📋 Datos actualizados de la sesión:', actualUpdatedData);
-          
-          // Sincronizar el estado local con los datos actualizados de la BD
-          this.syncLocalStateWithBD(actualUpdatedData);
-          
-          this.logger.log('✅ Estado local sincronizado con sesión actualizada');
-        }
+        this.logger.log('📡 Actualizando nueva sesión en BD con plan:', { id: planId, name: planName });
+        const updatedState = await this.wizardStateService.saveAndSync({
+          selectedPlan: planId,
+          selectedPlanName: planName,
+          currentStep: 0,
+          stepData: {
+            step0: {
+              tipoUsuario: '', // Se establecerá más adelante en el wizard
+              timestamp: new Date()
+            }
+          }
+        });
+        
+        // saveAndSync ya retorna los datos actualizados, sincronizar directamente
+        this.syncLocalStateWithBD(updatedState);
+        
+        this.logger.log('✅ Nueva sesión creada y actualizada en BD con selectedPlan:', planId);
       } catch (error) {
-        this.logger.warning('❌ No se pudo obtener la sesión actualizada:', error);
+        this.logger.warning('❌ No se pudo actualizar la nueva sesión con el plan:', error);
       }
       
-      this.logger.log('✅ Nueva sesión creada y actualizada en BD con selectedPlan:', planId);
-    } catch (error) {
-      this.logger.warning('❌ No se pudo actualizar la nueva sesión con el plan:', error);
+      // Marcar en sessionStorage que se navegó desde la selección de plan
+      sessionStorage.setItem('navigatedFromPlan', 'true');
+      
+      // Usar el id (UUID) si está disponible, sino usar sessionId como fallback
+      const sessionIdForUrl = this.wizardStateService.getState().id || newSessionId;
+      this.router.navigate(['/cotizador', sessionIdForUrl]);
     }
-    
-    // Marcar en sessionStorage que se navegó desde la selección de plan
-    sessionStorage.setItem('navigatedFromPlan', 'true');
-    
-    // Usar el id (UUID) si está disponible, sino usar sessionId como fallback
-    const sessionIdForUrl = this.wizardStateService.getState().id || newSessionId;
-    this.router.navigate(['/cotizador', sessionIdForUrl]);
   }
 
   async onContinueExisting() {
@@ -254,11 +264,39 @@ export class LpContentComponent implements OnInit {
     // Obtener datos completos de la sesión desde el backend para verificar si tiene selectedPlan
     try {
       this.logger.log('📡 Obteniendo datos de sesión existente...');
-      const sessionData = await this.wizardSessionService.getSession(this.existingSessionId).toPromise();
+      // ✅ IMPORTANTE: Solicitar tokens al continuar sesión existente
+      const sessionData = await this.wizardSessionService.getSession(this.existingSessionId, true).toPromise();
       if (sessionData) {
         // Manejar tanto respuesta envuelta como directa
         const actualData = (sessionData as any).data || sessionData;
         this.logger.log('📋 Datos de sesión existente:', actualData);
+        
+        // ✅ IMPORTANTE: Guardar tokens si vienen en la respuesta
+        if (actualData.accessToken && actualData.refreshToken) {
+          this.logger.log('🔑 Tokens recibidos al continuar sesión, guardándolos...', {
+            accessToken: actualData.accessToken.substring(0, 20) + '...',
+            refreshToken: actualData.refreshToken.substring(0, 20) + '...'
+          });
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem('wizard_access_token', actualData.accessToken);
+            localStorage.setItem('wizard_refresh_token', actualData.refreshToken);
+            this.logger.log('✅ Tokens guardados en localStorage al continuar sesión');
+            
+            // Verificar que se guardaron correctamente
+            const savedToken = localStorage.getItem('wizard_access_token');
+            if (savedToken) {
+              this.logger.log('✅ Verificación: Token guardado correctamente en localStorage');
+            } else {
+              this.logger.error('❌ Error: Token no se guardó en localStorage');
+            }
+          }
+        } else {
+          this.logger.warning('⚠️ No se recibieron tokens al continuar sesión. Verificar backend.', {
+            hasAccessToken: !!actualData.accessToken,
+            hasRefreshToken: !!actualData.refreshToken,
+            actualDataKeys: Object.keys(actualData)
+          });
+        }
         
         // Verificar si la sesión ya tiene selectedPlan
         const hasSelectedPlan = actualData.selectedPlan || 
@@ -275,54 +313,26 @@ export class LpContentComponent implements OnInit {
         if (!hasSelectedPlan) {
           this.logger.log('➕ Agregando selectedPlan a sesión existente:', this.pendingPlanId);
           
-          // Actualizar el plan en los datos de la sesión
-          if (!actualData.stepData) {
-            actualData.stepData = {};
-          }
-          if (!actualData.stepData.step1) {
-            actualData.stepData.step1 = {};
-          }
-          actualData.stepData.step1.selectedPlan = this.pendingPlanId;
-          
-          // Actualizar también el campo selectedPlan separado
-          actualData.selectedPlan = this.pendingPlanId;
-          actualData.selectedPlanName = planName;
-          
-          // Sincronizar el estado local con los datos actualizados de la BD
-          this.syncLocalStateWithBD(actualData);
-          
-          // Actualizar la sesión existente en el backend
+          // ✅ OPTIMIZADO: Usar saveAndSync() para cambios críticos (agregar plan a sesión existente)
           try {
             this.logger.log('📡 Actualizando sesión existente en BD con nuevo plan:', this.pendingPlanId);
-            await this.wizardStateService.updateSessionStep(this.existingSessionId, 0, { 
-              selectedPlan: this.pendingPlanId, 
-              selectedPlanName: planName,
-              timestamp: new Date() 
-            });
-            
-            // También actualizar el campo selectedPlan separado en la BD
-            await this.wizardStateService.syncWithBackendCorrected({
-              ...this.wizardStateService.getState(),
+            const updatedState = await this.wizardStateService.saveAndSync({
+              sessionId: this.existingSessionId,
               selectedPlan: this.pendingPlanId,
-              selectedPlanName: planName
+              selectedPlanName: planName,
+              currentStep: actualData.currentStep || 0,
+              stepData: {
+                ...actualData.stepData,
+                step0: {
+                  ...actualData.stepData?.step0,
+                  tipoUsuario: actualData.stepData?.step0?.tipoUsuario || '',
+                  timestamp: new Date()
+                }
+              }
             });
             
-            // Obtener la sesión actualizada del backend para sincronizar el estado local
-            try {
-              this.logger.log('📡 Obteniendo sesión existente actualizada del backend...');
-              const updatedSessionData = await this.wizardSessionService.getSession(this.existingSessionId).toPromise();
-              if (updatedSessionData) {
-                const actualUpdatedData = (updatedSessionData as any).data || updatedSessionData;
-                this.logger.log('📋 Datos actualizados de la sesión existente:', actualUpdatedData);
-                
-                // Sincronizar el estado local con los datos actualizados de la BD
-                this.syncLocalStateWithBD(actualUpdatedData);
-                
-                this.logger.log('✅ Estado local sincronizado con sesión existente actualizada');
-              }
-            } catch (error) {
-              this.logger.warning('❌ No se pudo obtener la sesión existente actualizada:', error);
-            }
+            // saveAndSync ya retorna los datos actualizados, sincronizar directamente
+            this.syncLocalStateWithBD(updatedState);
             
             this.logger.log('✅ Sesión existente actualizada en BD con selectedPlan:', this.pendingPlanId);
           } catch (error) {
@@ -412,38 +422,23 @@ export class LpContentComponent implements OnInit {
       status: 'ACTIVE'
     });
     
-    // 5) Actualizar la nueva sesión en el backend con el selectedPlan de la sesión previa
+    // 5) ✅ OPTIMIZADO: Usar saveAndSync() para cambios críticos (crear nueva sesión con plan)
     try {
       this.logger.log('📡 Actualizando nueva sesión en BD con selectedPlan de sesión previa:', selectedPlanToUse);
-      await this.wizardStateService.updateSessionStep(newSessionId, 0, { 
-        selectedPlan: selectedPlanToUse, 
-        selectedPlanName: planName,
-        timestamp: new Date() 
-      });
-      
-      // También actualizar el campo selectedPlan separado en la BD
-      await this.wizardStateService.syncWithBackendCorrected({
-        ...this.wizardStateService.getState(),
+      const updatedState = await this.wizardStateService.saveAndSync({
         selectedPlan: selectedPlanToUse,
-        selectedPlanName: planName
+        selectedPlanName: planName,
+        currentStep: 0,
+        stepData: {
+          step0: {
+            tipoUsuario: '', // Se establecerá más adelante en el wizard
+            timestamp: new Date()
+          }
+        }
       });
       
-      // Obtener la sesión actualizada del backend para sincronizar el estado local
-      try {
-        this.logger.log('📡 Obteniendo nueva sesión actualizada del backend...');
-        const updatedSessionData = await this.wizardSessionService.getSession(newSessionId).toPromise();
-        if (updatedSessionData) {
-          const actualUpdatedData = (updatedSessionData as any).data || updatedSessionData;
-          this.logger.log('📋 Datos actualizados de la nueva sesión:', actualUpdatedData);
-          
-          // Sincronizar el estado local con los datos actualizados de la BD
-          this.syncLocalStateWithBD(actualUpdatedData);
-          
-          this.logger.log('✅ Estado local sincronizado con nueva sesión actualizada');
-        }
-      } catch (error) {
-        this.logger.warning('❌ No se pudo obtener la nueva sesión actualizada:', error);
-      }
+      // saveAndSync ya retorna los datos actualizados, sincronizar directamente
+      this.syncLocalStateWithBD(updatedState);
       
       this.logger.log('✅ Nueva sesión actualizada en BD con selectedPlan:', selectedPlanToUse);
     } catch (error) {

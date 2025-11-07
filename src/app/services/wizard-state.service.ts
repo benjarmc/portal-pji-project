@@ -3,7 +3,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject, Observable, of, catchError, Subject } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import { ApiService, ApiResponse } from './api.service';
-import { WizardSessionService } from './wizard-session.service';
+import { WizardSessionService, WizardSessionData } from './wizard-session.service';
 import { LoggerService } from './logger.service';
 export interface WizardState {
   // Campos principales del backend (estructura completa)
@@ -129,6 +129,14 @@ export class WizardStateService {
   // Debounce para actividad del usuario
   private activitySubject = new Subject<void>();
   private activityDebounceTime = 2000; // 2 segundos
+  
+  // ✅ Debounce para sincronización con backend (evita múltiples llamadas rápidas)
+  private syncSubject = new Subject<WizardState>();
+  private syncDebounceTime = 3000; // 3 segundos de debounce para sincronización (aumentado para evitar 429)
+  private pendingSyncState: WizardState | null = null;
+  private syncPromise: Promise<WizardState> | null = null;
+  private lastSyncTime: number = 0;
+  private minTimeBetweenSyncs = 5000; // Mínimo 5 segundos entre sincronizaciones (aumentado para evitar 429)
 
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object,
@@ -138,6 +146,7 @@ export class WizardStateService {
   ) {
     this.initializeState();
     this.setupActivityDebounce();
+    this.setupSyncDebounce();
   }
 
   /**
@@ -161,6 +170,37 @@ export class WizardStateService {
       debounceTime(this.activityDebounceTime)
     ).subscribe(() => {
       this.updateActivityDebounced();
+    });
+  }
+
+  /**
+   * Configura el debounce para sincronización con backend
+   * Evita múltiples llamadas rápidas que causan errores 429
+   */
+  private setupSyncDebounce(): void {
+    this.syncSubject.pipe(
+      debounceTime(this.syncDebounceTime)
+    ).subscribe(async (state) => {
+      if (this.pendingSyncState && this.syncPromise) {
+        try {
+          const syncedState = await this.executeSync(this.pendingSyncState);
+          // Resolver la promesa pendiente con el estado sincronizado
+          const promise = this.syncPromise as any;
+          if (promise.resolve) {
+            promise.resolve(syncedState);
+          }
+          this.pendingSyncState = null;
+          this.syncPromise = null;
+        } catch (error) {
+          this.logger.error('❌ Error en sincronización con debounce:', error);
+          const promise = this.syncPromise as any;
+          if (promise.reject) {
+            promise.reject(error);
+          }
+          this.pendingSyncState = null;
+          this.syncPromise = null;
+        }
+      }
     });
   }
 
@@ -363,7 +403,10 @@ export class WizardStateService {
   }
 
   /**
-   * Guarda el estado del wizard (local y backend)
+   * Guarda el estado del wizard SOLO localmente (sessionStorage)
+   * NO sincroniza con backend automáticamente
+   * 
+   * Para sincronizar con backend, usar saveAndSync() o syncWithBackendCorrected()
    */
   async saveState(state: Partial<WizardState>): Promise<void> {
     if (!isPlatformBrowser(this.platformId)) return;
@@ -400,12 +443,9 @@ export class WizardStateService {
         this.logger.log(`🔄 Paso del wizard: ${currentState.currentStep} → ${newState.currentStep}`);
       }
 
-      // Solo sincronizar con backend si hay cambios importantes (no solo lastActivity)
-      if (this.hasImportantChanges(currentState, newState)) {
-        this.syncWithBackendCorrected(newState).catch(error => {
-          this.logger.error('Error sincronizando con backend:', error);
-        });
-      }
+      // ✅ CAMBIO: NO sincronizar automáticamente con backend
+      // La sincronización debe ser explícita usando saveAndSync() o syncWithBackendCorrected()
+      // Esto evita múltiples peticiones innecesarias
 
     } catch (error) {
       this.logger.error('❌ Error guardando estado del wizard:', error);
@@ -413,35 +453,26 @@ export class WizardStateService {
   }
 
   /**
-   * Verifica si hay cambios importantes que requieren sincronización con backend
+   * Guarda el estado localmente Y sincroniza con backend
+   * Usar para cambios críticos que deben persistirse inmediatamente
+   * 
+   * Ejemplos de uso:
+   * - Completar un paso del wizard
+   * - Seleccionar un plan
+   * - Procesar un pago
+   * - Generar un contrato
    */
-  private hasImportantChanges(oldState: WizardState, newState: WizardState): boolean {
-    // Campos importantes que requieren sincronización
-    const importantFields: (keyof WizardState)[] = [
-      'currentStep',
-      'selectedPlan',
-      'quotationId',
-      'quotationNumber',
-      'userId',
-      'userData',
-      'paymentData',
-      'contractData',
-      'completedSteps',
-      'paymentResult',
-      'policyId',
-      'stepData',
-      'metadata'
-    ];
-
-    // Verificar si algún campo importante cambió
-    for (const field of importantFields) {
-      if (JSON.stringify(oldState[field]) !== JSON.stringify(newState[field])) {
-        return true;
-      }
-    }
-
-    return false;
+  async saveAndSync(state: Partial<WizardState>): Promise<WizardState> {
+    // 1. Guardar localmente primero
+    await this.saveState(state);
+    
+    // 2. Obtener el estado actualizado
+    const currentState = this.getState();
+    
+    // 3. Sincronizar con backend
+    return await this.syncWithBackendCorrected(currentState);
   }
+
 
   /**
    * Obtiene la IP pública del usuario
@@ -459,14 +490,87 @@ export class WizardStateService {
   }
 
   /**
-   * Sincroniza el estado con el backend - CORREGIDO
-   * Flujo correcto: Backend es la fuente de verdad
+   * Sincroniza el estado con el backend - OPTIMIZADO CON DEBOUNCE
+   * Flujo optimizado: Usa respuesta del PATCH directamente, sin GET adicional
    * 1. Actualizar backend con datos del paso actual
-   * 2. Obtener respuesta actualizada del backend
+   * 2. Usar respuesta del PATCH directamente (elimina GET innecesario)
    * 3. Sincronizar sessionStorage con la respuesta del backend
+   * 
+   * ✅ CON DEBOUNCE: Evita múltiples llamadas rápidas que causan errores 429
+   * ✅ CON RATE LIMITING: Asegura mínimo tiempo entre sincronizaciones
+   * 
+   * @returns Promise<WizardState> - Estado sincronizado desde el backend
    */
-  async syncWithBackendCorrected(state: WizardState): Promise<void> {
-    if (this.syncInProgress) return;
+  async syncWithBackendCorrected(state: WizardState): Promise<WizardState> {
+    const now = Date.now();
+    const timeSinceLastSync = now - this.lastSyncTime;
+    
+    // Si ya hay una sincronización en progreso, retornar la promesa pendiente o estado actual
+    if (this.syncInProgress && this.syncPromise) {
+      this.logger.log('⏳ Sincronización ya en progreso, esperando...');
+      // Actualizar el estado pendiente con el más reciente
+      this.pendingSyncState = state;
+      return this.syncPromise;
+    }
+    
+    // Si no ha pasado suficiente tiempo desde la última sincronización, esperar
+    if (timeSinceLastSync < this.minTimeBetweenSyncs && this.pendingSyncState) {
+      this.logger.log(`⏳ Esperando ${this.minTimeBetweenSyncs - timeSinceLastSync}ms antes de sincronizar...`);
+      // Actualizar el estado pendiente con el más reciente
+      this.pendingSyncState = state;
+      // Si ya hay una promesa pendiente, retornarla
+      if (this.syncPromise) {
+        return this.syncPromise;
+      }
+    }
+    
+    // Si hay una sincronización pendiente con debounce, actualizar el estado pendiente
+    if (this.pendingSyncState && this.syncPromise) {
+      this.logger.log('🔄 Actualizando estado pendiente de sincronización');
+      this.pendingSyncState = state;
+      return this.syncPromise;
+    }
+    
+    // Guardar estado pendiente y crear promesa
+    this.pendingSyncState = state;
+    let resolvePromise: (value: WizardState) => void;
+    let rejectPromise: (reason?: any) => void;
+    
+    this.syncPromise = new Promise<WizardState>((resolve, reject) => {
+      resolvePromise = resolve;
+      rejectPromise = reject;
+    });
+    
+    // Guardar funciones de resolución para usarlas en el debounce
+    (this.syncPromise as any).resolve = resolvePromise!;
+    (this.syncPromise as any).reject = rejectPromise!;
+    
+    // Emitir al subject para activar el debounce
+    this.syncSubject.next(state);
+    
+    return this.syncPromise;
+  }
+
+  /**
+   * Ejecuta la sincronización real con el backend (sin debounce)
+   * Este método es llamado por el debounce
+   */
+  private async executeSync(state: WizardState): Promise<WizardState> {
+    if (this.syncInProgress) {
+      // Si ya hay una sincronización en progreso, retornar estado actual
+      return this.getState();
+    }
+    
+    // Verificar si ha pasado suficiente tiempo desde la última sincronización
+    const now = Date.now();
+    const timeSinceLastSync = now - this.lastSyncTime;
+    
+    if (timeSinceLastSync < this.minTimeBetweenSyncs && this.lastSyncTime > 0) {
+      const waitTime = this.minTimeBetweenSyncs - timeSinceLastSync;
+      this.logger.log(`⏳ Esperando ${waitTime}ms antes de sincronizar (rate limiting)...`);
+      // Esperar el tiempo restante antes de continuar
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
     
     this.syncInProgress = true;
     
@@ -475,7 +579,7 @@ export class WizardStateService {
       
       if (!sessionId) {
         this.logger.warning('⚠️ No hay sessionId para sincronizar');
-        return;
+        return this.getState();
       }
 
       // 1. Preparar datos del paso actual para enviar al backend
@@ -506,37 +610,50 @@ export class WizardStateService {
         ...(state.userData && Object.keys(state.userData).length > 0 ? { userData: state.userData } : {}),
         ...(state.selectedPlan ? { selectedPlan: state.selectedPlan } : {}),
         ...(state.selectedPlanName ? { selectedPlanName: state.selectedPlanName } : {}),
-        ...(state.quotationNumber ? { quotationNumber: state.quotationNumber } : {}),
-        ...(state.quotationId ? { quotationId: state.quotationId } : {}),
+        // ✅ NO incluir quotationId ni quotationNumber si estamos en paso 0 o 1
+        // La cotización solo debe crearse cuando el usuario completa el paso 1 y hace clic en "Siguiente y Pagar" o "Enviar cotización"
+        ...(state.currentStep >= 2 && state.quotationNumber ? { quotationNumber: state.quotationNumber } : {}),
+        ...(state.currentStep >= 2 && state.quotationId ? { quotationId: state.quotationId } : {}),
         ...(state.userId ? { userId: state.userId } : {}),
         ...(state.policyId ? { policyId: state.policyId } : {}),
         ...(state.policyNumber ? { policyNumber: state.policyNumber } : {}),
         ...(state.completedSteps && state.completedSteps.length > 0 ? { completedSteps: state.completedSteps } : {})
       };
 
-      await this.apiService.patch(
+      // ✅ OPTIMIZACIÓN: Usar respuesta del PATCH directamente (elimina GET innecesario)
+      const patchResponse = await this.apiService.patch<WizardSessionData>(
         `${this.API_ENDPOINT}/${sessionId}/step`,
         updateData
       ).toPromise();
 
-      this.logger.log('✅ Backend actualizado con datos del paso', state.currentStep);
-
-      // 3. Obtener la respuesta actualizada del backend
-      const backendResponse = await this.wizardSessionService.getSession(sessionId).toPromise();
-      if (!backendResponse) {
-        this.logger.warning('⚠️ No se pudo obtener la respuesta del backend');
-        return;
+      if (!patchResponse) {
+        this.logger.warning('⚠️ No se recibió respuesta del PATCH');
+        return this.getState();
       }
 
-      const backendData = (backendResponse as any).data || backendResponse;
-      this.logger.log('📋 Datos actualizados obtenidos del backend:', {
+      // Extraer datos de la respuesta del PATCH
+      const backendData = (patchResponse as any).data || patchResponse;
+      
+      // ✅ IMPORTANTE: Guardar tokens si vienen en la respuesta del backend
+      if (backendData.accessToken && backendData.refreshToken) {
+        this.logger.log('🔑 Tokens recibidos del backend, guardándolos...');
+        if (typeof window !== 'undefined' && window.localStorage) {
+          localStorage.setItem('wizard_access_token', backendData.accessToken);
+          localStorage.setItem('wizard_refresh_token', backendData.refreshToken);
+          this.logger.log('✅ Tokens guardados en localStorage');
+        }
+      }
+      
+      this.logger.log('✅ Backend actualizado con datos del paso', state.currentStep);
+      this.logger.log('📋 Datos actualizados obtenidos del PATCH (sin GET adicional):', {
         selectedPlan: backendData.selectedPlan,
         selectedPlanName: backendData.selectedPlanName,
         currentStep: backendData.currentStep,
-        stepDataKeys: Object.keys(backendData.stepData || {})
+        stepDataKeys: Object.keys(backendData.stepData || {}),
+        hasAccessToken: !!backendData.accessToken
       });
 
-      // 4. Sincronizar sessionStorage con la respuesta del backend
+      // 3. Sincronizar sessionStorage con la respuesta del backend
       const syncedState: WizardState = {
         // Campos principales del backend
         id: backendData.id,
@@ -547,7 +664,9 @@ export class WizardStateService {
         completedSteps: backendData.completedSteps || [],
         status: backendData.status || 'ACTIVE',
         expiresAt: backendData.expiresAt ? new Date(backendData.expiresAt) : new Date(Date.now() + 24 * 60 * 60 * 1000),
-        quotationId: backendData.quotationId,
+        // ✅ LIMPIAR quotationId y quotationNumber si estamos en paso 0 o 1
+        // La cotización solo debe existir a partir del paso 2 (después de que el usuario completa datos y hace clic en "Siguiente y Pagar")
+        quotationId: (backendData.currentStep || 0) >= 2 ? backendData.quotationId : undefined,
         policyId: backendData.policyId,
         metadata: backendData.metadata || {},
         publicIp: backendData.publicIp,
@@ -558,7 +677,8 @@ export class WizardStateService {
         // Campos derivados del backend (fuente de verdad)
         selectedPlan: backendData.selectedPlan || '',
         selectedPlanName: backendData.selectedPlanName || '',
-        quotationNumber: backendData.quotationNumber || '',
+        // ✅ LIMPIAR quotationNumber si estamos en paso 0 o 1
+        quotationNumber: (backendData.currentStep || 0) >= 2 ? (backendData.quotationNumber || '') : '',
         userData: backendData.userData,
         paymentData: backendData.paymentData,
         contractData: backendData.contractData,
@@ -573,7 +693,7 @@ export class WizardStateService {
         lastActivity: Date.now()
       };
 
-      // 5. Guardar en sessionStorage
+      // 4. Guardar en sessionStorage
       if (isPlatformBrowser(this.platformId)) {
         sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(syncedState));
         this.stateSubject.next(syncedState);
@@ -585,8 +705,23 @@ export class WizardStateService {
         currentStep: syncedState.currentStep
       });
 
-    } catch (error) {
+      // Actualizar tiempo de última sincronización
+      this.lastSyncTime = Date.now();
+      
+      return syncedState;
+
+    } catch (error: any) {
       this.logger.error('❌ Error sincronizando con backend:', error);
+      
+      // Si es un error 429 (Too Many Requests), esperar más tiempo antes de reintentar
+      if (error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('Too Many Requests')) {
+        this.logger.warning('⚠️ Error 429 detectado, aumentando tiempo de espera...');
+        // Aumentar el tiempo mínimo entre sincronizaciones temporalmente
+        this.minTimeBetweenSyncs = Math.min(this.minTimeBetweenSyncs * 2, 10000); // Máximo 10 segundos
+        this.syncDebounceTime = Math.min(this.syncDebounceTime * 1.5, 5000); // Máximo 5 segundos
+        this.logger.log(`⏱️ Nuevos tiempos: minTimeBetweenSyncs=${this.minTimeBetweenSyncs}ms, syncDebounceTime=${this.syncDebounceTime}ms`);
+      }
+      
       throw error;
     } finally {
       this.syncInProgress = false;
@@ -1503,7 +1638,8 @@ export class WizardStateService {
     const newSessionId = this.generateSessionId();
     const publicIp = await this.getPublicIp();
 
-    const createSessionResponse = await this.apiService.post(this.API_ENDPOINT, {
+    // Usar wizardSessionService que maneja tokens automáticamente
+    const createSessionResponse = await this.wizardSessionService.createSession({
       sessionId: newSessionId,
       userId: currentState.userId || undefined, // No enviar string vacío
       publicIp,
@@ -1520,12 +1656,46 @@ export class WizardStateService {
     const createdSessionId = responseData?.sessionId || newSessionId;
     const createdId = responseData?.id; // Capturar el UUID generado por el backend
 
+    // ✅ IMPORTANTE: Verificar y guardar tokens si vienen en la respuesta
+    if (responseData?.accessToken && responseData?.refreshToken) {
+      this.logger.log('🔑 Tokens recibidos al crear sesión, guardándolos...');
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem('wizard_access_token', responseData.accessToken);
+        localStorage.setItem('wizard_refresh_token', responseData.refreshToken);
+        this.logger.log('✅ Tokens guardados en localStorage al crear sesión');
+      }
+    } else {
+      this.logger.warning('⚠️ No se recibieron tokens al crear sesión. Verificar backend.');
+    }
+
+    // ✅ LIMPIAR campos relacionados con cotización y pago al crear nueva sesión
     const updatedState: WizardState = {
       ...currentState,
       sessionId: createdSessionId,
       id: createdId, // Agregar el UUID al estado local
       timestamp: Date.now(),
-      lastActivity: Date.now()
+      lastActivity: Date.now(),
+      // Limpiar campos relacionados con cotización y pago
+      quotationId: undefined,
+      quotationNumber: undefined,
+      policyId: undefined,
+      policyNumber: undefined,
+      paymentData: null,
+      paymentResult: null,
+      contractData: null,
+      paymentAmount: 0,
+      validationResult: null,
+      // Mantener solo el selectedPlan y selectedPlanName si existen
+      // (estos se establecen al seleccionar el plan)
+      selectedPlan: currentState.selectedPlan || '',
+      selectedPlanName: currentState.selectedPlanName || '',
+      // Resetear paso actual a 0 para nueva sesión
+      currentStep: 0,
+      completedSteps: [],
+      // Limpiar stepData excepto step0 si existe
+      stepData: currentState.stepData?.step0 ? {
+        step0: currentState.stepData.step0
+      } : {}
     };
 
     if (isPlatformBrowser(this.platformId)) {
@@ -1534,6 +1704,7 @@ export class WizardStateService {
     this.stateSubject.next(updatedState);
 
     this.logger.log('✅ Nueva sesión creada:', { sessionId: createdSessionId, id: createdId });
+    this.logger.log('🧹 Campos de cotización y pago limpiados para nueva sesión');
     
     // Retornar el id (UUID) si está disponible, sino el sessionId como fallback
     return createdId || createdSessionId;
@@ -1541,18 +1712,70 @@ export class WizardStateService {
 
   /**
    * Actualiza un paso específico de la sesión en el backend
+   * ✅ OPTIMIZADO: Retorna los datos actualizados directamente del PATCH
+   * 
+   * @returns Promise<WizardState> - Estado actualizado desde el backend
    */
-  async updateSessionStep(sessionId: string, step: number, stepData: any): Promise<void> {
+  async updateSessionStep(sessionId: string, step: number, stepData: any): Promise<WizardState> {
     try {
-      await this.apiService.patch(
+      const currentState = this.getState();
+      const patchResponse = await this.apiService.patch<WizardSessionData>(
         `${this.API_ENDPOINT}/${sessionId}/step`,
         {
           step,
           stepData,
-          quotationId: this.getState().quotationId,
-          policyId: this.getState().policyId
+          quotationId: currentState.quotationId,
+          policyId: currentState.policyId
         }
       ).toPromise();
+
+      if (!patchResponse) {
+        this.logger.warning('⚠️ No se recibió respuesta del PATCH en updateSessionStep');
+        return currentState;
+      }
+
+      // Extraer datos de la respuesta del PATCH
+      const backendData = (patchResponse as any).data || patchResponse;
+
+      // Convertir a WizardState
+      const updatedState: WizardState = {
+        id: backendData.id,
+        sessionId: backendData.sessionId,
+        userId: backendData.userId || undefined,
+        currentStep: backendData.currentStep || step,
+        stepData: backendData.stepData || {},
+        completedSteps: backendData.completedSteps || [],
+        status: backendData.status || 'ACTIVE',
+        expiresAt: backendData.expiresAt ? new Date(backendData.expiresAt) : new Date(Date.now() + 24 * 60 * 60 * 1000),
+        quotationId: backendData.quotationId,
+        policyId: backendData.policyId,
+        metadata: backendData.metadata || {},
+        publicIp: backendData.publicIp,
+        userAgent: backendData.userAgent,
+        lastActivityAt: backendData.lastActivityAt ? new Date(backendData.lastActivityAt) : new Date(),
+        completedAt: backendData.completedAt ? new Date(backendData.completedAt) : undefined,
+        selectedPlan: backendData.selectedPlan || '',
+        selectedPlanName: backendData.selectedPlanName || '',
+        quotationNumber: backendData.quotationNumber || '',
+        userData: backendData.userData,
+        paymentData: backendData.paymentData,
+        contractData: backendData.contractData,
+        paymentResult: backendData.paymentResult,
+        policyNumber: backendData.policyNumber || '',
+        validationRequirements: backendData.stepData?.step5?.validationRequirements || [],
+        paymentAmount: backendData.paymentAmount || 0,
+        validationResult: backendData.validationResult,
+        timestamp: Date.now(),
+        lastActivity: Date.now()
+      };
+
+      // Actualizar estado local
+      if (isPlatformBrowser(this.platformId)) {
+        sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(updatedState));
+        this.stateSubject.next(updatedState);
+      }
+
+      return updatedState;
     } catch (error) {
       this.logger.error('Error actualizando paso de sesión:', error);
       throw error;

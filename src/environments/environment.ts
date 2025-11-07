@@ -5,6 +5,7 @@ export const environment = {
     api: {
         baseUrl: 'http://127.0.0.1:3000/api',
         timeout: 30000,
+        apiKey: 'dev-frontend-api-key-12345', // Cambiar en producción
     },
     vdid: {
         publicKey: 'pk_test_Qm3iR9607BpWD/UAP2Til1+5NCHA/yxvcZWtauDNHLE=',

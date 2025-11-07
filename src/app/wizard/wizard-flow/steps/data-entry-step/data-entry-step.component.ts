@@ -330,10 +330,20 @@ export class DataEntryStepComponent implements OnInit {
       }
     }
 
-    // También intentar cargar desde el backend usando policyId
+    // ✅ OPTIMIZADO: Solo cargar desde backend si no hay datos locales completos
     if (state && state.policyId) {
-      this.logger.log('🚀 Iniciando carga desde backend con policyId:', state.policyId);
-      this.loadDataFromBackendByPolicy(state.policyId);
+      // Verificar si ya tenemos datos locales completos
+      const hasCompleteLocalData = 
+        (state.contractData?.propietario?.nombre || state.captureData?.propietario?.nombre) &&
+        (state.contractData?.inquilino?.nombre || state.captureData?.inquilino?.nombre) &&
+        (state.contractData?.inmueble?.calle || state.captureData?.inmueble?.calle);
+      
+      if (hasCompleteLocalData) {
+        this.logger.log('✅ Ya hay datos locales completos, omitiendo carga desde backend');
+      } else {
+        this.logger.log('🚀 Iniciando carga desde backend con policyId:', state.policyId);
+        this.loadDataFromBackendByPolicy(state.policyId);
+      }
     } else {
       this.logger.log('⚠️ No hay policyId disponible para cargar desde backend');
     }

@@ -25,198 +25,397 @@ $success-green: #28a745;
     font-size: 16px;
     color: #6c757d;
   }
-}
 
-.payment-form {
-  .form-label {
+  // Logos de tarjetas
+  .card-brands {
+    margin-bottom: 2rem;
+
+    .card-brands-section {
+      display: flex;
+      gap: 0;
+      padding: 20px;
+      background: $white;
+      border-radius: 12px;
+      border: 1px solid #e9ecef;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+
+      .credit-cards,
+      .debit-cards {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 15px;
+        gap: 15px;
+
+        h4 {
+          font-family: 'Inter', sans-serif;
+          font-size: 14px;
+          font-weight: 600;
+          color: #333;
+          margin: 0;
+          text-align: left;
+        }
+
+        .card-logos {
+          min-height: 50px;
+          background-position: left center;
+          background-repeat: no-repeat;
+          background-size: contain;
+        }
+      }
+
+      .credit-cards {
+        border-right: 1px solid #e0e0e0;
+
+        .card-logos {
+          background-image: url('/assets/openpay_tarjeta/cards1.png');
+        }
+      }
+
+      .debit-cards {
+        .card-logos {
+          background-image: url('/assets/openpay_tarjeta/cards2.png');
+        }
+      }
+    }
+  }
+
+  // Formulario
+  .payment-form {
+    .form-label {
+      font-family: 'Inter', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+      color: $black;
+      margin-bottom: 0.5rem;
+    }
+
+    .form-control,
+    .form-select {
+      border: 2px solid #e9ecef;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-family: 'Inter', sans-serif;
+      font-size: 16px;
+      transition: all 0.3s ease;
+
+      &:focus {
+        border-color: $primary-green;
+        box-shadow: 0 0 0 0.2rem rgba(168, 207, 65, 0.25);
+      }
+
+      &.is-invalid {
+        border-color: $error-red;
+      }
+    }
+
+    .form-row {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 1.5rem;
+
+      .form-group {
+        flex: 1;
+      }
+    }
+
+    // Wrapper para input de tarjeta con indicador
+    .card-input-wrapper {
+      position: relative;
+
+      .card-type-indicator {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        color: $dark-green;
+        background: rgba(168, 207, 65, 0.1);
+        padding: 4px 8px;
+        border-radius: 4px;
+        pointer-events: none;
+
+        i {
+          font-size: 16px;
+        }
+      }
+    }
+
+    // Fecha de expiración en fila
+    .expiry-row {
+      display: flex;
+      gap: 10px;
+
+      .expiry-select {
+        flex: 1;
+      }
+    }
+
+    // CVV con imagen
+    .cvv-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 6px; // Reducido de 10px a 6px para juntar más las imágenes
+
+      .cvv-input {
+        flex: 1;
+        min-width: 80px; // Asegurar un tamaño mínimo
+        font-size: 18px; // Aumentar tamaño de fuente para mejor visibilidad
+        padding: 12px 16px; // Aumentar padding para hacer el campo más grande
+        letter-spacing: 4px; // Espaciado entre caracteres para mejor legibilidad cuando está enmascarado
+        font-weight: 600;
+      }
+
+      .cvv-hint {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+
+        .cvv-image {
+          height: 25px;
+          width: auto;
+          // opacity: 0.8;
+          // margin-left: -2px;
+        }
+      }
+    }
+
+    // Información de seguridad OpenPay mejorada
+    .security-info {
+      margin: 2rem 0;
+      padding: 20px;
+      background: $light-gray;
+      border-radius: 12px;
+      border-left: 4px solid $primary-green;
+
+      .openpay-info {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+
+        .openpay-logo-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex: 1;
+          min-width: 250px;
+
+          .openpay-text {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            color: #666;
+            white-space: nowrap;
+          }
+
+          .openpay-logo {
+            height: 35px;
+            width: auto;
+            object-fit: contain;
+            filter: brightness(0) saturate(100%) invert(27%) sepia(51%) saturate(2878%) hue-rotate(195deg) brightness(96%) contrast(101%);
+          }
+        }
+
+        .security-message {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex: 1;
+          min-width: 250px;
+
+          .security-icon {
+            height: 24px;
+            width: auto;
+            flex-shrink: 0;
+          }
+
+          span {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            color: $success-green;
+            font-weight: 500;
+          }
+        }
+      }
+    }
+  }
+
+  // Resumen de cotización
+  .payment-summary {
+    border: 2px solid #e9ecef;
+    border-radius: 12px;
+    background: $light-gray;
+
+    h5 {
+      font-family: 'Inter', sans-serif;
+      font-weight: 700;
+      font-size: 18px;
+      margin-bottom: 1rem;
+      color: $black;
+    }
+
+    .d-flex {
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      margin-bottom: 0.5rem;
+
+      &:last-child {
+        margin-bottom: 0;
+        font-weight: 600;
+        font-size: 16px;
+      }
+    }
+  }
+
+  // Alerts
+  .alert {
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    padding: 12px 16px;
+    margin-bottom: 1rem;
+
+    &.alert-danger {
+      background-color: rgba(220, 53, 69, 0.1);
+      border: 1px solid rgba(220, 53, 69, 0.2);
+      color: $error-red;
+    }
+
+    &.alert-success {
+      background-color: rgba(40, 167, 69, 0.1);
+      border: 1px solid rgba(40, 167, 69, 0.2);
+      color: $success-green;
+    }
+  }
+
+  // Botones
+  .btn {
     font-family: 'Inter', sans-serif;
     font-weight: 600;
-    font-size: 14px;
-    color: $black;
-    margin-bottom: 0.5rem;
-  }
-
-  .form-control,
-  .form-select {
-    border: 2px solid #e9ecef;
+    padding: 12px 24px;
     border-radius: 8px;
-    padding: 12px 16px;
-    font-family: 'Inter', sans-serif;
-    font-size: 16px;
     transition: all 0.3s ease;
 
-    &:focus {
-      border-color: $primary-green;
-      box-shadow: 0 0 0 0.2rem rgba(168, 207, 65, 0.25);
-    }
-
-    &.is-invalid {
-      border-color: $error-red;
-    }
-  }
-}
-
-.card-type-indicator {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: $dark-green;
-  background: rgba(168, 207, 65, 0.1);
-  padding: 4px 8px;
-  border-radius: 4px;
-
-  i {
-    font-size: 16px;
-  }
-}
-
-.form-group {
-  position: relative;
-}
-
-.invalid-feedback {
-  display: block;
-  color: $error-red;
-  font-size: 12px;
-  margin-top: 4px;
-}
-
-.payment-summary {
-  border: 2px solid #e9ecef;
-  border-radius: 12px;
-  background: $light-gray;
-
-  h5 {
-    font-family: 'Inter', sans-serif;
-    font-weight: 700;
-    font-size: 18px;
-    margin-bottom: 1rem;
-    color: $black;
-  }
-
-  .d-flex {
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    margin-bottom: 0.5rem;
-
-    &:last-child {
-      margin-bottom: 0;
-      font-weight: 600;
-      font-size: 16px;
-    }
-  }
-}
-
-.alert {
-  border-radius: 8px;
-  font-family: 'Inter', sans-serif;
-  font-size: 14px;
-  padding: 12px 16px;
-  margin-bottom: 1rem;
-
-  &.alert-danger {
-    background-color: rgba(220, 53, 69, 0.1);
-    border: 1px solid rgba(220, 53, 69, 0.2);
-    color: $error-red;
-  }
-
-  &.alert-success {
-    background-color: rgba(40, 167, 69, 0.1);
-    border: 1px solid rgba(40, 167, 69, 0.2);
-    color: $success-green;
-  }
-}
-
-.btn {
-  font-family: 'Inter', sans-serif;
-  font-weight: 600;
-  padding: 12px 24px;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-
-  &.btn-accent {
-    background-color: $primary-green;
-    border-color: $primary-green;
-    color: $white;
-
-    &:hover:not(:disabled) {
-      background-color: #9bc23a;
-      border-color: #9bc23a;
-      transform: translateY(-1px);
-    }
-
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-  }
-
-  &.btn-secondary {
-    background-color: #6c757d;
-    border-color: #6c757d;
-    color: $white;
-
-    &:hover {
-      background-color: #5a6268;
-      border-color: #545b62;
-    }
-  }
-
-  &.btn-outline-primary {
-    background-color: transparent;
-    color: $primary-green;
-    border: 2px solid $primary-green;
-
-    &:hover:not(:disabled) {
+    &.btn-accent {
       background-color: $primary-green;
+      border-color: $primary-green;
       color: $white;
+
+      &:hover:not(:disabled) {
+        background-color: #9bc23a;
+        border-color: #9bc23a;
+        transform: translateY(-1px);
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
     }
 
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
+    &.btn-secondary {
+      background-color: #6c757d;
+      border-color: #6c757d;
+      color: $white;
+
+      &:hover {
+        background-color: #5a6268;
+        border-color: #545b62;
+      }
+    }
+
+    &.btn-outline-primary {
+      background-color: transparent;
+      color: $primary-green;
+      border: 2px solid $primary-green;
+
+      &:hover:not(:disabled) {
+        background-color: $primary-green;
+        color: $white;
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
     }
   }
-}
 
-.spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
+  .invalid-feedback {
+    display: block;
+    color: $error-red;
+    font-size: 12px;
+    margin-top: 4px;
   }
-  to {
-    transform: rotate(360deg);
-  }
-}
 
-// Responsive
-@media (max-width: 768px) {
-  .payment-step {
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  // Responsive
+  @media (max-width: 768px) {
     padding: 1rem 0;
 
     h2 {
       font-size: 24px;
     }
-  }
 
-  .payment-form {
-    .form-control,
-    .form-select {
+    .card-brands .card-brands-section {
+      flex-direction: column;
+      gap: 0;
+
+      .credit-cards,
+      .debit-cards {
+        border-right: none;
+        border-bottom: 1px solid #e0e0e0;
+        padding: 15px;
+
+        .card-logos {
+          background-position: center;
+          min-height: 40px;
+        }
+      }
+
+      .debit-cards {
+        border-bottom: none;
+      }
+    }
+
+    .payment-form {
+      .form-row {
+        flex-direction: column;
+        gap: 0;
+      }
+
+      .security-info .openpay-info {
+        flex-direction: column;
+        align-items: flex-start;
+
+        .openpay-logo-wrapper,
+        .security-message {
+          width: 100%;
+          min-width: auto;
+        }
+      }
+    }
+
+    .btn {
+      padding: 10px 20px;
       font-size: 14px;
-      padding: 10px 12px;
     }
   }
-
-  .btn {
-    padding: 10px 20px;
-    font-size: 14px;
-  }
-} 
+}

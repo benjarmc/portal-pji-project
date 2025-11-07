@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
-import { catchError, timeout } from 'rxjs/operators';
+import { catchError, timeout, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { LoggerService } from './logger.service';
 
@@ -38,9 +38,21 @@ export class ApiService {
    */
   get<T>(endpoint: string, params?: HttpParams): Observable<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
-    return this.http.get<ApiResponse<T>>(url, { params })
+    const headers = this.createAuthHeaders();
+    return this.http.get<T | ApiResponse<T>>(url, { params, headers })
       .pipe(
         timeout(this.timeout),
+        map((response: T | ApiResponse<T>) => {
+          // Si la respuesta ya es un ApiResponse, retornarla tal cual
+          if (response && typeof response === 'object' && 'success' in response) {
+            return response as ApiResponse<T>;
+          }
+          // Si la respuesta es directamente el objeto T, envolverlo en ApiResponse
+          return {
+            success: true,
+            data: response as T
+          } as ApiResponse<T>;
+        }),
         catchError((error) => this.handleError(error))
       );
   }
@@ -50,7 +62,8 @@ export class ApiService {
    */
   post<T>(endpoint: string, data: any): Observable<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
-    return this.http.post<ApiResponse<T>>(url, data)
+    const headers = this.createAuthHeaders();
+    return this.http.post<ApiResponse<T>>(url, data, { headers })
       .pipe(
         timeout(this.timeout),
         catchError((error) => this.handleError(error))
@@ -62,7 +75,8 @@ export class ApiService {
    */
   put<T>(endpoint: string, data: any): Observable<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
-    return this.http.put<ApiResponse<T>>(url, data)
+    const headers = this.createAuthHeaders();
+    return this.http.put<ApiResponse<T>>(url, data, { headers })
       .pipe(
         timeout(this.timeout),
         catchError((error) => this.handleError(error))
@@ -74,7 +88,8 @@ export class ApiService {
    */
   patch<T>(endpoint: string, data: any): Observable<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
-    return this.http.patch<ApiResponse<T>>(url, data)
+    const headers = this.createAuthHeaders();
+    return this.http.patch<ApiResponse<T>>(url, data, { headers })
       .pipe(
         timeout(this.timeout),
         catchError((error) => this.handleError(error))
@@ -86,7 +101,8 @@ export class ApiService {
    */
   delete<T>(endpoint: string): Observable<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
-    return this.http.delete<ApiResponse<T>>(url)
+    const headers = this.createAuthHeaders();
+    return this.http.delete<ApiResponse<T>>(url, { headers })
       .pipe(
         timeout(this.timeout),
         catchError((error) => this.handleError(error))
@@ -153,10 +169,37 @@ export class ApiService {
       'Content-Type': 'application/json'
     });
 
-    if (token) {
-      headers = headers.set('Authorization', `Bearer ${token}`);
+    // Agregar API Key del frontend
+    const apiKey = environment.api.apiKey;
+    if (apiKey) {
+      headers = headers.set('X-API-Key', apiKey);
+    }
+
+    // Agregar access token si está disponible (para sesiones del wizard)
+    const accessToken = token || this.getWizardAccessToken();
+    if (accessToken) {
+      headers = headers.set('Authorization', `Bearer ${accessToken}`);
+      this.logger.log('🔑 Token JWT incluido en headers');
+    } else {
+      this.logger.warning('⚠️ No hay access token disponible para autenticación');
     }
 
     return headers;
+  }
+
+  /**
+   * Obtener access token del wizard desde localStorage
+   */
+  private getWizardAccessToken(): string | null {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const token = localStorage.getItem('wizard_access_token');
+      if (token) {
+        this.logger.log('🔑 Token JWT encontrado en localStorage');
+      } else {
+        this.logger.warning('⚠️ No se encontró token JWT en localStorage');
+      }
+      return token;
+    }
+    return null;
   }
 }

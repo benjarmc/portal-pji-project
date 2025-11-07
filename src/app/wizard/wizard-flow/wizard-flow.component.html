@@ -54,7 +54,8 @@
       [quotationData]="currentQuotation"
       [userId]="userId || undefined"
       (next)="onPaymentCompleted($event)"
-      (previous)="prevStep()">
+      (previous)="prevStep()"
+      (goToFinish)="onQuotationSentByEmail($event)">
     </app-payment-step>
 
     <!-- Validation Step -->
@@ -85,7 +86,7 @@
       *ngIf="currentStep === 6"
       [quotationSentByEmail]="quotationSentByEmail"
       [quotationNumber]="quotationNumber"
-      (goToStart)="setCurrentStep(0)">
+      (goToStart)="onFinishGoToStart()">
     </app-finish-step>
   </div>
 

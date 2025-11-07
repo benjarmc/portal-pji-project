@@ -57,6 +57,7 @@ export class ContractStepComponent implements OnInit {
 
   /**
    * Carga los datos del contrato desde el estado del wizard
+   * ✅ OPTIMIZADO: Solo carga desde backend si no hay datos locales
    */
   loadContractData() {
     const state = this.wizardStateService.getState();
@@ -64,15 +65,32 @@ export class ContractStepComponent implements OnInit {
       this.logger.log('📋 Cargando datos para el contrato desde wizardState:', state);
       this.logger.log('📋 state.policyId:', state.policyId);
       
-      // Si tenemos policyId, cargar datos desde el backend
+      // ✅ OPTIMIZADO: Verificar si ya tenemos datos locales (captureData o contractData)
+      const hasLocalData = 
+        (state.captureData?.propietario || state.contractData?.propietario) &&
+        (state.captureData?.inmueble || state.contractData?.inmueble);
+      
+      if (hasLocalData) {
+        this.logger.log('✅ Ya hay datos locales disponibles, usando esos datos');
+        const captureData = {
+          propietario: state.captureData?.propietario || state.contractData?.propietario,
+          inquilino: state.captureData?.inquilino || state.contractData?.inquilino,
+          fiador: state.captureData?.fiador || state.contractData?.fiador,
+          inmueble: state.captureData?.inmueble || state.contractData?.inmueble
+        };
+        this.createContractData(state, captureData);
+        return;
+      }
+      
+      // Si tenemos policyId pero no hay datos locales, cargar desde el backend
       if (state.policyId) {
-        this.logger.log('📡 Cargando datos desde backend usando policyId:', state.policyId);
+        this.logger.log('📡 No hay datos locales, cargando desde backend usando policyId:', state.policyId);
         this.loadDataFromBackendByPolicy(state.policyId);
         return;
       }
       
       // Fallback: crear contrato con datos por defecto
-      this.logger.log('⚠️ No hay policyId, creando contrato con datos por defecto');
+      this.logger.log('⚠️ No hay policyId ni datos locales, creando contrato con datos por defecto');
       this.createContractData(state, {});
     }
   }

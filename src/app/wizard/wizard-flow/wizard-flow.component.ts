@@ -14,6 +14,8 @@ import { WizardStateService, WizardState } from '../../services/wizard-state.ser
 import { WizardSessionService } from '../../services/wizard-session.service';
 import { ContinueWizardModalComponent } from '../../components/continue-wizard-modal/continue-wizard-modal.component';
 import { LoggerService } from '../../services/logger.service';
+import { QuotationsService } from '../../services/quotations.service';
+import { PaymentsService } from '../../services/payments.service';
 @Component({
   selector: 'app-wizard-flow',
   standalone: true,
@@ -100,6 +102,8 @@ export class WizardFlowComponent implements OnInit {
     private seoService: SeoService,
     public wizardStateService: WizardStateService,
     private wizardSessionService: WizardSessionService,
+    private quotationsService: QuotationsService,
+    private paymentsService: PaymentsService,
     private logger: LoggerService
   ) {}
 
@@ -210,19 +214,49 @@ export class WizardFlowComponent implements OnInit {
   }
 
   /**
-   * Cargar estado de sesión existente
+   * Cargar estado de sesión existente - OPTIMIZADO
+   * ✅ Reduce múltiples GETs a uno solo cuando sea necesario
+   * ✅ Evita GETs redundantes cuando los datos ya están disponibles
    */
   private async loadSessionState(sessionId: string, targetStep?: number): Promise<void> {
     try {
-      // PRIMERO: Intentar usar el sessionId de la URL
+      // ✅ OPTIMIZACIÓN: Verificar primero si ya tenemos los datos en el estado local
+      const currentState = this.wizardStateService.getState();
+      if (currentState.sessionId === sessionId || currentState.id === sessionId) {
+        // Si el sessionId coincide y tenemos datos recientes (menos de 5 segundos), usar estado local
+        const timeSinceLastSync = Date.now() - currentState.lastActivity;
+        if (timeSinceLastSync < 5000) {
+          this.logger.log('✅ Usando estado local reciente (evita GET redundante):', {
+            sessionId: currentState.sessionId,
+            id: currentState.id,
+            timeSinceLastSync: `${timeSinceLastSync}ms`
+          });
+          this.restoreSessionState(currentState, targetStep);
+          return;
+        }
+      }
+
+      let sessionData: any = null;
+      let actualData: any = null;
+
+      // PRIMERO: Intentar cargar desde URL
       try {
         this.logger.log('🔍 Intentando cargar sesión desde URL:', sessionId);
-        const sessionData = await this.wizardSessionService.getSession(sessionId).toPromise();
-        this.logger.log('📡 Respuesta del backend para sesión:', sessionData);
+        // ✅ IMPORTANTE: Solicitar tokens al cargar sesión desde URL
+        const response = await this.wizardSessionService.getSession(sessionId, true).toPromise();
         
-        if (sessionData) {
-          // Verificar si viene envuelto en ApiResponse o directamente
-          const actualData = (sessionData as any).data || sessionData;
+        if (response) {
+          actualData = (response as any).data || response;
+          
+          // ✅ IMPORTANTE: Guardar tokens si vienen en la respuesta
+          if (actualData.accessToken && actualData.refreshToken) {
+            this.logger.log('🔑 Tokens recibidos al cargar sesión desde URL, guardándolos...');
+            if (typeof window !== 'undefined' && window.localStorage) {
+              localStorage.setItem('wizard_access_token', actualData.accessToken);
+              localStorage.setItem('wizard_refresh_token', actualData.refreshToken);
+              this.logger.log('✅ Tokens guardados en localStorage');
+            }
+          }
           
           if (actualData && (actualData.id || actualData.sessionId)) {
             this.logger.log('📊 Estado de sesión cargado desde URL:', actualData);
@@ -231,42 +265,51 @@ export class WizardFlowComponent implements OnInit {
           }
         }
       } catch (error) {
-        // Verificar si es un error 404 (sesión no existe)
-        this.logger.log('🔍 Debugging error:', {
-          error: error,
-          errorType: typeof error,
-          errorStatus: (error as any)?.status,
-          errorMessage: (error as any)?.message,
-          is404: error && (error as any).status === 404
-        });
+        const errorStatus = (error as any)?.status;
         
-        if (error && (error as any).status === 404) {
+        // Si es 404, redirigir al home directamente
+        if (errorStatus === 404) {
           this.logger.log('❌ Sesión no existe en la base de datos (404), redirigiendo al home');
-          this.logger.error('❌ Error detallado:', error);
-          
-          // Limpiar estado local
           this.wizardStateService.clearState();
-          
-          // Redirigir al home
           this.router.navigate(['/'], { replaceUrl: true });
           return;
         }
         
-        this.logger.log('⚠️ Sesión de URL no encontrada, buscando sesión activa por IP');
-        this.logger.error('❌ Error detallado:', error);
+        // Si es 429 (Too Many Requests), usar estado local si está disponible
+        if (errorStatus === 429) {
+          this.logger.warning('⚠️ Rate limit alcanzado (429), usando estado local si está disponible');
+          if (currentState.sessionId === sessionId || currentState.id === sessionId) {
+            this.restoreSessionState(currentState, targetStep);
+            return;
+          }
+        }
+        
+        this.logger.log('⚠️ Error cargando sesión desde URL, intentando por IP:', error);
       }
-      
-      // SEGUNDO: Si no funciona, buscar sesión activa por IP (sin crear nueva)
+
+      // SEGUNDO: Solo si falló la carga desde URL, buscar por IP
+      // ✅ OPTIMIZADO: Solo buscar por IP si realmente falló la carga desde URL
       const activeSessionId = await this.wizardStateService.checkActiveSessionByIp();
       
-      if (activeSessionId) {
-        // TERCERO: Obtener el estado de la sesión activa desde el backend
+      if (activeSessionId && activeSessionId !== sessionId) {
+        // Solo hacer GET adicional si el sessionId es diferente Y no hemos cargado datos aún
         try {
-          const sessionData = await this.wizardSessionService.getSession(activeSessionId).toPromise();
+          this.logger.log('🔍 Sesión activa por IP diferente, cargando:', activeSessionId);
+          // ✅ IMPORTANTE: Solicitar tokens al cargar sesión por IP
+          const response = await this.wizardSessionService.getSession(activeSessionId, true).toPromise();
           
-          if (sessionData) {
-            // Verificar si viene envuelto en ApiResponse o directamente
-            const actualData = (sessionData as any).data || sessionData;
+          if (response) {
+            actualData = (response as any).data || response;
+            
+            // ✅ IMPORTANTE: Guardar tokens si vienen en la respuesta
+            if (actualData.accessToken && actualData.refreshToken) {
+              this.logger.log('🔑 Tokens recibidos al cargar sesión por IP, guardándolos...');
+              if (typeof window !== 'undefined' && window.localStorage) {
+                localStorage.setItem('wizard_access_token', actualData.accessToken);
+                localStorage.setItem('wizard_refresh_token', actualData.refreshToken);
+                this.logger.log('✅ Tokens guardados en localStorage');
+              }
+            }
             
             if (actualData && (actualData.id || actualData.sessionId)) {
               this.logger.log('📊 Estado de sesión cargado desde IP:', actualData);
@@ -275,30 +318,44 @@ export class WizardFlowComponent implements OnInit {
             }
           }
         } catch (error) {
-          // Verificar si es un error 404 (sesión no existe)
-          if (error && (error as any).status === 404) {
-            this.logger.log('❌ Sesión activa no existe en la base de datos (404), redirigiendo al home');
-            this.logger.error('❌ Error detallado:', error);
-            
-            // Limpiar estado local
+          const errorStatus = (error as any)?.status;
+          
+          if (errorStatus === 404) {
+            this.logger.log('❌ Sesión activa no existe (404), redirigiendo al home');
             this.wizardStateService.clearState();
-            
-            // Redirigir al home
             this.router.navigate(['/'], { replaceUrl: true });
+            return;
+          }
+          
+          // Si es 429, usar estado local si está disponible
+          if (errorStatus === 429 && (currentState.sessionId === activeSessionId || currentState.id === activeSessionId)) {
+            this.logger.warning('⚠️ Rate limit alcanzado (429), usando estado local');
+            this.restoreSessionState(currentState, targetStep);
             return;
           }
           
           this.logger.log('⚠️ Error obteniendo sesión activa por IP:', error);
         }
+      } else if (activeSessionId === sessionId) {
+        // Si el sessionId activo es el mismo que el de la URL, ya intentamos cargarlo arriba
+        // Si llegamos aquí es porque falló, así que crear nueva sesión
+        this.logger.log('⚠️ Sesión de URL no se pudo cargar, creando nueva');
       }
       
-      // CUARTO: Si no hay sesión activa, crear nueva
-      this.logger.log('⚠️ No hay sesión activa, creando nueva');
+      // TERCERO: Si no hay sesión activa o no se pudo cargar, crear nueva
+      this.logger.log('🆕 No hay sesión activa o no se pudo cargar, creando nueva');
       this.initializeNewSession();
       
     } catch (error) {
       this.logger.error('❌ Error cargando sesión:', error);
-      this.initializeNewSession();
+      // En caso de error, intentar usar estado local si está disponible
+      const currentState = this.wizardStateService.getState();
+      if (currentState.sessionId || currentState.id) {
+        this.logger.log('🔄 Usando estado local como fallback después de error');
+        this.restoreSessionState(currentState, targetStep);
+      } else {
+        this.initializeNewSession();
+      }
     }
   }
 
@@ -332,9 +389,22 @@ export class WizardFlowComponent implements OnInit {
     
     this.selectedPlan = sessionData.selectedPlan || ''; // ✅ Usar objeto principal
     this.selectedPlanName = sessionData.selectedPlanName || ''; // ✅ Agregar selectedPlanName
-    this.quotationId = sessionData.quotationId || '';
-    this.quotationNumber = sessionData.quotationNumber || ''; // ✅ Usar objeto principal
-    this.userId = sessionData.userId || '';
+    
+    // ✅ Obtener quotationId de la sesión del backend O del estado local del wizard
+    const localState = this.wizardStateService.getState();
+    this.quotationId = sessionData.quotationId || localState.quotationId || '';
+    this.quotationNumber = sessionData.quotationNumber || localState.quotationNumber || ''; // ✅ Usar objeto principal
+    this.userId = sessionData.userId || localState.userId || '';
+    
+    // Si encontramos quotationId en el estado local pero no en la sesión, guardarlo para sincronizar
+    if (localState.quotationId && !sessionData.quotationId) {
+      this.logger.log('🔑 quotationId encontrado en estado local, sincronizando con backend...');
+      this.wizardStateService.saveState({
+        quotationId: localState.quotationId,
+        quotationNumber: localState.quotationNumber,
+        userId: localState.userId
+      });
+    }
     
     this.logger.log('📊 Datos restaurados para el modal:', {
       currentStep: this.currentStep,
@@ -350,15 +420,17 @@ export class WizardFlowComponent implements OnInit {
     this.modalSelectedPlanName = this.selectedPlanName;
     this.modalQuotationNumber = this.quotationNumber;
     this.modalPolicyNumber = sessionData.policyNumber || null;
-    this.modalCompletedSteps = this.calculateCompletedSteps(sessionData.stepData || {});
+    this.modalCompletedSteps = this.calculateCompletedSteps(sessionData.stepData || {}, this.currentStep);
     
     this.logger.log('🔍 stepData usado para calcular progreso:', sessionData.stepData);
+    this.logger.log('🔍 Paso actual para cálculo de progreso:', this.currentStep);
     
     this.logger.log('📊 Variables del modal llenadas:', {
       modalCurrentStep: this.modalCurrentStep,
       modalSelectedPlan: this.modalSelectedPlan,
       modalQuotationNumber: this.modalQuotationNumber,
-      modalCompletedSteps: this.modalCompletedSteps
+      modalCompletedSteps: this.modalCompletedSteps,
+      currentStepName: this.getStepName(this.modalCurrentStep)
     });
     
     // Sincronizar completamente el estado local con los datos de la BD
@@ -376,6 +448,11 @@ export class WizardFlowComponent implements OnInit {
       wizardStateCurrentStep: wizardStateAfterSync.currentStep,
       areTheyEqual: this.currentStep === wizardStateAfterSync.currentStep
     });
+    
+    // ✅ NUEVO: Verificar y recuperar datos faltantes desde paso 2 en adelante
+    if (this.currentStep >= 2) {
+      this.verifyAndRecoverMissingData(sessionData);
+    }
     
     // Configurar navegación
     this.canGoBack = targetStep ? false : true;
@@ -411,68 +488,397 @@ export class WizardFlowComponent implements OnInit {
 
   /**
    * Sincroniza el estado local con los datos de la base de datos
+   * ✅ OPTIMIZADO: Hace merge inteligente entre datos locales (paso anterior) y datos de BD (refresh)
+   * - Prioriza datos locales si son más recientes (vienen de paso anterior)
+   * - Usa datos de BD si no hay datos locales o están desactualizados (viene de refresh)
    */
   private syncLocalStateWithBD(sessionData: any): void {
     const stepData = sessionData.stepData || {};
     
-    // Crear estado local con estructura completa del backend
-    const localState: any = {
-      // Campos principales del backend (estructura completa)
+    // ✅ Obtener estado local actual para hacer merge inteligente
+    const currentLocalState = this.wizardStateService.getState();
+    const isRefresh = !currentLocalState.sessionId || currentLocalState.sessionId !== sessionData.sessionId;
+    
+    this.logger.log('🔄 Sincronizando estado:', {
+      source: isRefresh ? 'BD (refresh)' : 'Merge (paso anterior + BD)',
+      localSessionId: currentLocalState.sessionId,
+      bdSessionId: sessionData.sessionId
+    });
+    
+    // Construir paymentResult desde BD si existe policyId y policyNumber
+    const bdPaymentResult = sessionData.paymentResult || 
+                           (sessionData.policyId && sessionData.policyNumber ? {
+                             success: true,
+                             policyId: sessionData.policyId,
+                             policyNumber: sessionData.policyNumber,
+                             paymentId: sessionData.paymentResult?.paymentId || 'N/A',
+                             chargeId: sessionData.paymentResult?.chargeId || 'N/A',
+                             status: 'COMPLETED',
+                             message: 'Pago procesado exitosamente'
+                           } : null);
+    
+    // ✅ MERGE INTELIGENTE: Priorizar datos locales si existen y son válidos, sino usar datos de BD
+    const mergedState: any = {
+      // Campos principales del backend (siempre desde BD)
       id: sessionData.id,
       sessionId: sessionData.sessionId,
-      userId: sessionData.userId || undefined,
-      currentStep: sessionData.currentStep || 0,
-      stepData: stepData,
-      completedSteps: sessionData.completedSteps || [],
-      status: sessionData.status || 'ACTIVE',
-      expiresAt: sessionData.expiresAt ? new Date(sessionData.expiresAt) : undefined,
-      quotationId: sessionData.quotationId || undefined,
-      policyId: sessionData.policyId || undefined,
-      metadata: sessionData.metadata || {},
-      publicIp: sessionData.publicIp || undefined,
-      userAgent: sessionData.userAgent || undefined,
-      lastActivityAt: sessionData.lastActivityAt ? new Date(sessionData.lastActivityAt) : undefined,
-      completedAt: sessionData.completedAt ? new Date(sessionData.completedAt) : undefined,
-      createdAt: sessionData.createdAt ? new Date(sessionData.createdAt) : undefined,
-      updatedAt: sessionData.updatedAt ? new Date(sessionData.updatedAt) : undefined,
+      userId: sessionData.userId || currentLocalState.userId,
+      currentStep: sessionData.currentStep || currentLocalState.currentStep || 0,
+      stepData: { ...currentLocalState.stepData, ...stepData }, // Merge de stepData
+      completedSteps: sessionData.completedSteps || currentLocalState.completedSteps || [],
+      status: sessionData.status || currentLocalState.status || 'ACTIVE',
+      expiresAt: sessionData.expiresAt ? new Date(sessionData.expiresAt) : currentLocalState.expiresAt,
+      quotationId: sessionData.quotationId || currentLocalState.quotationId,
+      policyId: sessionData.policyId || currentLocalState.policyId,
+      metadata: { ...currentLocalState.metadata, ...(sessionData.metadata || {}) },
+      publicIp: sessionData.publicIp || currentLocalState.publicIp,
+      userAgent: sessionData.userAgent || currentLocalState.userAgent,
+      lastActivityAt: sessionData.lastActivityAt ? new Date(sessionData.lastActivityAt) : currentLocalState.lastActivityAt,
+      completedAt: sessionData.completedAt ? new Date(sessionData.completedAt) : currentLocalState.completedAt,
+      createdAt: sessionData.createdAt ? new Date(sessionData.createdAt) : currentLocalState.createdAt,
+      updatedAt: sessionData.updatedAt ? new Date(sessionData.updatedAt) : currentLocalState.updatedAt,
       
       // Campos de control del frontend
       timestamp: Date.now(),
       lastActivity: Date.now(),
       
-      // Campos derivados (para compatibilidad) - usar objeto principal del backend
-      selectedPlan: sessionData.selectedPlan || '',
-      selectedPlanName: sessionData.selectedPlanName || '',
-      quotationNumber: sessionData.quotationNumber || '',
-      userData: sessionData.userData || null,
-      paymentData: sessionData.paymentData || null,
-      contractData: sessionData.contractData || null,
-      paymentResult: sessionData.paymentResult || stepData.step5?.validationData || null,
+      // ✅ MERGE INTELIGENTE: Priorizar datos locales si existen, sino usar BD
+      selectedPlan: currentLocalState.selectedPlan || sessionData.selectedPlan || '',
+      selectedPlanName: currentLocalState.selectedPlanName || sessionData.selectedPlanName || '',
+      quotationNumber: currentLocalState.quotationNumber || sessionData.quotationNumber || '',
+      userData: currentLocalState.userData || sessionData.userData || null,
+      paymentData: currentLocalState.paymentData || sessionData.paymentData || null,
+      contractData: currentLocalState.contractData || sessionData.contractData || null,
       
-      // Campos adicionales para compatibilidad - usar objeto principal del backend
-      policyNumber: sessionData.policyNumber || stepData.step5?.policyNumber || stepData.step4?.policyNumber || '',
-      paymentAmount: sessionData.paymentAmount || stepData.step4?.paymentAmount || stepData.step5?.paymentAmount || 0,
-      validationResult: sessionData.validationResult || stepData.step5?.validationData || null
+      // ✅ MERGE INTELIGENTE: paymentResult - priorizar local si existe, sino construir desde BD
+      paymentResult: currentLocalState.paymentResult || bdPaymentResult,
+      
+      // Campos adicionales - merge inteligente
+      policyNumber: currentLocalState.policyNumber || sessionData.policyNumber || '',
+      paymentAmount: currentLocalState.paymentAmount || sessionData.paymentAmount || null,
+      validationResult: currentLocalState.validationResult || sessionData.validationResult || stepData.step5?.validationData || null,
+      
+      // ✅ MERGE INTELIGENTE: validationRequirements y captureData
+      validationRequirements: currentLocalState.validationRequirements || 
+                               sessionData.validationRequirements || 
+                               stepData.step5?.validationRequirements || 
+                               null,
+      captureData: currentLocalState.captureData || 
+                   sessionData.captureData || 
+                   sessionData.contractData || 
+                   null
     };
 
-    this.logger.log('🔄 Sincronizando estado local con BD (estructura completa):', {
-      id: localState.id,
-      sessionId: localState.sessionId,
-      currentStep: localState.currentStep,
-      status: localState.status,
-      expiresAt: localState.expiresAt,
-      selectedPlan: localState.selectedPlan,
-      policyId: localState.policyId,
-      policyNumber: localState.policyNumber,
-      paymentResult: localState.paymentResult,
-      quotationId: localState.quotationId,
-      completedSteps: localState.completedSteps,
-      stepDataKeys: Object.keys(localState.stepData),
-      metadata: localState.metadata
+    this.logger.log('🔄 Estado mergeado (local + BD):', {
+      id: mergedState.id,
+      sessionId: mergedState.sessionId,
+      currentStep: mergedState.currentStep,
+      hasLocalPaymentResult: !!currentLocalState.paymentResult,
+      hasBdPaymentResult: !!bdPaymentResult,
+      finalPaymentResult: !!mergedState.paymentResult,
+      hasLocalUserData: !!currentLocalState.userData,
+      hasBdUserData: !!sessionData.userData,
+      finalUserData: !!mergedState.userData
     });
 
-    // Guardar el estado completo en el servicio local
-    this.wizardStateService.saveState(localState);
+    // Guardar el estado mergeado en el servicio local
+    this.wizardStateService.saveState(mergedState);
+  }
+
+  /**
+   * Verifica y recupera datos faltantes desde paso 2 en adelante
+   * ✅ Si faltan datos críticos que deberían existir según el paso actual,
+   * los busca en la API y actualiza la sesión
+   * 
+   * Lógica:
+   * - Paso 2 (Payment): Usa quotationId para buscar cotización
+   * - Paso 3+ (Validation y superiores): Usa policyId para buscar pago directamente
+   */
+  private async verifyAndRecoverMissingData(sessionData: any): Promise<void> {
+    const currentState = this.wizardStateService.getState();
+    const step = this.currentStep;
+    
+    this.logger.log('🔍 Verificando datos faltantes para paso:', {
+      step,
+      stepName: this.getStepName(step),
+      quotationId: currentState.quotationId,
+      policyId: currentState.policyId,
+      hasPaymentResult: !!currentState.paymentResult,
+      hasPaymentAmount: !!currentState.paymentAmount
+    });
+    
+    try {
+      // Paso 2 (Payment): Debería tener quotationId y quotationNumber
+      // ✅ Usa quotationId para buscar datos de cotización
+      if (step === 2) {
+        if (!currentState.quotationId && sessionData.quotationId) {
+          this.logger.log('📋 Recuperando datos de cotización faltantes desde quotationId...');
+          await this.recoverQuotationData(sessionData.quotationId);
+        }
+      }
+      
+      // Paso 3 (Validation) y superiores: Debería tener policyId, policyNumber, paymentResult, paymentAmount
+      // ✅ Usa policyId directamente para buscar el pago
+      if (step >= 3) {
+        // Si hay policyId pero no hay paymentResult o paymentAmount, buscar el pago directamente por policyId
+        if (currentState.policyId && (!currentState.paymentResult || !currentState.paymentAmount)) {
+          this.logger.log('💳 Recuperando datos de pago faltantes desde policyId (paso 3+)...');
+          await this.recoverPaymentDataByPolicy(currentState.policyId);
+        }
+        // Si no hay quotationId pero debería haberlo (paso 3+), intentar recuperarlo
+        else if (!currentState.quotationId && sessionData.quotationId) {
+          this.logger.log('📋 Recuperando datos de cotización faltantes desde quotationId...');
+          await this.recoverQuotationData(sessionData.quotationId);
+        }
+      }
+      
+      // Paso 4+ (Data Entry): Si hay policyId pero no hay captureData, se cargará en el step
+      // Paso 5+ (Contract): Si hay policyId pero no hay contractData, se cargará en el step
+      
+    } catch (error) {
+      this.logger.error('❌ Error recuperando datos faltantes:', error);
+      // No lanzar error, continuar con el flujo normal
+    }
+  }
+
+  /**
+   * Recupera datos de cotización desde la API
+   */
+  private async recoverQuotationData(quotationId: string): Promise<void> {
+    try {
+      const currentState = this.wizardStateService.getState();
+      const response = await this.quotationsService.getQuotationById(quotationId).toPromise();
+      if (response?.success && response.data) {
+        const quotation = response.data;
+        this.logger.log('✅ Cotización recuperada:', quotation);
+        
+        // Actualizar estado con datos de cotización
+        this.wizardStateService.saveState({
+          quotationId: quotation.id || quotationId,
+          quotationNumber: quotation.quotationNumber || currentState.quotationNumber,
+          paymentAmount: parseFloat(quotation.finalPrice || quotation.basePrice || '0') || currentState.paymentAmount
+        });
+        
+        // Sincronizar con backend
+        await this.wizardStateService.syncWithBackendCorrected(this.wizardStateService.getState());
+        this.logger.log('✅ Datos de cotización actualizados en sesión');
+      }
+    } catch (error) {
+      this.logger.error('❌ Error recuperando cotización:', error);
+    }
+  }
+
+  /**
+   * Recupera datos de pago desde la API usando policyId
+   * ✅ Busca el pago directamente desde la API usando policyId (pasos 3+)
+   * ✅ Usa policyNumber y quotationNumber de la sesión si están disponibles
+   */
+  private async recoverPaymentDataByPolicy(policyId: string): Promise<void> {
+    try {
+      const currentState = this.wizardStateService.getState();
+      
+      this.logger.log('🔍 Buscando pago directamente por policyId:', policyId);
+      
+      // ✅ Primero intentar obtener policyNumber desde la sesión (más eficiente)
+      let sessionPolicyNumber = currentState.policyNumber;
+      if (!sessionPolicyNumber) {
+        // Si no está en el estado local, obtenerlo desde la sesión del backend
+        try {
+          const sessionResponse = await this.wizardSessionService.getSession(
+            currentState.id || currentState.sessionId
+          ).toPromise();
+          if (sessionResponse) {
+            const sessionData = (sessionResponse as any).data || sessionResponse;
+            sessionPolicyNumber = sessionData.policyNumber;
+            this.logger.log('📋 policyNumber obtenido desde sesión:', sessionPolicyNumber);
+          }
+        } catch (error) {
+          this.logger.warning('⚠️ No se pudo obtener policyNumber desde sesión');
+        }
+      }
+      
+      // Buscar el pago directamente por policyId desde la API
+      const paymentResponse = await this.paymentsService.getPaymentByPolicyId(policyId).toPromise();
+      
+      this.logger.log('📡 Respuesta completa del endpoint getPaymentByPolicyId:', paymentResponse);
+      
+      // Manejar diferentes formatos de respuesta
+      let payment: any = null;
+      
+      if (paymentResponse) {
+        // Si viene envuelto en ApiResponse
+        if ((paymentResponse as any).success && (paymentResponse as any).data) {
+          payment = (paymentResponse as any).data;
+          this.logger.log('✅ Pago encontrado en formato ApiResponse:', payment);
+        }
+        // Si viene directamente el objeto Payment
+        else if ((paymentResponse as any).id || (paymentResponse as any).policyId) {
+          payment = paymentResponse;
+          this.logger.log('✅ Pago encontrado en formato directo:', payment);
+        }
+        // Si viene en otro formato
+        else {
+          this.logger.warning('⚠️ Formato de respuesta inesperado:', paymentResponse);
+        }
+      }
+      
+      if (payment && (payment.policyId === policyId || payment.id)) {
+        // ✅ Obtener policyNumber: primero de la sesión, luego del pago, luego del estado local
+        const policyNumber = sessionPolicyNumber || 
+                            (payment as any).policyNumber || 
+                            (payment as any).policy?.policyNumber || 
+                            currentState.policyNumber || 
+                            'N/A';
+        
+        this.logger.log('📋 policyNumber obtenido (sesión > pago > estado):', policyNumber);
+        
+        // Construir paymentResult desde los datos del pago
+        const paymentResult = {
+          success: true,
+          policyId: payment.policyId || policyId,
+          policyNumber: policyNumber !== 'N/A' ? policyNumber : (currentState.policyNumber || 'N/A'),
+          paymentId: payment.id || payment.paymentId || 'N/A',
+          chargeId: payment.openpayChargeId || payment.chargeId || 'N/A',
+          status: (payment.status as string) === 'POLICY_CREATED' ? 'COMPLETED' : (payment.status || 'COMPLETED'),
+          message: 'Pago procesado exitosamente'
+        };
+        
+        this.logger.log('✅ Datos de pago recuperados directamente por policyId:', paymentResult);
+        
+        // Actualizar estado con datos de pago (incluyendo paymentData completo)
+        this.wizardStateService.saveState({
+          paymentResult: paymentResult,
+          paymentData: payment, // ✅ Guardar paymentData completo
+          policyId: payment.policyId || policyId,
+          policyNumber: policyNumber !== 'N/A' ? policyNumber : currentState.policyNumber,
+          paymentAmount: payment.amount || currentState.paymentAmount
+        });
+        
+        // Sincronizar con backend
+        await this.wizardStateService.syncWithBackendCorrected(this.wizardStateService.getState());
+        this.logger.log('✅ Datos de pago actualizados en sesión desde policyId');
+        return;
+      }
+      
+      // Si no se encontró directamente, intentar desde quotationId como fallback
+      if (currentState.quotationId) {
+        this.logger.log('⚠️ No se encontró pago por policyId, intentando desde quotationId como fallback...');
+        try {
+          await this.recoverPaymentDataByQuotation(currentState.quotationId);
+          const updatedState = this.wizardStateService.getState();
+          if (updatedState.paymentResult && updatedState.policyId === policyId) {
+            this.logger.log('✅ Pago recuperado exitosamente desde quotationId (fallback)');
+            return;
+          }
+        } catch (error) {
+          this.logger.warning('⚠️ No se pudo recuperar pago desde quotationId tampoco');
+        }
+      }
+      
+      // Si no se encontraron datos, loguear advertencia
+      this.logger.warning('⚠️ No se encontraron datos de pago para policyId:', policyId);
+      this.logger.log('💡 Sugerencia: Verificar que el pago esté asociado correctamente a la póliza');
+      
+    } catch (error: any) {
+      this.logger.error('❌ Error recuperando pago por policyId:', error);
+      this.logger.error('❌ Detalles del error:', {
+        message: error?.message,
+        status: error?.status,
+        error: error?.error,
+        url: error?.url
+      });
+      
+      // Intentar fallback desde quotationId si hay error
+      const currentState = this.wizardStateService.getState();
+      if (currentState.quotationId) {
+        this.logger.log('🔄 Intentando recuperar desde quotationId como fallback después de error...');
+        try {
+          await this.recoverPaymentDataByQuotation(currentState.quotationId);
+        } catch (fallbackError) {
+          this.logger.error('❌ Error en fallback desde quotationId:', fallbackError);
+        }
+      }
+    }
+  }
+
+  /**
+   * Recupera datos de pago desde la API usando quotationId
+   * ✅ Usa quotationNumber de la sesión si está disponible
+   */
+  private async recoverPaymentDataByQuotation(quotationId: string): Promise<void> {
+    try {
+      const currentState = this.wizardStateService.getState();
+      
+      // ✅ Primero intentar obtener quotationNumber desde la sesión (más eficiente)
+      let sessionQuotationNumber = currentState.quotationNumber;
+      if (!sessionQuotationNumber) {
+        // Si no está en el estado local, obtenerlo desde la sesión del backend
+        try {
+          const sessionResponse = await this.wizardSessionService.getSession(
+            currentState.id || currentState.sessionId
+          ).toPromise();
+          if (sessionResponse) {
+            const sessionData = (sessionResponse as any).data || sessionResponse;
+            sessionQuotationNumber = sessionData.quotationNumber;
+            this.logger.log('📋 quotationNumber obtenido desde sesión:', sessionQuotationNumber);
+          }
+        } catch (error) {
+          this.logger.warning('⚠️ No se pudo obtener quotationNumber desde sesión');
+        }
+      }
+      
+      // Primero obtener la cotización para ver si tiene paymentId
+      const quotationResponse = await this.quotationsService.getQuotationById(quotationId).toPromise();
+      
+      if (quotationResponse?.success && quotationResponse.data) {
+        const quotation = quotationResponse.data;
+        
+        // Si la cotización tiene un paymentId, obtener el pago
+        if ((quotation as any).paymentId) {
+          const paymentResponse = await this.paymentsService.getPaymentById((quotation as any).paymentId).toPromise();
+          
+          if (paymentResponse?.success && paymentResponse.data) {
+            const payment = paymentResponse.data;
+            
+            // ✅ Obtener policyNumber: primero de la sesión, luego del pago, luego del estado local
+            const sessionPolicyNumber = currentState.policyNumber;
+            const policyNumber = sessionPolicyNumber || 
+                                (payment as any).policyNumber || 
+                                (payment as any).policy?.policyNumber || 
+                                currentState.policyNumber || 
+                                'N/A';
+            
+            // Construir paymentResult desde los datos del pago
+            const paymentResult = {
+              success: true,
+              policyId: (payment as any).policyId || currentState.policyId || 'N/A',
+              policyNumber: policyNumber !== 'N/A' ? policyNumber : (currentState.policyNumber || 'N/A'),
+              paymentId: payment.id || (payment as any).paymentId || 'N/A',
+              chargeId: (payment as any).openpayChargeId || (payment as any).chargeId || 'N/A',
+              status: ((payment as any).status as string) === 'POLICY_CREATED' ? 'COMPLETED' : (payment.status || 'COMPLETED'),
+              message: 'Pago procesado exitosamente'
+            };
+            
+            this.logger.log('✅ Datos de pago recuperados desde quotationId:', paymentResult);
+            
+            // Actualizar estado con datos de pago
+            this.wizardStateService.saveState({
+              paymentResult: paymentResult,
+              quotationNumber: sessionQuotationNumber || quotation.quotationNumber || currentState.quotationNumber,
+              policyId: paymentResult.policyId !== 'N/A' ? paymentResult.policyId : undefined,
+              policyNumber: policyNumber !== 'N/A' ? policyNumber : undefined,
+              paymentAmount: payment.amount || currentState.paymentAmount
+            });
+            
+            // Sincronizar con backend
+            await this.wizardStateService.syncWithBackendCorrected(this.wizardStateService.getState());
+            this.logger.log('✅ Datos de pago actualizados en sesión');
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error('❌ Error recuperando pago por quotationId:', error);
+    }
   }
 
   /**
@@ -617,9 +1023,16 @@ export class WizardFlowComponent implements OnInit {
         razon: 'Ya establecido desde sesión del backend con lógica inteligente'
       });
       this.selectedPlan = savedState.selectedPlan || '';
+      this.selectedPlanName = savedState.selectedPlanName || '';
       this.quotationId = savedState.quotationId || '';
       this.quotationNumber = savedState.quotationNumber || '';
       this.userId = savedState.userId || '';
+      
+      // Si tenemos quotationId en el estado local pero no en el componente, actualizarlo
+      if (savedState.quotationId && !this.quotationId) {
+        this.quotationId = savedState.quotationId;
+        this.logger.log('🔑 quotationId restaurado desde estado local:', this.quotationId);
+      }
       
       this.logger.log('🔄 Estado del wizard restaurado:', {
         step: this.currentStep,
@@ -635,13 +1048,14 @@ export class WizardFlowComponent implements OnInit {
       this.modalSelectedPlanName = this.selectedPlanName;
       this.modalQuotationNumber = this.quotationNumber;
       this.modalPolicyNumber = savedState.policyNumber || null;
-      this.modalCompletedSteps = this.calculateCompletedSteps(savedState.stepData || {});
+      this.modalCompletedSteps = this.calculateCompletedSteps(savedState.stepData || {}, this.currentStep);
       
       this.logger.log('📊 Variables del modal llenadas desde estado local:', {
         modalCurrentStep: this.modalCurrentStep,
         modalSelectedPlan: this.modalSelectedPlan,
         modalQuotationNumber: this.modalQuotationNumber,
-        modalCompletedSteps: this.modalCompletedSteps
+        modalCompletedSteps: this.modalCompletedSteps,
+        currentStepName: this.getStepName(this.modalCurrentStep)
       });
       
       this.isStateRestored = true;
@@ -717,21 +1131,37 @@ export class WizardFlowComponent implements OnInit {
     this.quotationSentByEmail = true;
     this.quotationNumber = quotationNumber;
     
-    // Obtener el sessionId actual
+    this.logger.log('📧 Cotización enviada por email:', quotationNumber);
+    
+    // ✅ Agrupar todos los cambios en una sola actualización para evitar múltiples sincronizaciones
     const currentState = this.wizardStateService.getState();
-    const sessionId = currentState.sessionId;
+    const updatedCompletedSteps = [...(currentState.completedSteps || [])];
+    if (!updatedCompletedSteps.includes(1)) {
+      updatedCompletedSteps.push(1);
+    }
+    if (!updatedCompletedSteps.includes(2)) {
+      updatedCompletedSteps.push(2);
+    }
     
-    // Generar URL con sessionId para continuar el proceso
-    const continueUrl = `${window.location.origin}/cotizador?session=${sessionId}&step=3`;
+    // Actualizar estado local primero (sin sincronizar todavía)
+    this.currentStep = 6;
+    this.wizardStateService.saveState({
+      currentStep: 6,
+      completedSteps: updatedCompletedSteps,
+      quotationNumber: quotationNumber,
+      metadata: {
+        ...(currentState.metadata || {}),
+        quotationSentByEmail: true
+      }
+    });
     
-    this.logger.log('📧 Cotización enviada por email con URL:', continueUrl);
+    // ✅ Sincronizar una sola vez con todos los cambios agrupados
+    this.wizardStateService.syncWithBackendCorrected(this.wizardStateService.getState()).catch(error => {
+      this.logger.error('❌ Error sincronizando estado después de enviar cotización:', error);
+      // No bloquear el cambio de pantalla si hay error de sincronización
+    });
     
-    // Marcar pasos 1 y 2 como completados (proceso de cotización completado)
-    this.wizardStateService.completeStep(1);
-    this.wizardStateService.completeStep(2);
-    
-    // Ir al paso de finalización (finish-step) - proceso completado
-    this.setCurrentStep(6);
+    this.logger.log('✅ Cotización enviada, cambiando al paso de finalización (step 6)');
   }
 
   // Nuevo método para cuando se hace clic en "Siguiente y Pagar"
@@ -759,7 +1189,9 @@ export class WizardFlowComponent implements OnInit {
     this.wizardStateService.saveState({
       quotationId: this.quotationId,
       quotationNumber: this.quotationNumber,
-      userId: this.userId
+      userId: this.userId,
+      paymentAmount: quotationData.quotationAmount || quotationData.finalPrice || quotationData.basePrice || 0,
+      selectedPlanName: quotationData.plan?.name || this.selectedPlanName || ''
     });
     
     // Verificar que los datos se guardaron correctamente
@@ -915,13 +1347,12 @@ export class WizardFlowComponent implements OnInit {
   }
 
   onFinishGoToStart() {
-    this.goToStep(0);
-    this.validationStatus = 'pending';
-    this.currentQuotation = null;
-    this.quotationId = '';
-    
     // Limpiar estado del wizard
     this.wizardStateService.clearState();
+    
+    // Redirigir a la landing page en lugar de solo resetear el wizard
+    this.logger.log('🏠 Redirigiendo a la landing page');
+    window.location.href = '/';
   }
 
   getCurrentStepKey(): string {
@@ -941,20 +1372,35 @@ export class WizardFlowComponent implements OnInit {
 
   /**
    * Maneja la decisión de continuar el wizard
+   * ✅ OPTIMIZADO: Solo navega si no estamos ya en la ruta correcta para evitar doble inicialización
    */
   onContinueWizard(): void {
-    this.showContinueModal = false;
     this.logger.log('✅ Usuario decidió continuar el wizard');
     
-    // Navegar al cotizador con la sesión actual
+    // Obtener estado actual y sessionId
     const currentState = this.wizardStateService.getState();
-    if (currentState.sessionId) {
-      this.logger.log('🎯 Navegando al cotizador con sesión:', currentState.sessionId);
-      const sessionId = currentState.id || currentState.sessionId;
-      this.router.navigate(['/cotizador', sessionId]);
-    } else {
+    const sessionId = currentState.id || currentState.sessionId;
+    
+    if (!sessionId) {
       this.logger.warning('⚠️ No hay sessionId para navegar al cotizador');
+      this.showContinueModal = false;
+      return;
     }
+    
+    // ✅ OPTIMIZADO: Verificar si ya estamos en la ruta correcta
+    const currentUrl = this.router.url;
+    const expectedUrl = `/cotizador/${sessionId}`;
+    
+    if (currentUrl === expectedUrl || currentUrl.startsWith(expectedUrl + '/')) {
+      this.logger.log('✅ Ya estamos en la ruta correcta, solo cerrando modal (evita doble inicialización)');
+      this.showContinueModal = false;
+      return;
+    }
+    
+    // Solo navegar si estamos en una ruta diferente
+    this.logger.log('🎯 Navegando al cotizador con sesión:', sessionId);
+    this.showContinueModal = false;
+    this.router.navigate(['/cotizador', sessionId]);
   }
 
   /**
@@ -1035,6 +1481,7 @@ export class WizardFlowComponent implements OnInit {
 
   /**
    * Calcula el número de pasos completados basado en los datos reales guardados
+   * ✅ MEJORADO: Incluye el paso actual si está en progreso
    * Estructura real del wizard (7 pasos: 0-6):
    * - Paso 0: Bienvenida (tipo de usuario) → stepData.step0.tipoUsuario
    * - Paso 1: Datos principales → stepData.step1 (nombre, telefono, correo, rentaMensual)
@@ -1044,10 +1491,11 @@ export class WizardFlowComponent implements OnInit {
    * - Paso 5: Contrato → stepData.step5 (contractTerms, signatures)
    * - Paso 6: Final → stepData.step6 (deliveryPreferences)
    */
-  private calculateCompletedSteps(stepData: any): number {
+  private calculateCompletedSteps(stepData: any, currentStep?: number): number {
     let completedSteps = 0;
     
     this.logger.log('🔍 Calculando pasos completados desde stepData:', JSON.stringify(stepData, null, 2));
+    this.logger.log('🔍 Paso actual:', currentStep);
     
     // Paso 0: Bienvenida - tipo de usuario
     if (stepData.step0 && stepData.step0.tipoUsuario) {
@@ -1091,6 +1539,22 @@ export class WizardFlowComponent implements OnInit {
       this.logger.log('✅ Paso 6 completado: step6 existe');
     }
     
+    // ✅ MEJORADO: Si el paso actual es mayor que los pasos completados,
+    // significa que está en progreso, así que lo incluimos en el conteo para el progreso visual
+    // pero solo si no está ya completado
+    if (currentStep !== undefined && currentStep >= 0) {
+      const currentStepKey = `step${currentStep}`;
+      const isCurrentStepCompleted = stepData[currentStepKey] !== undefined;
+      
+      // Si el paso actual no está completado pero estamos en ese paso, incluirlo en el progreso visual
+      // Esto ayuda a mostrar mejor el progreso real del usuario
+      if (!isCurrentStepCompleted && currentStep > completedSteps) {
+        this.logger.log(`ℹ️ Paso actual ${currentStep} está en progreso, ajustando conteo visual`);
+        // No incrementamos completedSteps aquí porque no está completado,
+        // pero el modal mostrará correctamente el paso actual
+      }
+    }
+    
     this.logger.log('📊 Total de pasos completados:', completedSteps);
     return completedSteps;
   }
@@ -1102,4 +1566,6 @@ export class WizardFlowComponent implements OnInit {
     return this.wizardStateService.getStateInfo();
   }
 }
+
+
 

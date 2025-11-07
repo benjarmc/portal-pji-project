@@ -10,6 +10,13 @@ import { LoggerService } from './logger.service';
 })
 export class PlansService {
   private readonly endpoint = '/plans';
+  
+  // Cache para evitar múltiples llamadas
+  private plansCache: ApiResponse<Plan[]> | null = null;
+  private cacheTimestamp: number = 0;
+  private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+  private isLoadingPlans = false;
+  private plansPromise: Observable<ApiResponse<Plan[]>> | null = null;
 
   constructor(
     private apiService: ApiService,
@@ -27,13 +34,29 @@ export class PlansService {
 
   /**
    * Obtener todos los planes
+   * ✅ OPTIMIZADO: Usa cache y evita múltiples llamadas simultáneas
    */
   getPlans(): Observable<ApiResponse<Plan[]>> {
+    // Verificar cache primero
+    const now = Date.now();
+    if (this.plansCache && (now - this.cacheTimestamp) < this.CACHE_DURATION) {
+      this.logger.log('📦 Retornando planes desde cache');
+      return of(this.plansCache);
+    }
+    
+    // Si ya hay una petición en progreso, retornar la misma promesa
+    if (this.isLoadingPlans && this.plansPromise) {
+      this.logger.log('⏳ Ya hay una petición de planes en progreso, reutilizando...');
+      return this.plansPromise;
+    }
+    
     this.logger.log('🔧 PlansService.getPlans() llamado');
     this.logger.log('🌐 Intentando conectar con API en:', this.endpoint);
     
+    this.isLoadingPlans = true;
+    
     // Usar la API real ahora que está disponible
-    return this.apiService.get<Plan[]>(this.endpoint).pipe(
+    this.plansPromise = this.apiService.get<Plan[]>(this.endpoint).pipe(
       // Procesar planes con nueva estructura
       switchMap((response: any) => {
         this.logger.log('📡 Respuesta raw de la API:', response);
@@ -73,30 +96,56 @@ export class PlansService {
               
               this.logger.log('🎯 Planes procesados:', processedPlans);
               
-              return {
+              const response: ApiResponse<Plan[]> = {
                 success: true,
                 data: processedPlans,
                 message: 'Planes principales cargados correctamente'
               };
+              
+              // Guardar en cache
+              this.plansCache = response;
+              this.cacheTimestamp = Date.now();
+              this.isLoadingPlans = false;
+              this.plansPromise = null;
+              
+              return response;
             })
           );
         } else {
           this.logger.log('⚠️ No se encontraron planes en la respuesta');
-          return of({
+          const errorResponse: ApiResponse<Plan[]> = {
             success: false,
             data: [],
             message: 'No se encontraron planes'
-          });
+          };
+          this.isLoadingPlans = false;
+          this.plansPromise = null;
+          return of(errorResponse);
         }
       }),
       catchError((error: any) => {
         this.logger.error('❌ Error en PlansService.getPlans():', error);
         this.logger.error('❌ Detalles del error:', { error: error.error, status: error.status, message: error.message });
         
+        // Limpiar estado de carga
+        this.isLoadingPlans = false;
+        this.plansPromise = null;
+        
         // Propagar el error sin fallback
         throw error;
       })
     );
+    
+    return this.plansPromise;
+  }
+  
+  /**
+   * Limpiar cache de planes (útil cuando se actualizan planes)
+   */
+  clearCache(): void {
+    this.plansCache = null;
+    this.cacheTimestamp = 0;
+    this.logger.log('🧹 Cache de planes limpiado');
   }
 
   /**

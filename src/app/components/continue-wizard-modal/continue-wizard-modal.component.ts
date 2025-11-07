@@ -42,21 +42,23 @@ import { CommonModule } from '@angular/common';
               <span class="status-value">{{ quotationNumber }}</span>
             </div>
             
-            <div class="status-item" *ngIf="completedSteps > 0">
+            <div class="status-item" *ngIf="completedSteps >= 0">
               <span class="status-label">Progreso:</span>
-              <span class="status-value">{{ completedSteps }} de 7 pasos completados</span>
+              <span class="status-value">
+                {{ getProgressText() }}
+              </span>
             </div>
           </div>
           
           <div class="progress-info mt-3">
             <div class="progress mb-2" style="height: 8px;">
               <div class="progress-bar bg-success" 
-                   [style.width.%]="(completedSteps / 7) * 100"
+                   [style.width.%]="getProgressPercentage()"
                    role="progressbar">
               </div>
             </div>
             <small class="text-muted">
-              {{ Math.round((completedSteps / 7) * 100) }}% completado
+              {{ Math.round(getProgressPercentage()) }}% completado
             </small>
           </div>
         </div>
@@ -246,6 +248,37 @@ export class ContinueWizardModalComponent {
 
   // Hacer Math disponible en el template
   Math = Math;
+
+  /**
+   * Calcula el progreso visual considerando el paso actual
+   * El progreso visual refleja el paso en el que está el usuario (no solo los completados)
+   */
+  getProgressPercentage(): number {
+    const totalSteps = 7;
+    // El progreso visual debe reflejar el paso actual (currentStep + 1 porque es 0-indexed)
+    // Si el paso actual es mayor que los pasos completados, usar el paso actual para el progreso visual
+    const currentStepNumber = this.currentStep + 1; // Convertir de 0-indexed a 1-indexed
+    const visualProgress = currentStepNumber > this.completedSteps 
+      ? currentStepNumber  // Está en un paso no completado aún, mostrar progreso hasta ese paso
+      : this.completedSteps;   // Todos los pasos hasta el actual están completados
+    return Math.min((visualProgress / totalSteps) * 100, 100);
+  }
+
+  /**
+   * Obtiene el texto del progreso
+   * Muestra claramente los pasos completados y el paso actual
+   */
+  getProgressText(): string {
+    const totalSteps = 7;
+    const currentStepNumber = this.currentStep + 1; // Convertir de 0-indexed a 1-indexed
+    
+    // Si el paso actual es mayor que los pasos completados, mostrar ambos
+    if (currentStepNumber > this.completedSteps) {
+      return `Paso ${currentStepNumber} de ${totalSteps} (${this.completedSteps} completados)`;
+    }
+    // Si todos los pasos hasta el actual están completados
+    return `${this.completedSteps} de ${totalSteps} pasos completados`;
+  }
 
   get currentStepLabel(): string {
     const steps = [

@@ -5,6 +5,7 @@ export const environment = {
     api: {
         baseUrl: 'https://backend.pjionline.com.mx/api',
         timeout: 30000,
+        apiKey: 'PROD-FRONTEND-API-KEY-CHANGE-ME', // ⚠️ CAMBIAR EN PRODUCCIÓN
     },
     vdid: {
         publicKey: 'pk_test_Qm3iR9607BpWD/UAP2Til1+5NCHA/yxvcZWtauDNHLE=',

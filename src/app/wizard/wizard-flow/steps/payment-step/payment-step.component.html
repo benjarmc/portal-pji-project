@@ -19,36 +19,28 @@
     </div>
   </div>
 
+  <!-- Logos de tarjetas aceptadas -->
+  <div class="card-brands mb-4">
+    <div class="card-brands-section">
+      <div class="credit-cards">
+        <h4>Tarjetas de crédito</h4>
+        <div class="card-logos"></div>
+      </div>
+      <div class="debit-cards">
+        <h4>Tarjetas de débito</h4>
+        <div class="card-logos"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Formulario de Pago -->
-  <form #paymentForm="ngForm" (ngSubmit)="processPayment()" class="payment-form">
+  <form #paymentForm="ngForm" (ngSubmit)="processPayment()" id="payment-form" class="payment-form">
     <!-- Device Data para detección de fraude -->
     <input type="hidden" name="deviceDataId" [value]="deviceDataId">
     
-    <div class="form-group mb-3">
-      <label for="cardNumber" class="form-label">Número de tarjeta</label>
-      <div class="position-relative">
-        <input 
-          type="text" 
-          id="cardNumber"
-          name="cardNumber"
-          [(ngModel)]="cardData.card_number"
-          (input)="validateCard()"
-          class="form-control" 
-          placeholder="1234 5678 9012 3456"
-          maxlength="19"
-          required>
-        <div class="card-type-indicator" *ngIf="cardType">
-          <i class="bi" [ngClass]="getCardIcon()"></i>
-          {{ cardType }}
-        </div>
-      </div>
-      <div class="invalid-feedback" *ngIf="cardErrors.number">
-        {{ cardErrors.number }}
-      </div>
-    </div>
-
-    <div class="row mb-3">
-      <div class="col-md-6">
+    <!-- Nombre del titular y Número de tarjeta en la misma fila -->
+    <div class="form-row mb-3">
+      <div class="form-group col-md-6">
         <label for="holderName" class="form-label">Nombre del titular</label>
         <input 
           type="text" 
@@ -56,58 +48,87 @@
           name="holderName"
           [(ngModel)]="cardData.holder_name"
           class="form-control" 
-          placeholder="Juan Pérez"
+          placeholder="Como aparece en la tarjeta"
+          autocomplete="off"
           required>
       </div>
-      <div class="col-md-6">
-        <label for="cvv" class="form-label">Código de seguridad (CVV)</label>
-        <input 
-          type="text" 
-          id="cvv"
-          name="cvv"
-          [(ngModel)]="cardData.cvv2"
-          (input)="validateCard()"
-          class="form-control" 
-          placeholder="123"
-          maxlength="4"
-          required>
-        <div class="invalid-feedback" *ngIf="cardErrors.cvv">
-          {{ cardErrors.cvv }}
+      <div class="form-group col-md-6">
+        <label for="cardNumber" class="form-label">Número de tarjeta</label>
+        <div class="card-input-wrapper">
+          <input 
+            type="text" 
+            id="cardNumber"
+            name="cardNumber"
+            [(ngModel)]="cardData.card_number"
+            (input)="formatCardNumber($event)"
+            class="form-control" 
+            placeholder="1234 5678 9012 3456"
+            maxlength="19"
+            autocomplete="off"
+            required>
+          <div class="card-type-indicator" *ngIf="cardType">
+            <i class="bi" [ngClass]="getCardIcon()"></i>
+            {{ cardType }}
+          </div>
+        </div>
+        <div class="invalid-feedback" *ngIf="cardErrors.number">
+          {{ cardErrors.number }}
         </div>
       </div>
     </div>
 
-    <div class="row mb-3">
-      <div class="col-md-6">
-        <label for="expiryMonth" class="form-label">Mes de expiración</label>
-        <select 
-          id="expiryMonth"
-          name="expiryMonth"
-          [(ngModel)]="cardData.expiration_month"
-          (change)="validateCard()"
-          class="form-select"
-          required>
-          <option value="">MM</option>
-          <option *ngFor="let month of months" [value]="month.value">{{ month.label }}</option>
-        </select>
+    <!-- Fecha de expiración y CVV en la misma fila -->
+    <div class="form-row mb-3">
+      <div class="form-group col-md-6">
+        <label class="form-label">Fecha de expiración</label>
+        <div class="expiry-row">
+          <select 
+            id="expiryMonth"
+            name="expiryMonth"
+            [(ngModel)]="cardData.expiration_month"
+            (change)="onDateChange()"
+            class="form-select expiry-select"
+            required>
+            <option value="">Mes</option>
+            <option *ngFor="let month of months" [value]="month.value">{{ month.value }}</option>
+          </select>
+          <select 
+            id="expiryYear"
+            name="expiryYear"
+            [(ngModel)]="cardData.expiration_year"
+            (change)="onDateChange()"
+            class="form-select expiry-select"
+            required>
+            <option value="">Año</option>
+            <option *ngFor="let year of years" [value]="year">{{ year }}</option>
+          </select>
+        </div>
+        <div class="invalid-feedback" *ngIf="cardErrors.expiry">
+          {{ cardErrors.expiry }}
+        </div>
       </div>
-      <div class="col-md-6">
-        <label for="expiryYear" class="form-label">Año de expiración</label>
-        <select 
-          id="expiryYear"
-          name="expiryYear"
-          [(ngModel)]="cardData.expiration_year"
-          (change)="validateCard()"
-          class="form-select"
-          required>
-          <option value="">YY</option>
-          <option *ngFor="let year of years" [value]="year">{{ year }}</option>
-        </select>
+      <div class="form-group col-md-6">
+        <label for="cvv" class="form-label">Código de seguridad (CVV)</label>
+        <div class="cvv-wrapper">
+          <input 
+            type="password" 
+            id="cvv"
+            name="cvv"
+            [(ngModel)]="cardData.cvv2"
+            (input)="validateCard()"
+            class="form-control cvv-input" 
+            placeholder="123"
+            maxlength="4"
+            autocomplete="cc-csc"
+            required>
+          <div class="cvv-hint">
+            <img src="/assets/openpay_tarjeta/cvv.png" alt="CVV" class="cvv-image">
+          </div>
+        </div>
+        <div class="invalid-feedback" *ngIf="cardErrors.cvv">
+          {{ cardErrors.cvv }}
+        </div>
       </div>
-    </div>
-
-    <div class="invalid-feedback" *ngIf="cardErrors.expiry">
-      {{ cardErrors.expiry }}
     </div>
 
     <!-- Mensajes de error/éxito -->
@@ -115,7 +136,6 @@
       {{ paymentError }}
     </div>
     
-    <!-- Mensaje de éxito con más detalles -->
     <div class="alert alert-success" *ngIf="paymentSuccess">
       <div class="d-flex align-items-center mb-2">
         <i class="bi bi-check-circle-fill me-2"></i>
@@ -124,6 +144,20 @@
       <div class="text-success small">
         <i class="bi bi-arrow-right-circle me-1"></i>
         Redirigiendo al siguiente paso...
+      </div>
+    </div>
+
+    <!-- Información de seguridad OpenPay -->
+    <div class="security-info mb-4">
+      <div class="openpay-info">
+        <div class="openpay-logo-wrapper">
+          <span class="openpay-text">Transacciones realizadas vía:</span>
+          <img src="/assets/openpay_tarjeta/openpay.png" alt="OpenPay" class="openpay-logo">
+        </div>
+        <div class="security-message">
+          <img src="/assets/openpay_tarjeta/security.png" alt="Seguridad" class="security-icon">
+          <span>Tus pagos se realizan de forma segura con encriptación de 256 bits</span>
+        </div>
       </div>
     </div>
 
@@ -136,10 +170,14 @@
         type="button" 
         class="btn btn-outline-primary" 
         (click)="sendQuotationEmail()"
-        [disabled]="isProcessing || !quotationId"
-        *ngIf="quotationId"
+        [disabled]="isProcessing || isCreatingQuotation"
       >
-        📧 Enviar Cotización
+        <span *ngIf="!isCreatingQuotation && !isProcessing">📧 Enviar Cotización</span>
+        <span *ngIf="isCreatingQuotation || isProcessing">
+          <i class="bi bi-arrow-clockwise spin"></i> 
+          <span *ngIf="isCreatingQuotation">Creando Cotización...</span>
+          <span *ngIf="!isCreatingQuotation && isProcessing">Enviando...</span>
+        </span>
       </button>
 
       <!-- Botón principal de pago -->
@@ -155,4 +193,4 @@
       </button>
     </div>
   </form>
-</div> 
+</div>
