@@ -970,6 +970,11 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
           this.logger.log(`✅ Enlace de verificación enviado a ${validationData.email}`);
           this.logger.log(`📧 El backend se encargó de crear la verificación VDID y enviar el email`);
           
+          // Mostrar toast de éxito
+          const personType = validationData.type === 'arrendatario' ? 'inquilino' : 
+                            validationData.type === 'aval' ? 'fiador' : 'propietario';
+          this.toastService.success(`Correo de validación enviado exitosamente a ${validationData.email} (${personType})`);
+          
           // Guardar validationRequirements actualizados en el estado (solo localmente)
           this.wizardStateService.saveState({
             validationRequirements: this.validationRequirements
@@ -989,10 +994,13 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
           
         } else {
           this.logger.error('❌ Error iniciando validación en el backend:', response.message);
+          this.toastService.error(response.message || 'Error al enviar el correo de validación. Por favor, intenta nuevamente.');
         }
       },
       error: (error) => {
         this.logger.error('❌ Error en servicio de validación:', error);
+        const errorMessage = error?.error?.message || error?.message || 'Error al enviar el correo de validación';
+        this.toastService.error(`Error al enviar el correo: ${errorMessage}`);
       }
     });
   }
@@ -1055,12 +1063,19 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
       next: (response) => {
         if (response.success) {
           this.logger.log(`✅ Verificación reenviada exitosamente a ${type}`);
+          const personType = type === 'arrendatario' ? 'inquilino' : 
+                            type === 'aval' ? 'fiador' : 'propietario';
+          const message = response.data?.message || response.message || `Correo de validación reenviado exitosamente (${personType})`;
+          this.toastService.success(message);
         } else {
           this.logger.error('❌ Error reenviando verificación:', response.message);
+          this.toastService.error(response.message || 'Error al reenviar el correo de validación. Por favor, intenta nuevamente.');
         }
       },
       error: (error) => {
         this.logger.error('❌ Error en servicio de reenvío:', error);
+        const errorMessage = error?.error?.message || error?.message || 'Error al reenviar el correo';
+        this.toastService.error(`Error al reenviar el correo: ${errorMessage}`);
       }
     });
   }
