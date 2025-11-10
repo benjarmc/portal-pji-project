@@ -111,11 +111,19 @@ export class ApiService {
 
   /**
    * Manejo centralizado de errores
+   * ✅ Compatible con SSR: No usa ErrorEvent que no está disponible en Node.js
    */
   private handleError(error: HttpErrorResponse): Observable<never> {
     let errorMessage = 'Ha ocurrido un error inesperado';
 
-    if (error.error instanceof ErrorEvent) {
+    // ✅ Compatible con SSR: Verificar si es un error del cliente sin usar ErrorEvent
+    // ErrorEvent solo está disponible en el navegador, no en Node.js
+    const isClientError = error.error && 
+                         typeof error.error === 'object' && 
+                         'message' in error.error &&
+                         !error.status; // Los errores del cliente generalmente no tienen status
+
+    if (isClientError) {
       // Error del cliente
       errorMessage = `Error: ${error.error.message}`;
     } else {
@@ -128,6 +136,8 @@ export class ApiService {
         errorMessage = 'Acceso denegado';
       } else if (error.status === 404) {
         errorMessage = 'Recurso no encontrado';
+      } else if (error.status === 429) {
+        errorMessage = error.error?.message || 'Demasiadas solicitudes. Por favor, intente más tarde.';
       } else if (error.status === 500) {
         errorMessage = 'Error interno del servidor';
       } else if (error.error?.message) {

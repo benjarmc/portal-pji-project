@@ -40,6 +40,9 @@ export interface ValidationRequirement {
   required: boolean;
   completed: boolean;
   uuid?: string;
+  failed?: boolean;
+  errorMessage?: string;
+  requiresRetry?: boolean;
 }
 
 export interface ComplementaryPlan {
@@ -602,6 +605,10 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
    * Determinar si se necesitan cargar validaciones existentes desde el backend
    * ✅ OPTIMIZADO: Solo hace petición si realmente es necesario
    */
+  /**
+   * Cargar validaciones existentes por policy_id si está disponible
+   * ✅ NUEVO: Siempre consulta el backend por policy_id para verificar si hay validaciones realizadas o pendientes
+   */
   private loadExistingValidationsIfNeeded(): void {
     const wizardState = this.wizardStateService.getState();
     const policyId = wizardState.policyId;
@@ -611,29 +618,10 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
       return;
     }
     
-    // Verificar si ya hay UUIDs en validationRequirements (significa que ya se iniciaron validaciones)
-    const hasExistingUUIDs = this.validationRequirements.some(req => req.uuid);
-    
-    if (hasExistingUUIDs) {
-      this.logger.log('✅ Ya hay UUIDs en validationRequirements, cargando datos desde backend para actualizar estados');
-      this.loadExistingValidations();
-      return;
-    }
-    
-    // Si no hay UUIDs, verificar si hay validaciones guardadas en el estado local
-    if (wizardState.validationRequirements && wizardState.validationRequirements.length > 0) {
-      const hasUUIDsInState = wizardState.validationRequirements.some((req: any) => req.uuid);
-      
-      if (hasUUIDsInState) {
-        this.logger.log('✅ Hay UUIDs en el estado local, cargando desde backend para sincronizar');
-        this.loadExistingValidations();
-        return;
-      }
-    }
-    
-    // Si no hay UUIDs ni en el componente ni en el estado local, no hacer petición
-    // Las validaciones aún no se han iniciado, no tiene sentido consultar el backend
-    this.logger.log('ℹ️ No hay validaciones iniciadas aún (sin UUIDs), omitiendo petición al backend');
+    // ✅ SIEMPRE consultar el backend por policy_id para verificar validaciones existentes
+    // Esto permite detectar validaciones que ya fueron iniciadas o completadas, incluso si no hay UUIDs en el estado local
+    this.logger.log(`🔍 Consultando validaciones existentes por policy_id: ${policyId}`);
+    this.loadExistingValidations();
   }
 
   /**
@@ -674,13 +662,44 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
         if (response.success && response.data && response.data.length > 0) {
           this.logger.log(`✅ Encontradas ${response.data.length} validaciones existentes para policyId ${policyId}:`, response.data);
           
+          // ✅ Resetear contador de validaciones completadas antes de actualizar
+          this.completedValidations = 0;
+          
           // Actualizar validationRequirements con los UUIDs existentes
           response.data.forEach(existingValidation => {
             const requirement = this.validationRequirements.find(req => req.type === existingValidation.type);
             if (requirement) {
-              requirement.uuid = existingValidation.uuid;
-              requirement.completed = existingValidation.status === 'COMPLETED';
+              // ✅ Actualizar UUID si existe
+              if (existingValidation.uuid) {
+                requirement.uuid = existingValidation.uuid;
+              }
               
+              // ✅ Actualizar estado según el status de la validación
+              // IMPORTANTE: Si está COMPLETED o FAILED, no se consultará más la API
+              requirement.completed = existingValidation.status === 'COMPLETED';
+              requirement.failed = existingValidation.status === 'FAILED';
+              
+              // ✅ Si está pendiente o en progreso, marcar como no completada pero con UUID
+              // Estas son las únicas que se seguirán consultando
+              if (existingValidation.status === 'PENDING' || existingValidation.status === 'IN_PROGRESS') {
+                requirement.completed = false;
+                requirement.failed = false;
+                requirement.requiresRetry = false;
+                requirement.errorMessage = undefined;
+              }
+              
+              // ✅ Si está fallida, obtener el mensaje de error del vdidResult
+              if (requirement.failed && existingValidation.vdidResult) {
+                requirement.errorMessage = existingValidation.vdidResult.globalResultDescription || 'Error en la validación';
+                requirement.requiresRetry = true;
+              }
+              
+              // ✅ Si está completada o fallida, no se consultará más la API hasta nueva solicitud
+              if (requirement.completed || requirement.failed) {
+                this.logger.log(`✅ Validación ${existingValidation.type} está ${existingValidation.status}, no se consultará más la API hasta nueva solicitud`);
+              }
+              
+              // ✅ Incrementar contador si está completada
               if (requirement.completed) {
                 this.completedValidations++;
               }
@@ -688,19 +707,36 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
               this.logger.log(`🔄 Actualizado requirement para ${existingValidation.type}:`, {
                 uuid: requirement.uuid,
                 completed: requirement.completed,
-                status: existingValidation.status
+                failed: requirement.failed,
+                status: existingValidation.status,
+                errorMessage: requirement.errorMessage,
+                requiresRetry: requirement.requiresRetry
               });
+            } else {
+              // ✅ Si no se encuentra el requirement, loguear para debugging
+              this.logger.warning(`⚠️ Validación encontrada para tipo ${existingValidation.type} pero no hay requirement correspondiente`);
             }
           });
           
-          // Actualizar el estado con los validationRequirements actualizados
+          // ✅ Actualizar el estado con los validationRequirements actualizados
           this.wizardStateService.saveState({
             validationRequirements: this.validationRequirements
           });
           
-          this.logger.log(`📊 Estado actualizado: ${this.completedValidations}/${this.totalValidations} validaciones completadas`);
+          // ✅ Resumen de validaciones encontradas
+          const completed = response.data.filter(v => v.status === 'COMPLETED').length;
+          const pending = response.data.filter(v => v.status === 'PENDING' || v.status === 'IN_PROGRESS').length;
+          const failed = response.data.filter(v => v.status === 'FAILED').length;
+          
+          this.logger.log(`📊 Resumen de validaciones para policyId ${policyId}:`, {
+            total: response.data.length,
+            completadas: completed,
+            pendientes: pending,
+            fallidas: failed,
+            enUI: `${this.completedValidations}/${this.totalValidations}`
+          });
         } else {
-          this.logger.log(`ℹ️ No se encontraron validaciones existentes para policyId ${policyId}`);
+          this.logger.log(`ℹ️ No se encontraron validaciones existentes para policyId ${policyId} - todas las validaciones están pendientes de iniciar`);
         }
       },
       error: (error) => {
@@ -865,27 +901,83 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Marcar validación como fallida
+   */
+  /**
+   * Marcar validación como fallida
+   * ✅ OPTIMIZADO: Detiene el auto-check si todas las validaciones están completadas o fallidas
+   */
+  markValidationFailed(type: string, validationData: any): void {
+    const requirement = this.validationRequirements.find(req => req.type === type);
+    if (requirement) {
+      requirement.completed = false;
+      requirement.failed = true;
+      requirement.errorMessage = validationData.globalResultDescription || 'Error en la validación';
+      requirement.requiresRetry = true; // Siempre requiere reintentar cuando falla
+      
+      this.logger.error(`❌ Validación ${type} fallida:`, {
+        globalResult: validationData.globalResult,
+        errorMessage: requirement.errorMessage
+      });
+      
+      // Mostrar toast con el error
+      const personType = type === 'arrendatario' ? 'inquilino' : 
+                        type === 'aval' ? 'fiador' : 'propietario';
+      this.toastService.error(`Validación fallida (${personType}): ${requirement.errorMessage}. Por favor, intenta nuevamente.`);
+      
+      // Guardar estado
+      this.wizardStateService.saveState({
+        validationRequirements: this.validationRequirements
+      });
+      
+      // ✅ Verificar si hay validaciones pendientes (no completadas ni fallidas)
+      const pendingValidations = this.validationRequirements.filter(req => 
+        req.uuid && !req.completed && !req.failed
+      );
+      
+      // ✅ Si no hay validaciones pendientes, detener el auto-check
+      if (pendingValidations.length === 0) {
+        this.stopAutoStatusCheck();
+        this.logger.log('✅ Todas las validaciones están completadas o fallidas, deteniendo verificación automática');
+      }
+    }
+  }
+
+  /**
    * Marcar validación como completada
+   * ✅ OPTIMIZADO: Detiene el auto-check si todas las validaciones están completadas o fallidas
    */
   markValidationCompleted(type: string): void {
     const requirement = this.validationRequirements.find(req => req.type === type);
     if (requirement && !requirement.completed) {
       requirement.completed = true;
+      requirement.failed = false; // Asegurar que no esté marcada como fallida
       this.completedValidations++;
       this.logger.log(`✅ Validación ${type} completada. Progreso: ${this.completedValidations}/${this.totalValidations}`);
       
-          // Guardar validationRequirements actualizados en el estado (solo localmente)
-          this.wizardStateService.saveState({
-            validationRequirements: this.validationRequirements
-          });
-          
-          // ✅ OPTIMIZADO: Sincronizar con debounce para evitar múltiples peticiones
-          // Usar saveAndSync solo cuando sea crítico, no en cada cambio
-          // La sincronización se hará automáticamente con debounce cuando sea necesario
+      // Guardar validationRequirements actualizados en el estado (solo localmente)
+      this.wizardStateService.saveState({
+        validationRequirements: this.validationRequirements
+      });
+      
+      // ✅ OPTIMIZADO: Sincronizar con debounce para evitar múltiples peticiones
+      // Usar saveAndSync solo cuando sea crítico, no en cada cambio
+      // La sincronización se hará automáticamente con debounce cuando sea necesario
       
       // Mostrar mensaje de éxito para esta validación
       this.logger.log(`🎯 Validación de ${type} completada exitosamente`);
       this.logger.log(`📧 El enlace de verificación fue enviado y completado`);
+      
+      // ✅ Verificar si hay validaciones pendientes (no completadas ni fallidas)
+      const pendingValidations = this.validationRequirements.filter(req => 
+        req.uuid && !req.completed && !req.failed
+      );
+      
+      // ✅ Si no hay validaciones pendientes, detener el auto-check
+      if (pendingValidations.length === 0) {
+        this.stopAutoStatusCheck();
+        this.logger.log('✅ Todas las validaciones están completadas o fallidas, deteniendo verificación automática');
+      }
       
       // Si todas las validaciones están completadas, permitir continuar
       if (this.completedValidations === this.totalValidations) {
@@ -963,6 +1055,9 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
           if (requirement) {
             requirement.uuid = response.data.uuid;
             requirement.completed = false; // Marcar como en progreso
+            requirement.failed = false; // Limpiar estado de fallo si se reinicia
+            requirement.errorMessage = undefined; // Limpiar mensaje de error
+            requirement.requiresRetry = false; // Limpiar flag de reintento
             this.logger.log(`🔑 UUID asignado a ${validationData.type}:`, response.data.uuid);
           }
           
@@ -1014,17 +1109,23 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
 
   /**
    * Verificar estado de todas las validaciones pendientes
+   * ✅ OPTIMIZADO: Solo consulta validaciones que están PENDING o IN_PROGRESS
+   * No consulta validaciones que ya están COMPLETED o FAILED
    */
   checkValidationStatuses(): void {
+    // ✅ Solo consultar validaciones que tienen UUID y NO están completadas ni fallidas
     const pendingValidations = this.validationRequirements.filter(req => 
-      req.uuid && !req.completed
+      req.uuid && !req.completed && !req.failed
     );
 
     if (pendingValidations.length === 0) {
+      // ✅ Si no hay validaciones pendientes, detener el auto-check
+      this.stopAutoStatusCheck();
+      this.logger.log('ℹ️ No hay validaciones pendientes, deteniendo verificación automática');
       return;
     }
 
-    this.logger.log('🔍 Verificando estado de validaciones pendientes...');
+    this.logger.log(`🔍 Verificando estado de ${pendingValidations.length} validación(es) pendiente(s)...`);
 
     pendingValidations.forEach(requirement => {
       if (requirement.uuid) {
@@ -1036,7 +1137,11 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
 
               if (status === 'COMPLETED') {
                 this.markValidationCompleted(requirement.type);
+              } else if (status === 'FAILED') {
+                // Marcar como fallida y mostrar el error
+                this.markValidationFailed(requirement.type, response.data);
               }
+              // ✅ Si está PENDING o IN_PROGRESS, no hacer nada (se seguirá consultando en el próximo ciclo)
             }
           },
           error: (error) => {
@@ -1120,13 +1225,13 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
    * ✅ OPTIMIZADO: Solo inicia si hay validaciones pendientes con UUID
    */
   private startAutoStatusCheckIfNeeded(): void {
-    // Verificar si hay validaciones pendientes con UUID
+    // ✅ Verificar si hay validaciones pendientes con UUID que NO estén completadas ni fallidas
     const pendingValidations = this.validationRequirements.filter(req => 
-      req.uuid && !req.completed
+      req.uuid && !req.completed && !req.failed
     );
 
     if (pendingValidations.length === 0) {
-      this.logger.log('ℹ️ No hay validaciones pendientes con UUID, omitiendo verificación automática');
+      this.logger.log('ℹ️ No hay validaciones pendientes con UUID (todas están completadas o fallidas), omitiendo verificación automática');
       return;
     }
 
@@ -1151,6 +1256,18 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
     }, 30000); // 30 segundos
 
     this.logger.log('⏰ Verificación automática de estado iniciada (cada 30 segundos)');
+  }
+  
+  /**
+   * Detener verificación automática de estado
+   * ✅ NUEVO: Se llama cuando todas las validaciones están completadas o fallidas
+   */
+  private stopAutoStatusCheck(): void {
+    if (this.autoStatusCheckInterval) {
+      clearInterval(this.autoStatusCheckInterval);
+      this.autoStatusCheckInterval = null;
+      this.logger.log('🛑 Verificación automática detenida (todas las validaciones están completadas o fallidas)');
+    }
   }
   
   /**

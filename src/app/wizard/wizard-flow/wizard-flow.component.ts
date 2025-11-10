@@ -206,10 +206,49 @@ export class WizardFlowComponent implements OnInit {
         this.createNewSessionWithPlan(planId);
         
       } else {
-        // Si no hay sessionId ni plan, crear nueva sesión
-        this.logger.log('🆕 Creando nueva sesión');
-        this.initializeNewSession();
+        // ✅ NUEVO: Si no hay sessionId ni plan, buscar primero por IP
+        this.logger.log('🔍 No hay sessionId en URL, buscando sesión por IP...');
+        await this.findAndRestoreSessionByIp();
       }
+    }
+  }
+
+  /**
+   * ✅ NUEVO: Buscar sesión por IP y restaurarla
+   * Si encuentra una sesión, actualiza la URL con el UUID y restaura el estado
+   * Si no encuentra ninguna, crea una nueva sesión
+   */
+  private async findAndRestoreSessionByIp(): Promise<void> {
+    try {
+      this.logger.log('🔍 Buscando sesión activa por IP...');
+      
+      // Buscar sesión por IP
+      const activeSessionId = await this.wizardStateService.checkActiveSessionByIp();
+      
+      if (activeSessionId) {
+        this.logger.log('✅ Sesión encontrada por IP:', activeSessionId);
+        
+        // Convertir a UUID si es necesario
+        const uuid = await this.wizardStateService.convertSessionIdToId(activeSessionId);
+        
+        // Actualizar la URL con el UUID de la sesión encontrada
+        const newUrl = `/cotizador/${uuid}`;
+        this.router.navigateByUrl(newUrl, { replaceUrl: true });
+        this.logger.log('✅ URL actualizada con UUID de sesión encontrada:', newUrl);
+        
+        // Cargar el estado de la sesión encontrada
+        await this.loadSessionState(uuid);
+        return;
+      }
+      
+      // Si no se encontró sesión por IP, crear una nueva
+      this.logger.log('⚠️ No se encontró sesión por IP, creando nueva sesión');
+      this.initializeNewSession();
+      
+    } catch (error) {
+      this.logger.error('❌ Error buscando sesión por IP:', error);
+      // En caso de error, crear una nueva sesión
+      this.initializeNewSession();
     }
   }
 

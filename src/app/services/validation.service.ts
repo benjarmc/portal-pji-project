@@ -15,9 +15,25 @@ export interface ValidationResponse {
   uuid: string;
   type: string;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
-  quotationId: string;
+  quotationId?: string;
+  policyId?: string;
   name: string;
   email: string;
+  vdidResult?: {
+    globalResult?: string;
+    globalResultDescription?: string;
+    fullName?: string;
+    documentType?: string;
+    scoreFaceMatch?: number;
+    scoreLiveness?: number;
+    resultFaceMatch?: string;
+    resutlLiveness?: string;
+    [key: string]: any;
+  };
+  metadata?: {
+    [key: string]: any;
+  };
+  completedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }

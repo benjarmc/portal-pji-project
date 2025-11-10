@@ -28,6 +28,7 @@ export class LpContentComponent implements OnInit {
   plans: Plan[] = [];
   loadingPlans = true;
   private plansLoaded = false; // Flag para evitar múltiples llamadas
+  private isLoadingPlans = false; // Flag adicional para evitar llamadas simultáneas
   // Estado del modal de continuar sesión
   showContinueModal = false;
   pendingPlanId: string | null = null;
@@ -78,21 +79,30 @@ export class LpContentComponent implements OnInit {
 
   /**
    * Carga los planes desde la base de datos
-   * ✅ OPTIMIZADO: Evita múltiples llamadas usando cache del servicio
+   * ✅ OPTIMIZADO: Evita múltiples llamadas usando cache del servicio y flags de control
    */
   loadPlans() {
     // Si ya se cargaron planes, no recargar
     if (this.plansLoaded && this.plans.length > 0) {
-      this.logger.log('📦 Planes ya cargados, usando cache');
+      this.logger.log('📦 Planes ya cargados, usando cache local');
+      this.loadingPlans = false;
+      return;
+    }
+    
+    // Si ya hay una carga en progreso, no iniciar otra
+    if (this.isLoadingPlans) {
+      this.logger.log('⏳ Ya hay una carga de planes en progreso, esperando...');
       return;
     }
     
     this.logger.log('🔍 loadPlans() llamado');
     this.loadingPlans = true;
+    this.isLoadingPlans = true;
     
     this.plansService.getPlans().subscribe({
       next: (response) => {
         this.loadingPlans = false;
+        this.isLoadingPlans = false;
         this.logger.log('📡 Respuesta del servicio:', response);
         if (response.success && response.data && response.data.length > 0) {
           this.plans = response.data;
@@ -106,8 +116,17 @@ export class LpContentComponent implements OnInit {
       },
       error: (error) => {
         this.loadingPlans = false;
+        this.isLoadingPlans = false;
         this.logger.error('❌ Error al cargar planes:', error);
         this.plans = [];
+        
+        // Si es un error 429, esperar un poco antes de permitir otra carga
+        if (error.status === 429) {
+          this.logger.warning('⚠️ Rate limit alcanzado, esperando antes de permitir otra carga...');
+          setTimeout(() => {
+            this.isLoadingPlans = false;
+          }, 5000); // Esperar 5 segundos antes de permitir otra carga
+        }
       }
     });
   }
@@ -131,20 +150,75 @@ export class LpContentComponent implements OnInit {
     const planName = selectedPlan?.name || 'Plan Desconocido';
     this.logger.log('📋 Plan seleccionado:', { id: planId, name: planName });
 
-    // 1) Verificar si hay sesión activa por IP (siempre validar con backend)
+    // ✅ 1) PRIMERO: Verificar si hay sesión activa por IP (siempre validar con backend)
     this.logger.log('🔍 Verificando sesión activa por IP...');
     let existingSessionId: string | null = await this.wizardStateService.checkActiveSessionByIp();
-    this.logger.log('📋 Resultado de verificación de sesión:', existingSessionId);
+    this.logger.log('📋 Resultado de verificación de sesión por IP:', existingSessionId);
+    
+    // ✅ 2) SEGUNDO: Si no hay sesión por IP, verificar si hay sesión local
+    if (!existingSessionId) {
+      this.logger.log('🔍 No se encontró sesión por IP, verificando sesión local...');
+      const currentState = this.wizardStateService.getState();
+      const localSessionId = currentState.id || currentState.sessionId;
+      
+      if (localSessionId) {
+        try {
+          this.logger.log('📡 Validando sesión local en el backend:', localSessionId);
+          // ✅ IMPORTANTE: Solicitar tokens al validar sesión local
+          const sessionData = await this.wizardSessionService.getSession(localSessionId, true).toPromise();
+          
+          if (sessionData) {
+            const actualData = (sessionData as any).data || sessionData;
+            if (actualData && (actualData.id || actualData.sessionId)) {
+              existingSessionId = actualData.id || actualData.sessionId;
+              this.logger.log('✅ Sesión local válida encontrada:', existingSessionId);
+              
+              // ✅ IMPORTANTE: Guardar tokens si vienen en la respuesta
+              if (actualData.accessToken && actualData.refreshToken) {
+                this.logger.log('🔑 Tokens recibidos al validar sesión local, guardándolos...');
+                if (typeof window !== 'undefined' && window.localStorage) {
+                  localStorage.setItem('wizard_access_token', actualData.accessToken);
+                  localStorage.setItem('wizard_refresh_token', actualData.refreshToken);
+                  this.logger.log('✅ Tokens guardados en localStorage al validar sesión local');
+                }
+              } else {
+                this.logger.warning('⚠️ No se recibieron tokens al validar sesión local. Verificar backend.');
+              }
+            }
+          }
+        } catch (error) {
+          const errorStatus = (error as any)?.status;
+          // Si es 404 o 500, la sesión no existe o hay un error, limpiar estado local
+          if (errorStatus === 404 || errorStatus === 500) {
+            this.logger.log('⚠️ Sesión local no válida en backend (404/500), limpiando estado local');
+            this.wizardStateService.clearState();
+          } else {
+            this.logger.log('⚠️ Error validando sesión local, continuando...', error);
+          }
+        }
+      }
+    }
 
-    // 2) Si hay sesión activa, validar que existe en el backend antes de mostrar modal
+    // ✅ 3) TERCERO: Si hay sesión activa (por IP o local), validar que existe en el backend antes de mostrar modal
     if (existingSessionId) {
       try {
         this.logger.log('📡 Validando sesión existente en el backend...');
-        const sessionData = await this.wizardSessionService.getSession(existingSessionId).toPromise();
+        // ✅ IMPORTANTE: Solicitar tokens al validar sesión existente (por si no se obtuvieron antes)
+        const sessionData = await this.wizardSessionService.getSession(existingSessionId, true).toPromise();
         
         if (sessionData) {
           // Manejar tanto respuesta envuelta como directa
           const actualData = (sessionData as any).data || sessionData;
+          
+          // ✅ IMPORTANTE: Guardar tokens si vienen en la respuesta (por si no se obtuvieron antes)
+          if (actualData.accessToken && actualData.refreshToken) {
+            this.logger.log('🔑 Tokens recibidos al validar sesión existente, guardándolos...');
+            if (typeof window !== 'undefined' && window.localStorage) {
+              localStorage.setItem('wizard_access_token', actualData.accessToken);
+              localStorage.setItem('wizard_refresh_token', actualData.refreshToken);
+              this.logger.log('✅ Tokens guardados en localStorage al validar sesión existente');
+            }
+          }
           
           // ✅ VALIDAR: Solo mostrar modal si la sesión tiene datos reales (no es solo un estado por defecto)
           const hasRealData = actualData.currentStep > 0 || 
@@ -210,9 +284,9 @@ export class LpContentComponent implements OnInit {
       }
     }
     
-    // 3) Si no hay sesión válida o no se pudo validar, crear nueva sesión
+    // ✅ 4) CUARTO: Si no hay sesión válida (ni por IP ni local), crear nueva sesión
     if (!existingSessionId) {
-      this.logger.log('🆕 No hay sesión existente, creando nueva...');
+      this.logger.log('🆕 No hay sesión existente (ni por IP ni local), creando nueva...');
       // Crear una nueva sesión
       const newSessionId = await this.wizardStateService.createNewSession();
       
