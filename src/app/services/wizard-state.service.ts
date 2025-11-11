@@ -507,6 +507,7 @@ export class WizardStateService {
   /**
    * Sanitiza el estado eliminando datos sensibles antes de guardar en sessionStorage
    * ✅ SEGURIDAD: Elimina paymentData, paymentResult, contractData, publicIp, userAgent, metadata
+   * ✅ IMPORTANTE: Mantiene validationRequirements y stepData.step5.validationRequirements (no son datos sensibles)
    */
   private sanitizeStateForStorage(state: WizardState): WizardState {
     const sanitized = { ...state };
@@ -524,6 +525,13 @@ export class WizardStateService {
     
     // ✅ SEGURIDAD: Limpiar metadata (puede contener información del navegador)
     sanitized.metadata = {};
+    
+    // ✅ IMPORTANTE: Mantener validationRequirements (no es dato sensible, solo indicadores de estado)
+    // validationRequirements contiene: type, name, required, completed, uuid, failed, errorMessage
+    // Estos son metadatos de validación, no datos personales sensibles
+    
+    // ✅ IMPORTANTE: Mantener stepData.step5.validationRequirements también
+    // Se mantiene automáticamente porque no estamos eliminando stepData
     
     // ✅ SEGURIDAD: Asegurar que solo se guarden indicadores, no datos completos
     // Los indicadores (hasPaymentData, hasPaymentResult, paymentStatus, paymentAmount) se mantienen

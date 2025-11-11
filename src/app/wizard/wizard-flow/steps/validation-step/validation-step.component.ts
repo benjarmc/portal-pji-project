@@ -488,12 +488,60 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
     
     this.logger.log('👤 Configurando validaciones para tipo de usuario:', this.userType);
     
-    // Verificar si ya hay validationRequirements guardados en el estado
-    if (wizardState.validationRequirements && wizardState.validationRequirements.length > 0) {
-      this.logger.log('📋 Cargando validationRequirements existentes del estado:', wizardState.validationRequirements);
-      this.validationRequirements = wizardState.validationRequirements;
+    // ✅ Verificar si ya hay validationRequirements guardados en el estado
+    // Primero intentar desde el nivel superior, luego desde stepData.step5
+    let validationRequirementsFromState = wizardState.validationRequirements;
+    
+    // Si no hay en el nivel superior, intentar desde stepData.step5
+    if (!validationRequirementsFromState || validationRequirementsFromState.length === 0) {
+      validationRequirementsFromState = wizardState.stepData?.step5?.validationRequirements;
+      this.logger.log('📋 validationRequirements no encontrado en nivel superior, buscando en stepData.step5...');
+    }
+    
+    if (validationRequirementsFromState && validationRequirementsFromState.length > 0) {
+      this.logger.log('📋 Cargando validationRequirements existentes del estado:', validationRequirementsFromState);
+      this.logger.log(`📊 Total de validaciones encontradas: ${validationRequirementsFromState.length}`);
+      
+      // ✅ CRÍTICO: Verificar que se tengan todas las validaciones requeridas según el tipo de usuario
+      // Si faltan validaciones, completarlas con las requeridas
+      const requiredTypes = this.getRequiredValidationTypes();
+      const existingTypes = validationRequirementsFromState.map((r: any) => r.type);
+      const missingTypes = requiredTypes.filter((type: string) => !existingTypes.includes(type)) as Array<'arrendador' | 'arrendatario' | 'aval'>;
+      
+      if (missingTypes.length > 0) {
+        this.logger.warning(`⚠️ Faltan validaciones requeridas: ${missingTypes.join(', ')}. Agregándolas...`);
+        
+        // Agregar las validaciones faltantes
+        const missingRequirements: ValidationRequirement[] = missingTypes.map((type: 'arrendador' | 'arrendatario' | 'aval') => {
+          const name = this.getValidationNameForType(type);
+          return { type, name, required: true, completed: false };
+        });
+        
+        validationRequirementsFromState = [...validationRequirementsFromState, ...missingRequirements];
+        this.logger.log(`✅ Validaciones faltantes agregadas. Total ahora: ${validationRequirementsFromState.length}`);
+      }
+      
+      // ✅ Asegurar que validationRequirementsFromState no sea undefined
+      if (validationRequirementsFromState && validationRequirementsFromState.length > 0) {
+        this.validationRequirements = [...validationRequirementsFromState]; // Crear copia para evitar mutaciones
+      }
       this.completedValidations = this.validationRequirements.filter(req => req.completed).length;
       this.logger.log(`✅ Validaciones cargadas: ${this.completedValidations}/${this.validationRequirements.length} completadas`);
+      this.logger.log(`📋 Detalles de validaciones:`, this.validationRequirements.map(r => ({
+        type: r.type,
+        name: r.name,
+        completed: r.completed,
+        failed: r.failed,
+        hasUuid: !!r.uuid
+      })));
+      
+      // ✅ Sincronizar al nivel superior si estaba solo en stepData o si se agregaron validaciones faltantes
+      if (!wizardState.validationRequirements || wizardState.validationRequirements.length === 0 || missingTypes.length > 0) {
+        this.wizardStateService.saveState({
+          validationRequirements: this.validationRequirements
+        });
+        this.logger.log('✅ validationRequirements sincronizado al nivel superior');
+      }
     } else {
       // Configurar validaciones según tipo de usuario (primera vez)
       switch (this.userType) {
@@ -530,7 +578,56 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
     }
     
     this.totalValidations = this.validationRequirements.length;
-    this.logger.log(`📊 Total de validaciones: ${this.totalValidations}`);
+    this.logger.log(`📊 Total de validaciones configuradas: ${this.totalValidations}`);
+    this.logger.log(`📋 Lista completa de validaciones:`, this.validationRequirements.map(r => ({
+      type: r.type,
+      name: r.name,
+      required: r.required,
+      completed: r.completed,
+      failed: r.failed,
+      hasUuid: !!r.uuid
+    })));
+    
+    // ✅ CRÍTICO: Verificar que todas las validaciones requeridas estén presentes
+    if (this.userType === 'arrendador' && this.validationRequirements.length !== 2) {
+      this.logger.warning(`⚠️ Para arrendador se esperan 2 validaciones, pero hay ${this.validationRequirements.length}`);
+    } else if (this.userType === 'arrendatario' && this.validationRequirements.length !== 2) {
+      this.logger.warning(`⚠️ Para arrendatario se esperan 2 validaciones, pero hay ${this.validationRequirements.length}`);
+    } else if (this.userType === 'asesor' && this.validationRequirements.length !== 2) {
+      this.logger.warning(`⚠️ Para asesor se esperan 2 validaciones, pero hay ${this.validationRequirements.length}`);
+    }
+  }
+
+  /**
+   * Obtiene los tipos de validación requeridos según el tipo de usuario
+   */
+  private getRequiredValidationTypes(): string[] {
+    switch (this.userType) {
+      case 'arrendador':
+        return ['arrendatario', 'aval'];
+      case 'arrendatario':
+        return ['arrendador', 'aval'];
+      case 'asesor':
+        return ['arrendador', 'arrendatario'];
+      default:
+        return [];
+    }
+  }
+
+  /**
+   * Obtiene el nombre de la validación según el tipo
+   */
+  private getValidationNameForType(type: string): string {
+    switch (type) {
+      case 'arrendador':
+        return 'Datos del Arrendador';
+      case 'arrendatario':
+        return 'Datos del Inquilino';
+      case 'aval':
+        return 'Datos del Aval';
+      default:
+        return 'Validación';
+    }
   }
 
   /**
@@ -662,13 +759,30 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
         if (response.success && response.data && response.data.length > 0) {
           this.logger.log(`✅ Encontradas ${response.data.length} validaciones existentes para policyId ${policyId}:`, response.data);
           
-          // ✅ Resetear contador de validaciones completadas antes de actualizar
-          this.completedValidations = 0;
-          
-          // Actualizar validationRequirements con los UUIDs existentes
+          // ✅ CRÍTICO: Asegurar que TODAS las validaciones requeridas estén presentes
+          // Si una validación no se ha iniciado, no existirá en la BD, pero debe mostrarse
+          // Crear un mapa de validaciones existentes para actualizar
+          const existingValidationsMap = new Map<string, any>();
           response.data.forEach(existingValidation => {
-            const requirement = this.validationRequirements.find(req => req.type === existingValidation.type);
-            if (requirement) {
+            existingValidationsMap.set(existingValidation.type, existingValidation);
+          });
+          
+          // ✅ CRÍTICO: Verificar que validationRequirements tenga todas las validaciones requeridas antes de actualizar
+          if (!this.validationRequirements || this.validationRequirements.length === 0) {
+            this.logger.error(`❌ ERROR: validationRequirements está vacío antes de actualizar desde BD`);
+            // Si está vacío, no podemos continuar, las validaciones deberían haberse configurado en setupValidationRequirements()
+            return;
+          }
+          
+          this.logger.log(`📋 Validaciones requeridas ANTES de actualizar desde BD: ${this.validationRequirements.length}`, 
+            this.validationRequirements.map(r => ({ type: r.type, name: r.name, hasUuid: !!r.uuid })));
+          
+          // ✅ CRÍTICO: Actualizar validationRequirements, manteniendo TODAS las requeridas
+          // Si una validación no existe en la BD, mantenerla como pendiente (sin UUID)
+          this.validationRequirements = this.validationRequirements.map(requirement => {
+            const existingValidation = existingValidationsMap.get(requirement.type);
+            
+            if (existingValidation) {
               // ✅ Actualizar UUID si existe
               if (existingValidation.uuid) {
                 requirement.uuid = existingValidation.uuid;
@@ -699,11 +813,6 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
                 this.logger.log(`✅ Validación ${existingValidation.type} está ${existingValidation.status}, no se consultará más la API hasta nueva solicitud`);
               }
               
-              // ✅ Incrementar contador si está completada
-              if (requirement.completed) {
-                this.completedValidations++;
-              }
-              
               this.logger.log(`🔄 Actualizado requirement para ${existingValidation.type}:`, {
                 uuid: requirement.uuid,
                 completed: requirement.completed,
@@ -713,10 +822,34 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
                 requiresRetry: requirement.requiresRetry
               });
             } else {
-              // ✅ Si no se encuentra el requirement, loguear para debugging
-              this.logger.warning(`⚠️ Validación encontrada para tipo ${existingValidation.type} pero no hay requirement correspondiente`);
+              // ✅ CRÍTICO: Si la validación no existe en la BD, mantenerla como pendiente
+              // Esto asegura que se muestre el botón "Iniciar Validación VDID"
+              this.logger.log(`ℹ️ Validación ${requirement.type} no iniciada aún, manteniendo como pendiente`);
+              // No hacer nada, mantener el requirement como está (pendiente, sin UUID)
             }
+            
+            return requirement;
           });
+          
+          // ✅ Resetear contador de validaciones completadas después de actualizar
+          this.completedValidations = this.validationRequirements.filter(req => req.completed).length;
+          
+          // ✅ CRÍTICO: Verificar que todas las validaciones requeridas se mantuvieron después de actualizar
+          this.logger.log(`📋 Validaciones requeridas DESPUÉS de actualizar desde BD: ${this.validationRequirements.length}`, 
+            this.validationRequirements.map(r => ({ 
+              type: r.type, 
+              name: r.name, 
+              completed: r.completed, 
+              failed: r.failed,
+              hasUuid: !!r.uuid 
+            })));
+          
+          // ✅ CRÍTICO: Actualizar totalValidations para asegurar que coincida con el número de validaciones requeridas
+          this.totalValidations = this.validationRequirements.length;
+          
+          if (this.totalValidations < 2) {
+            this.logger.error(`❌ ERROR: Se perdieron validaciones durante la actualización. Total actual: ${this.totalValidations}, se esperan al menos 2`);
+          }
           
           // ✅ Actualizar el estado con los validationRequirements actualizados
           this.wizardStateService.saveState({
@@ -729,14 +862,28 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
           const failed = response.data.filter(v => v.status === 'FAILED').length;
           
           this.logger.log(`📊 Resumen de validaciones para policyId ${policyId}:`, {
-            total: response.data.length,
+            totalEnBD: response.data.length,
             completadas: completed,
             pendientes: pending,
             fallidas: failed,
+            totalRequeridas: this.totalValidations,
+            completadasEnUI: this.completedValidations,
             enUI: `${this.completedValidations}/${this.totalValidations}`
           });
         } else {
+          // ✅ CRÍTICO: Si no hay validaciones en la BD, asegurar que todas las requeridas estén presentes
+          // Las validaciones ya fueron configuradas en setupValidationRequirements()
+          // Solo asegurarnos de que se guarden en el estado
           this.logger.log(`ℹ️ No se encontraron validaciones existentes para policyId ${policyId} - todas las validaciones están pendientes de iniciar`);
+          this.logger.log(`📋 Validaciones requeridas configuradas: ${this.validationRequirements.length}`, this.validationRequirements);
+          
+          // ✅ Asegurar que todas las validaciones requeridas estén guardadas en el estado
+          if (this.validationRequirements && this.validationRequirements.length > 0) {
+            this.wizardStateService.saveState({
+              validationRequirements: this.validationRequirements
+            });
+            this.logger.log(`✅ Validaciones requeridas guardadas en el estado: ${this.validationRequirements.length}`);
+          }
         }
       },
       error: (error) => {
