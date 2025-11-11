@@ -253,27 +253,18 @@ export class WizardFlowComponent implements OnInit {
   }
 
   /**
-   * Cargar estado de sesión existente - OPTIMIZADO
-   * ✅ Reduce múltiples GETs a uno solo cuando sea necesario
-   * ✅ Evita GETs redundantes cuando los datos ya están disponibles
+   * Cargar estado de sesión existente
+   * ✅ SIEMPRE hace GET al backend para asegurar sincronización automática
+   * ✅ El backend sincroniza automáticamente los datos desde tablas relacionadas
    */
   private async loadSessionState(sessionId: string, targetStep?: number): Promise<void> {
     try {
-      // ✅ OPTIMIZACIÓN: Verificar primero si ya tenemos los datos en el estado local
-      const currentState = this.wizardStateService.getState();
-      if (currentState.sessionId === sessionId || currentState.id === sessionId) {
-        // Si el sessionId coincide y tenemos datos recientes (menos de 5 segundos), usar estado local
-        const timeSinceLastSync = Date.now() - currentState.lastActivity;
-        if (timeSinceLastSync < 5000) {
-          this.logger.log('✅ Usando estado local reciente (evita GET redundante):', {
-            sessionId: currentState.sessionId,
-            id: currentState.id,
-            timeSinceLastSync: `${timeSinceLastSync}ms`
-          });
-          this.restoreSessionState(currentState, targetStep);
-          return;
-        }
-      }
+      // ✅ CRÍTICO: SIEMPRE hacer GET al backend para ejecutar sincronización automática
+      // El backend sincroniza automáticamente paymentData, paymentResult, etc. desde tablas relacionadas
+      this.logger.log('🔄 Cargando sesión desde backend (siempre ejecuta sincronización automática)...', {
+        sessionId,
+        targetStep
+      });
 
       let sessionData: any = null;
       let actualData: any = null;
@@ -297,6 +288,38 @@ export class WizardFlowComponent implements OnInit {
             }
           }
           
+          // ✅ CRÍTICO: Si hay policyId pero faltan indicadores de pago, forzar sincronización
+          // ✅ SEGURIDAD: Solo verificar indicadores, NO datos completos
+          if (actualData.policyId && (!actualData.hasPaymentData || !actualData.hasPaymentResult)) {
+            this.logger.log('🔄 Detectado policyId sin indicadores de pago, forzando sincronización...', {
+              policyId: actualData.policyId,
+              hasPaymentData: actualData.hasPaymentData || false,
+              hasPaymentResult: actualData.hasPaymentResult || false
+            });
+            try {
+              const syncedData = await this.wizardSessionService.forceSync(sessionId).toPromise();
+              if (syncedData) {
+                const syncedActualData = (syncedData as any).data || syncedData;
+                this.logger.log('✅ Sincronización forzada completada:', {
+                  hasPaymentData: syncedActualData.hasPaymentData || false,
+                  hasPaymentResult: syncedActualData.hasPaymentResult || false,
+                  paymentStatus: syncedActualData.paymentStatus,
+                  paymentAmount: syncedActualData.paymentAmount
+                });
+                // Usar datos sincronizados (solo indicadores)
+                Object.assign(actualData, {
+                  hasPaymentData: syncedActualData.hasPaymentData,
+                  hasPaymentResult: syncedActualData.hasPaymentResult,
+                  paymentStatus: syncedActualData.paymentStatus,
+                  paymentAmount: syncedActualData.paymentAmount
+                });
+              }
+            } catch (syncError) {
+              this.logger.warning('⚠️ Error forzando sincronización:', syncError);
+              // Continuar con los datos originales
+            }
+          }
+          
           if (actualData && (actualData.id || actualData.sessionId)) {
             this.logger.log('📊 Estado de sesión cargado desde URL:', actualData);
             this.restoreSessionState(actualData, targetStep);
@@ -317,6 +340,7 @@ export class WizardFlowComponent implements OnInit {
         // Si es 429 (Too Many Requests), usar estado local si está disponible
         if (errorStatus === 429) {
           this.logger.warning('⚠️ Rate limit alcanzado (429), usando estado local si está disponible');
+          const currentState = this.wizardStateService.getState();
           if (currentState.sessionId === sessionId || currentState.id === sessionId) {
             this.restoreSessionState(currentState, targetStep);
             return;
@@ -350,6 +374,38 @@ export class WizardFlowComponent implements OnInit {
               }
             }
             
+            // ✅ CRÍTICO: Si hay policyId pero faltan indicadores de pago, forzar sincronización
+            // ✅ SEGURIDAD: Solo verificar indicadores, NO datos completos
+            if (actualData.policyId && (!actualData.hasPaymentData || !actualData.hasPaymentResult)) {
+              this.logger.log('🔄 Detectado policyId sin indicadores de pago, forzando sincronización...', {
+                policyId: actualData.policyId,
+                hasPaymentData: actualData.hasPaymentData || false,
+                hasPaymentResult: actualData.hasPaymentResult || false
+              });
+              try {
+                const syncedData = await this.wizardSessionService.forceSync(activeSessionId).toPromise();
+                if (syncedData) {
+                  const syncedActualData = (syncedData as any).data || syncedData;
+                  this.logger.log('✅ Sincronización forzada completada:', {
+                    hasPaymentData: syncedActualData.hasPaymentData || false,
+                    hasPaymentResult: syncedActualData.hasPaymentResult || false,
+                    paymentStatus: syncedActualData.paymentStatus,
+                    paymentAmount: syncedActualData.paymentAmount
+                  });
+                  // Usar datos sincronizados (solo indicadores)
+                  Object.assign(actualData, {
+                    hasPaymentData: syncedActualData.hasPaymentData,
+                    hasPaymentResult: syncedActualData.hasPaymentResult,
+                    paymentStatus: syncedActualData.paymentStatus,
+                    paymentAmount: syncedActualData.paymentAmount
+                  });
+                }
+              } catch (syncError) {
+                this.logger.warning('⚠️ Error forzando sincronización:', syncError);
+                // Continuar con los datos originales
+              }
+            }
+            
             if (actualData && (actualData.id || actualData.sessionId)) {
               this.logger.log('📊 Estado de sesión cargado desde IP:', actualData);
               this.restoreSessionState(actualData, targetStep);
@@ -367,10 +423,13 @@ export class WizardFlowComponent implements OnInit {
           }
           
           // Si es 429, usar estado local si está disponible
-          if (errorStatus === 429 && (currentState.sessionId === activeSessionId || currentState.id === activeSessionId)) {
-            this.logger.warning('⚠️ Rate limit alcanzado (429), usando estado local');
-            this.restoreSessionState(currentState, targetStep);
-            return;
+          if (errorStatus === 429) {
+            const currentState = this.wizardStateService.getState();
+            if (currentState.sessionId === activeSessionId || currentState.id === activeSessionId) {
+              this.logger.warning('⚠️ Rate limit alcanzado (429), usando estado local');
+              this.restoreSessionState(currentState, targetStep);
+              return;
+            }
           }
           
           this.logger.log('⚠️ Error obteniendo sesión activa por IP:', error);

@@ -33,17 +33,32 @@ export interface WizardState {
   selectedPlan?: string;          // Campo principal de la API
   selectedPlanName?: string;      // Nombre del plan para mostrar al usuario
   quotationNumber?: string;       // = stepData.step3?.quotationNumber
-  userData?: any;                 // = stepData.step2?.userData
-  paymentData?: any;              // = stepData.step4?.paymentData
-  contractData?: any;             // = stepData.step7?.propertyData || stepData.step8?.contractData
-  paymentResult?: any;            // = stepData.step5?.validationData
+  userData?: any;                 // = stepData.step1 (datos del usuario)
+  
+  // ✅ SEGURIDAD: Solo indicadores de pago, NO datos completos
+  // Los datos completos se mantienen solo en el backend
+  hasPaymentData?: boolean;       // Indica si existe paymentData en el backend
+  hasPaymentResult?: boolean;     // Indica si existe paymentResult en el backend
+  paymentStatus?: string;         // Estado del pago: 'COMPLETED', 'PENDING', 'FAILED', etc.
+  paymentAmount?: number;         // Monto del pago (sin datos sensibles)
+  
+  // ✅ SEGURIDAD: Solo indicadores de contrato y validación
+  hasContractData?: boolean;      // Indica si existe contractData en el backend
+  hasValidationResult?: boolean;  // Indica si existe validationResult en el backend
+  validationStatus?: string;      // Estado de validación: 'COMPLETED', 'PENDING', 'FAILED', etc.
+  
+  // ⚠️ COMPATIBILIDAD LOCAL: Estos campos solo se usan localmente en el frontend
+  // NO se envían al backend, solo se usan para la UI
+  // El backend solo recibe indicadores (hasPaymentData, hasPaymentResult, etc.)
+  paymentData?: any;              // Solo para uso local en UI (NO se envía al backend)
+  paymentResult?: any;            // Solo para uso local en UI (NO se envía al backend)
+  contractData?: any;             // Solo para uso local en UI (NO se envía al backend)
   
   // Campos adicionales para compatibilidad (deprecated - usar stepData)
   policyNumber?: string;          // = stepData.step5?.policyNumber
-  paymentAmount?: number;         // = stepData.step4?.paymentAmount
-  validationResult?: any;        // = stepData.step5?.validationData
+  validationResult?: any;        // = stepData.step5?.validationData (solo para UI, no datos sensibles)
   validationRequirements?: ValidationRequirement[]; // = stepData.step5?.validationRequirements
-  captureData?: {                // Datos de captura del paso 5
+  captureData?: {                // Datos de captura del paso 5 (solo para UI local)
     propietario?: any;
     inquilino?: any;
     fiador?: any;
@@ -426,8 +441,10 @@ export class WizardStateService {
             ...state,
             lastActivity: Date.now()
           };
+          // ✅ SEGURIDAD: Sanitizar estado antes de guardar
+          const sanitizedState = this.sanitizeStateForStorage(updatedState);
           // Guardar el estado actualizado sin hacer sync con backend
-          sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(updatedState));
+          sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sanitizedState));
           return updatedState;
         } else {
           this.logger.log('⏰ Estado de sesión expirado o inválido');
@@ -488,6 +505,33 @@ export class WizardStateService {
   }
 
   /**
+   * Sanitiza el estado eliminando datos sensibles antes de guardar en sessionStorage
+   * ✅ SEGURIDAD: Elimina paymentData, paymentResult, contractData, publicIp, userAgent, metadata
+   */
+  private sanitizeStateForStorage(state: WizardState): WizardState {
+    const sanitized = { ...state };
+    
+    // ✅ SEGURIDAD: Eliminar datos sensibles de pago
+    delete sanitized.paymentData;
+    delete sanitized.paymentResult;
+    
+    // ✅ SEGURIDAD: Eliminar datos sensibles de contrato
+    delete sanitized.contractData;
+    
+    // ✅ SEGURIDAD: Eliminar información de IP y navegador
+    delete sanitized.publicIp;
+    delete sanitized.userAgent;
+    
+    // ✅ SEGURIDAD: Limpiar metadata (puede contener información del navegador)
+    sanitized.metadata = {};
+    
+    // ✅ SEGURIDAD: Asegurar que solo se guarden indicadores, no datos completos
+    // Los indicadores (hasPaymentData, hasPaymentResult, paymentStatus, paymentAmount) se mantienen
+    
+    return sanitized;
+  }
+
+  /**
    * Guarda el estado del wizard localmente (sessionStorage) Y sincroniza automáticamente con backend
    * La estructura guardada en sessionStorage es idéntica a la de la BD
    * 
@@ -495,6 +539,7 @@ export class WizardStateService {
    * - NO sincroniza automáticamente para evitar errores 429
    * - Solo sincroniza cambios críticos (usar saveAndSync para cambios importantes)
    * - Usa sistema de cola con priorización para cambios críticos
+   * ✅ SEGURIDAD: Sanitiza datos sensibles antes de guardar en sessionStorage
    */
   async saveState(state: Partial<WizardState>, options?: { sync?: boolean; isCritical?: boolean }): Promise<void> {
     if (!isPlatformBrowser(this.platformId)) return;
@@ -520,8 +565,11 @@ export class WizardStateService {
     }
 
     try {
-      // Guardar localmente primero
-      sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(newState));
+      // ✅ SEGURIDAD: Sanitizar estado antes de guardar en sessionStorage
+      const sanitizedState = this.sanitizeStateForStorage(newState);
+      
+      // Guardar localmente primero (solo datos no sensibles)
+      sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sanitizedState));
       
       // Emitir cambios en el estado
       this.stateSubject.next(newState);
@@ -774,9 +822,9 @@ export class WizardStateService {
         ...(state.selectedPlan ? { selectedPlan: state.selectedPlan } : {}),
         ...(state.selectedPlanName ? { selectedPlanName: state.selectedPlanName } : {}),
         ...(state.userData && Object.keys(state.userData).length > 0 ? { userData: state.userData } : {}),
-        ...(state.paymentData ? { paymentData: state.paymentData } : {}),
-        ...(state.contractData ? { contractData: state.contractData } : {}),
-        ...(state.paymentResult ? { paymentResult: state.paymentResult } : {}),
+        // ✅ SEGURIDAD: NO enviar paymentData, paymentResult, contractData al backend
+        // Estos campos solo se usan localmente en el frontend
+        // El backend solo recibe indicadores (hasPaymentData, hasPaymentResult, etc.)
         ...(state.policyNumber ? { policyNumber: state.policyNumber } : {}),
         // ✅ paymentAmount: Solo enviar si es un número válido mayor a 0
         ...(state.paymentAmount !== undefined && state.paymentAmount !== null && !isNaN(Number(state.paymentAmount)) && Number(state.paymentAmount) > 0 
@@ -800,10 +848,10 @@ export class WizardStateService {
       while (retries <= maxRetries) {
         try {
           patchResponse = await this.apiService.patch<WizardSessionData>(
-            `${this.API_ENDPOINT}/${sessionId}/step`,
-            updateData
-          ).toPromise();
-          
+        `${this.API_ENDPOINT}/${sessionId}/step`,
+        updateData
+      ).toPromise();
+
           if (patchResponse) {
             break; // Éxito, salir del loop
           }
@@ -879,9 +927,18 @@ export class WizardStateService {
         quotationNumber: backendData.quotationNumber || '',
         // ✅ Usar valores exactos de la BD (pueden ser null)
         userData: backendData.userData || null,
-        paymentData: backendData.paymentData || null,
-        contractData: backendData.contractData || null,
-        paymentResult: backendData.paymentResult || null,
+        // ✅ SEGURIDAD: Solo usar indicadores del backend, NO datos completos
+        hasPaymentData: backendData.hasPaymentData || false,
+        hasPaymentResult: backendData.hasPaymentResult || false,
+        paymentStatus: backendData.paymentStatus || null,
+        hasContractData: backendData.hasContractData || false,
+        hasValidationResult: backendData.hasValidationResult || false,
+        validationStatus: backendData.validationStatus || null,
+        // ⚠️ COMPATIBILIDAD LOCAL: Mantener datos locales si existen (NO vienen del backend)
+        // Estos campos solo se usan localmente en el frontend para la UI
+        paymentData: state.paymentData || null,  // Mantener datos locales si existen
+        contractData: state.contractData || null,  // Mantener datos locales si existen
+        paymentResult: state.paymentResult || null,  // Mantener datos locales si existen
         policyNumber: backendData.policyNumber || '',
         paymentAmount: backendData.paymentAmount ? parseFloat(String(backendData.paymentAmount)) : 0,
         validationResult: backendData.validationResult || null,
@@ -893,9 +950,13 @@ export class WizardStateService {
         lastActivity: Date.now()
       };
 
-      // 4. Guardar en sessionStorage
+      // 4. ✅ SEGURIDAD: Sanitizar estado antes de guardar en sessionStorage
+      const sanitizedState = this.sanitizeStateForStorage(syncedState);
+      
+      // Guardar en sessionStorage (solo datos no sensibles)
       if (isPlatformBrowser(this.platformId)) {
-        sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(syncedState));
+        sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sanitizedState));
+        // Emitir estado completo para uso interno (no se guarda en sessionStorage)
         this.stateSubject.next(syncedState);
       }
 
@@ -1010,9 +1071,11 @@ export class WizardStateService {
             state.id = newId;
           }
           
+          // ✅ SEGURIDAD: Sanitizar estado antes de guardar
+          const sanitizedState = this.sanitizeStateForStorage(state);
           // Actualizar el estado local con los nuevos valores
           if (isPlatformBrowser(this.platformId)) {
-            sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(state));
+            sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sanitizedState));
           }
           this.stateSubject.next(state);
         }
@@ -1046,7 +1109,8 @@ export class WizardStateService {
           this.logger.log('🔄 Sincronizando tipoUsuario desde stepData.step0:', stepData.step0.tipoUsuario);
           state.userData = { ...state.userData, tipoUsuario: stepData.step0.tipoUsuario };
           if (isPlatformBrowser(this.platformId)) {
-            sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(state));
+            const sanitizedState = this.sanitizeStateForStorage(state);
+            sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sanitizedState));
           }
         }
         
@@ -1062,7 +1126,8 @@ export class WizardStateService {
             complementos: stepData.step1.complementos
           };
           if (isPlatformBrowser(this.platformId)) {
-            sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(state));
+            const sanitizedState = this.sanitizeStateForStorage(state);
+            sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sanitizedState));
           }
         }
         
@@ -1074,7 +1139,8 @@ export class WizardStateService {
             cardData: stepData.step2.cardData
           };
           if (isPlatformBrowser(this.platformId)) {
-            sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(state));
+            const sanitizedState = this.sanitizeStateForStorage(state);
+            sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sanitizedState));
           }
         }
         
@@ -1085,7 +1151,8 @@ export class WizardStateService {
             validationCode: stepData.step3.validationCode
           };
           if (isPlatformBrowser(this.platformId)) {
-            sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(state));
+            const sanitizedState = this.sanitizeStateForStorage(state);
+            sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sanitizedState));
           }
         }
         
@@ -1099,7 +1166,8 @@ export class WizardStateService {
             inmueble: stepData.step4.inmueble
           };
           if (isPlatformBrowser(this.platformId)) {
-            sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(state));
+            const sanitizedState = this.sanitizeStateForStorage(state);
+            sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sanitizedState));
           }
         }
         
@@ -1112,7 +1180,8 @@ export class WizardStateService {
             signatures: stepData.step6.signatures
           };
           if (isPlatformBrowser(this.platformId)) {
-            sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(state));
+            const sanitizedState = this.sanitizeStateForStorage(state);
+            sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sanitizedState));
           }
         }
 
@@ -1195,7 +1264,8 @@ export class WizardStateService {
                   currentSessionId = recoveredSessionId;
                   state.sessionId = recoveredSessionId;
                   if (isPlatformBrowser(this.platformId)) {
-                    sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(state));
+                    const sanitizedState = this.sanitizeStateForStorage(state);
+                    sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sanitizedState));
                   }
                   this.stateSubject.next(state);
                   await doPatch(recoveredSessionId);
@@ -1235,7 +1305,8 @@ export class WizardStateService {
                   currentSessionId = recoveredSessionId;
                   state.sessionId = recoveredSessionId;
                   if (isPlatformBrowser(this.platformId)) {
-                    sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(state));
+                    const sanitizedState = this.sanitizeStateForStorage(state);
+                    sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sanitizedState));
                   }
                   this.stateSubject.next(state);
                   await this.apiService.patch(
@@ -1277,7 +1348,7 @@ export class WizardStateService {
     
     // Siempre incluir datos básicos para el paso actual
     const baseStepData = {
-      timestamp: new Date() 
+        timestamp: new Date() 
     };
     
     // Paso 0: Tipo de usuario
@@ -1330,7 +1401,7 @@ export class WizardStateService {
     
     // Paso 3: Datos de validación + quotationId y quotationNumber
     if (state.paymentResult || state.quotationId || state.quotationNumber) {
-      stepData.step3 = {
+      stepData.step3 = { 
         ...stepData.step3,
         ...(state.paymentResult?.validationCode ? { validationCode: state.paymentResult.validationCode } : {}),
         ...(state.quotationId ? { quotationId: state.quotationId } : {}),
@@ -1599,7 +1670,8 @@ export class WizardStateService {
         
         // Detectar si hay datos de póliza y ajustar currentStep si es necesario
         const hasPolicyData = !!(session.policyId && session.policyNumber);
-        const hasPaymentResult = !!session.paymentResult;
+        // ✅ SEGURIDAD: Usar indicadores en lugar de datos completos
+        const hasPaymentResult = session.hasPaymentResult || false;
         const shouldBeInValidationStep = hasPolicyData || hasPaymentResult;
         
         this.logger.log('🎯 Análisis de paso correcto:', {
@@ -1650,12 +1722,15 @@ export class WizardStateService {
           quotationNumber: session.quotationNumber || '',
           // ✅ Usar userData de la BD directamente (puede ser null o tener datos)
           userData: session.userData || this.extractUserDataFromStepData(session.stepData),
-          // ✅ Usar paymentData de la BD directamente (puede ser null)
-          paymentData: session.paymentData || null,
-          // ✅ Usar contractData de la BD directamente (puede ser null)
-          contractData: session.contractData || null,
-          // ✅ Usar paymentResult de la BD directamente (puede ser null)
-          paymentResult: session.paymentResult || null,
+          // ✅ SEGURIDAD: Solo indicadores de pago, NO datos completos
+          hasPaymentData: session.hasPaymentData || false,
+          hasPaymentResult: session.hasPaymentResult || false,
+          paymentStatus: session.paymentStatus || null,
+          
+          // ✅ SEGURIDAD: Solo indicadores de contrato y validación
+          hasContractData: session.hasContractData || false,
+          hasValidationResult: session.hasValidationResult || false,
+          validationStatus: session.validationStatus || null,
           
           // ✅ Campos adicionales para compatibilidad (estructura idéntica a la BD)
           policyNumber: session.policyNumber || '',
@@ -1665,14 +1740,21 @@ export class WizardStateService {
           validationRequirements: session.stepData?.step5?.validationRequirements || [],
         };
 
-        // Guardar en sessionStorage
-        sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(frontendState));
+        // ✅ SEGURIDAD: Sanitizar estado antes de guardar en sessionStorage
+        const sanitizedState = this.sanitizeStateForStorage(frontendState);
+        
+        // Guardar en sessionStorage (solo datos no sensibles)
+        sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sanitizedState));
+        // Emitir estado completo para uso interno (no se guarda en sessionStorage)
         this.stateSubject.next(frontendState);
         
         this.logger.log('💾 Estado restaurado guardado en sessionStorage:', {
           policyId: frontendState.policyId,
           policyNumber: frontendState.policyNumber,
-          paymentResult: frontendState.paymentResult,
+          hasPaymentData: frontendState.hasPaymentData,
+          hasPaymentResult: frontendState.hasPaymentResult,
+          paymentStatus: frontendState.paymentStatus,
+          paymentAmount: frontendState.paymentAmount,
           currentStep: frontendState.currentStep,
           userData: frontendState.userData
         });
@@ -1876,7 +1958,8 @@ export class WizardStateService {
         lastActivity: Date.now()
       };
       if (isPlatformBrowser(this.platformId)) {
-        sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(updatedState));
+        const sanitizedState = this.sanitizeStateForStorage(updatedState);
+        sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sanitizedState));
       }
     }
   }
@@ -1940,8 +2023,10 @@ export class WizardStateService {
           validationResult: null
         };
 
+        // ✅ SEGURIDAD: Sanitizar estado antes de guardar
+        const sanitizedState = this.sanitizeStateForStorage(restoredState);
         // Guardar localmente
-        sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(restoredState));
+        sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sanitizedState));
         this.stateSubject.next(restoredState);
         
         // Crear sesión en backend
@@ -1984,12 +2069,12 @@ export class WizardStateService {
         
         if (actualData && actualData.sessionId) {
           const activeSessionId = actualData.id || actualData.sessionId;
-          this.logger.log('✅ Sesión activa encontrada para esta IP:', activeSessionId);
-          
+        this.logger.log('✅ Sesión activa encontrada para esta IP:', activeSessionId);
+        
           // Restaurar el estado completo desde el backend
           const restoredState = await this.restoreFromBackend(activeSessionId);
           if (restoredState) {
-            return activeSessionId;
+        return activeSessionId;
           }
         }
       }
@@ -2208,7 +2293,8 @@ export class WizardStateService {
     };
 
     if (isPlatformBrowser(this.platformId)) {
-      sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(updatedState));
+      const sanitizedState = this.sanitizeStateForStorage(updatedState);
+      sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sanitizedState));
     }
     this.stateSubject.next(updatedState);
 
@@ -2278,9 +2364,11 @@ export class WizardStateService {
         lastActivity: Date.now()
       };
 
+      // ✅ SEGURIDAD: Sanitizar estado antes de guardar
+      const sanitizedState = this.sanitizeStateForStorage(updatedState);
       // Actualizar estado local
       if (isPlatformBrowser(this.platformId)) {
-        sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(updatedState));
+        sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sanitizedState));
         this.stateSubject.next(updatedState);
       }
 

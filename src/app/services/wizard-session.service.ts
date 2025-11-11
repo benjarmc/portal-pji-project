@@ -230,4 +230,12 @@ export class WizardSessionService {
   getSessionByQuotation(quotationId: string): Observable<ApiResponse<WizardSessionData>> {
     return this.apiService.get<WizardSessionData>(`${this.endpoint}/quotation/${quotationId}`);
   }
+
+  /**
+   * Forzar sincronización de datos desde tablas relacionadas
+   * Útil cuando se detecta que hay policyId pero faltan datos de pago
+   */
+  forceSync(sessionId: string): Observable<ApiResponse<WizardSessionData>> {
+    return this.apiService.post<WizardSessionData>(`${this.endpoint}/${sessionId}/sync`, {});
+  }
 }

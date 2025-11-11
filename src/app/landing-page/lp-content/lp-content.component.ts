@@ -220,6 +220,38 @@ export class LpContentComponent implements OnInit {
             }
           }
           
+          // ✅ CRÍTICO: Si hay policyId pero faltan indicadores de pago, forzar sincronización
+          // ✅ SEGURIDAD: Solo verificar indicadores, NO datos completos
+          if (actualData.policyId && (!actualData.hasPaymentData || !actualData.hasPaymentResult)) {
+            this.logger.log('🔄 Detectado policyId sin indicadores de pago, forzando sincronización...', {
+              policyId: actualData.policyId,
+              hasPaymentData: actualData.hasPaymentData || false,
+              hasPaymentResult: actualData.hasPaymentResult || false
+            });
+            try {
+              const syncedData = await this.wizardSessionService.forceSync(existingSessionId).toPromise();
+              if (syncedData) {
+                const syncedActualData = (syncedData as any).data || syncedData;
+                this.logger.log('✅ Sincronización forzada completada:', {
+                  hasPaymentData: syncedActualData.hasPaymentData || false,
+                  hasPaymentResult: syncedActualData.hasPaymentResult || false,
+                  paymentStatus: syncedActualData.paymentStatus,
+                  paymentAmount: syncedActualData.paymentAmount
+                });
+                // Usar datos sincronizados (solo indicadores)
+                Object.assign(actualData, {
+                  hasPaymentData: syncedActualData.hasPaymentData,
+                  hasPaymentResult: syncedActualData.hasPaymentResult,
+                  paymentStatus: syncedActualData.paymentStatus,
+                  paymentAmount: syncedActualData.paymentAmount
+                });
+              }
+            } catch (syncError) {
+              this.logger.warning('⚠️ Error forzando sincronización:', syncError);
+              // Continuar con los datos originales
+            }
+          }
+          
           // ✅ VALIDAR: Solo mostrar modal si la sesión tiene datos reales (no es solo un estado por defecto)
           const hasRealData = actualData.currentStep > 0 || 
                              actualData.selectedPlan || 
@@ -532,73 +564,100 @@ export class LpContentComponent implements OnInit {
 
   /**
    * Sincroniza el estado local con los datos de la base de datos
+   * ✅ MERGE INTELIGENTE: Prioriza datos locales si existen y son válidos, sino usa datos de BD
+   * Esto evita perder información que el backend no retorna (ej. paymentData, paymentResult)
    */
   private syncLocalStateWithBD(sessionData: any): void {
     const stepData = sessionData.stepData || {};
     
-    // Debug: Ver qué datos están llegando
-    this.logger.log('🔍 Debug syncLocalStateWithBD - sessionData completo:', {
-      'sessionData.selectedPlan': sessionData.selectedPlan,
-      'sessionData.selectedPlanName': sessionData.selectedPlanName,
-      'stepData': stepData,
-      'sessionData completo': sessionData
+    // ✅ Obtener estado local actual para hacer merge inteligente
+    const currentLocalState = this.wizardStateService.getState();
+    const isRefresh = !currentLocalState.sessionId || currentLocalState.sessionId !== sessionData.sessionId;
+    
+    this.logger.log('🔄 Sincronizando estado:', {
+      source: isRefresh ? 'BD (refresh)' : 'Merge (paso anterior + BD)',
+      localSessionId: currentLocalState.sessionId,
+      bdSessionId: sessionData.sessionId
     });
     
-    // Crear estado local con estructura completa del backend
-    const localState: any = {
-      // Campos principales del backend (estructura completa)
+    // ✅ SEGURIDAD: Solo usar indicadores de pago, NO datos completos
+    // Los datos completos se mantienen solo en el backend
+    
+    // ✅ MERGE INTELIGENTE: Priorizar datos locales si existen y son válidos, sino usar datos de BD
+    const mergedState: any = {
+      // Campos principales del backend (siempre desde BD)
       id: sessionData.id,
       sessionId: sessionData.sessionId,
-      userId: sessionData.userId || undefined,
-      currentStep: sessionData.currentStep || 0,
-      stepData: stepData,
-      completedSteps: sessionData.completedSteps || [],
-      status: sessionData.status || 'ACTIVE',
-      expiresAt: sessionData.expiresAt ? new Date(sessionData.expiresAt) : undefined,
-      quotationId: sessionData.quotationId || undefined,
-      policyId: sessionData.policyId || undefined,
-      metadata: sessionData.metadata || {},
-      publicIp: sessionData.publicIp || undefined,
-      userAgent: sessionData.userAgent || undefined,
-      lastActivityAt: sessionData.lastActivityAt ? new Date(sessionData.lastActivityAt) : undefined,
-      completedAt: sessionData.completedAt ? new Date(sessionData.completedAt) : undefined,
-      createdAt: sessionData.createdAt ? new Date(sessionData.createdAt) : undefined,
-      updatedAt: sessionData.updatedAt ? new Date(sessionData.updatedAt) : undefined,
+      userId: sessionData.userId || currentLocalState.userId,
+      currentStep: sessionData.currentStep || currentLocalState.currentStep || 0,
+      stepData: { ...currentLocalState.stepData, ...stepData }, // Merge de stepData
+      completedSteps: sessionData.completedSteps || currentLocalState.completedSteps || [],
+      status: sessionData.status || currentLocalState.status || 'ACTIVE',
+      expiresAt: sessionData.expiresAt ? new Date(sessionData.expiresAt) : currentLocalState.expiresAt,
+      quotationId: sessionData.quotationId || currentLocalState.quotationId,
+      policyId: sessionData.policyId || currentLocalState.policyId,
+      metadata: { ...currentLocalState.metadata, ...(sessionData.metadata || {}) },
+      publicIp: sessionData.publicIp || currentLocalState.publicIp,
+      userAgent: sessionData.userAgent || currentLocalState.userAgent,
+      lastActivityAt: sessionData.lastActivityAt ? new Date(sessionData.lastActivityAt) : currentLocalState.lastActivityAt,
+      completedAt: sessionData.completedAt ? new Date(sessionData.completedAt) : currentLocalState.completedAt,
+      createdAt: sessionData.createdAt ? new Date(sessionData.createdAt) : currentLocalState.createdAt,
+      updatedAt: sessionData.updatedAt ? new Date(sessionData.updatedAt) : currentLocalState.updatedAt,
       
       // Campos de control del frontend
       timestamp: Date.now(),
       lastActivity: Date.now(),
       
-      // Campos derivados (para compatibilidad)
-      selectedPlan: sessionData.selectedPlan || '',
-      selectedPlanName: sessionData.selectedPlanName || '',
-      quotationNumber: stepData.step3?.quotationNumber || '',
-      userData: stepData.step2?.userData || null,
-      paymentData: stepData.step4?.paymentData || null,
-      contractData: stepData.step7?.propertyData || stepData.step8?.contractData || null,
-      paymentResult: stepData.step5?.validationData || null,
+      // ✅ MERGE INTELIGENTE: Priorizar datos locales si existen, sino usar BD
+      selectedPlan: currentLocalState.selectedPlan || sessionData.selectedPlan || '',
+      selectedPlanName: currentLocalState.selectedPlanName || sessionData.selectedPlanName || '',
+      // ✅ CORREGIDO: Usar quotationNumber de nivel superior primero, luego stepData.step3 como fallback
+      quotationNumber: currentLocalState.quotationNumber || sessionData.quotationNumber || stepData.step3?.quotationNumber || '',
+      // ✅ CORREGIDO: Usar userData de BD (calculado desde stepData.step1) o local
+      userData: currentLocalState.userData || sessionData.userData || null,
       
-      // Campos adicionales para compatibilidad
-      policyNumber: stepData.step5?.policyNumber || stepData.step4?.policyNumber || '',
-      paymentAmount: stepData.step4?.paymentAmount || stepData.step5?.paymentAmount || 0,
-      validationResult: stepData.step5?.validationData || null
+      // ✅ SEGURIDAD: Solo indicadores de pago, NO datos completos
+      hasPaymentData: sessionData.hasPaymentData !== undefined ? sessionData.hasPaymentData : (currentLocalState.hasPaymentData || false),
+      hasPaymentResult: sessionData.hasPaymentResult !== undefined ? sessionData.hasPaymentResult : (currentLocalState.hasPaymentResult || false),
+      paymentStatus: sessionData.paymentStatus || currentLocalState.paymentStatus || null,
+      paymentAmount: sessionData.paymentAmount !== undefined ? sessionData.paymentAmount : (currentLocalState.paymentAmount || null),
+      
+      // ✅ SEGURIDAD: Solo indicadores de contrato y validación
+      hasContractData: sessionData.hasContractData !== undefined ? sessionData.hasContractData : (currentLocalState.hasContractData || false),
+      hasValidationResult: sessionData.hasValidationResult !== undefined ? sessionData.hasValidationResult : (currentLocalState.hasValidationResult || false),
+      validationStatus: sessionData.validationStatus || currentLocalState.validationStatus || null,
+      
+      // Campos adicionales - merge inteligente
+      policyNumber: currentLocalState.policyNumber || sessionData.policyNumber || '',
+      validationResult: currentLocalState.validationResult || sessionData.validationResult || stepData.step5?.validationData || null,
+      
+      // ✅ MERGE INTELIGENTE: validationRequirements y captureData
+      validationRequirements: currentLocalState.validationRequirements || 
+                               sessionData.validationRequirements || 
+                               stepData.step5?.validationRequirements || 
+                               null,
+      captureData: currentLocalState.captureData || 
+                   sessionData.captureData || 
+                   null
     };
 
-    this.logger.log('🔄 Sincronizando estado local con BD (estructura completa):', {
-      id: localState.id,
-      sessionId: localState.sessionId,
-      currentStep: localState.currentStep,
-      status: localState.status,
-      expiresAt: localState.expiresAt,
-      selectedPlan: localState.selectedPlan,
-      quotationId: localState.quotationId,
-      completedSteps: localState.completedSteps,
-      stepDataKeys: Object.keys(localState.stepData),
-      metadata: localState.metadata
+    this.logger.log('🔄 Estado mergeado (local + BD):', {
+      id: mergedState.id,
+      sessionId: mergedState.sessionId,
+      currentStep: mergedState.currentStep,
+      hasLocalPaymentResult: currentLocalState.hasPaymentResult || false,
+      hasBdPaymentResult: sessionData.hasPaymentResult || false,
+      finalHasPaymentResult: mergedState.hasPaymentResult || false,
+      paymentStatus: mergedState.paymentStatus,
+      paymentAmount: mergedState.paymentAmount,
+      hasLocalUserData: !!currentLocalState.userData,
+      hasBdUserData: !!sessionData.userData,
+      finalUserData: !!mergedState.userData,
+      quotationNumber: mergedState.quotationNumber
     });
 
-    // Guardar el estado completo en el servicio local
-    this.wizardStateService.saveState(localState);
+    // Guardar el estado mergeado en el servicio local
+    this.wizardStateService.saveState(mergedState);
   }
 
   /**
