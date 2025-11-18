@@ -3,10 +3,23 @@ import { CommonEngine, isMainModule } from '@angular/ssr/node';
 import express from 'express';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 import bootstrap from './src/main.server';
 
+// Obtener el directorio del servidor compilado
 const serverDistFolder = dirname(fileURLToPath(import.meta.url));
-const browserDistFolder = resolve(serverDistFolder, '../browser');
+
+// Resolver la ruta del browser - intentar desde el servidor primero
+let browserDistFolder = resolve(serverDistFolder, '../browser');
+
+// Verificar si la ruta existe, si no, usar process.cwd() como fallback
+if (!existsSync(browserDistFolder)) {
+  const fallbackPath = resolve(process.cwd(), 'dist/portal-pji-project/browser');
+  if (existsSync(fallbackPath)) {
+    browserDistFolder = fallbackPath;
+  }
+}
+
 const indexHtml = join(browserDistFolder, 'index.html');
 
 const app = express();
