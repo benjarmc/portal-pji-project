@@ -54,11 +54,6 @@
             "scripts": [
               "node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"
             ],
-            "server": "src/main.server.ts",
-            "prerender": false,
-            "ssr": {
-              "entry": "server.ts"
-            },
             "allowedCommonJsDependencies": [
               "canvg",
               "jspdf",
@@ -162,33 +157,6 @@
               "node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"
             ]
           }
-        },
-        "server": {
-          "builder": "@angular-devkit/build-angular:server",
-          "options": {
-            "outputPath": "dist/portal-pji-project/server",
-            "main": "server.ts",
-            "tsConfig": "tsconfig.server.json"
-          },
-          "configurations": {
-            "production": {
-              "outputHashing": "media",
-              "sourceMap": false,
-              "optimization": true,
-              "fileReplacements": [
-                {
-                  "replace": "src/environments/environment.ts",
-                  "with": "src/environments/environment.prod.ts"
-                }
-              ]
-            },
-            "development": {
-              "outputHashing": "media",
-              "sourceMap": true,
-              "optimization": false
-            }
-          },
-          "defaultConfiguration": "production"
         }
       }
     }
