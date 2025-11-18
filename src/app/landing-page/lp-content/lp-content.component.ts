@@ -162,6 +162,7 @@ export class LpContentComponent implements OnInit {
     this.logger.log('📋 Resultado de verificación de sesión por IP:', existingSessionId);
     
     // ✅ 2) SEGUNDO: Si no hay sesión por IP, verificar si hay sesión local
+    let sessionData: any = null;
     if (!existingSessionId) {
       this.logger.log('🔍 No se encontró sesión por IP, verificando sesión local...');
       const currentState = this.wizardStateService.getState();
@@ -171,10 +172,12 @@ export class LpContentComponent implements OnInit {
         try {
           this.logger.log('📡 Validando sesión local en el backend:', localSessionId);
           // ✅ IMPORTANTE: Solicitar tokens al validar sesión local
-          const sessionData = await this.wizardSessionService.getSession(localSessionId, true).toPromise();
+          // ✅ OPTIMIZADO: Usar caché del servicio para evitar múltiples llamadas
+          const localSessionData = await this.wizardSessionService.getSession(localSessionId, true).toPromise();
           
-          if (sessionData) {
-            const actualData = (sessionData as any).data || sessionData;
+          if (localSessionData) {
+            sessionData = localSessionData; // Guardar para reutilizar más adelante
+            const actualData = (localSessionData as any).data || localSessionData;
             if (actualData && (actualData.id || actualData.sessionId)) {
               existingSessionId = actualData.id || actualData.sessionId;
               this.logger.log('✅ Sesión local válida encontrada:', existingSessionId);
@@ -206,11 +209,18 @@ export class LpContentComponent implements OnInit {
     }
 
     // ✅ 3) TERCERO: Si hay sesión activa (por IP o local), validar que existe en el backend antes de mostrar modal
+    // ✅ OPTIMIZADO: Reutilizar sessionData si ya se obtuvo en el paso anterior para evitar llamada redundante
     if (existingSessionId) {
       try {
-        this.logger.log('📡 Validando sesión existente en el backend...');
-        // ✅ IMPORTANTE: Solicitar tokens al validar sesión existente (por si no se obtuvieron antes)
-        const sessionData = await this.wizardSessionService.getSession(existingSessionId, true).toPromise();
+        if (!sessionData) {
+          // Solo hacer llamada si no tenemos los datos ya
+          this.logger.log('📡 Validando sesión existente en el backend...');
+          // ✅ IMPORTANTE: Solicitar tokens al validar sesión existente (por si no se obtuvieron antes)
+          // ✅ OPTIMIZADO: Usar caché del servicio para evitar múltiples llamadas
+          sessionData = await this.wizardSessionService.getSession(existingSessionId, true).toPromise();
+        } else {
+          this.logger.log('✅ Reutilizando datos de sesión obtenidos anteriormente (evitando llamada redundante)');
+        }
         
         if (sessionData) {
           // Manejar tanto respuesta envuelta como directa
@@ -228,6 +238,7 @@ export class LpContentComponent implements OnInit {
           
           // ✅ CRÍTICO: Si hay policyId pero faltan indicadores de pago, forzar sincronización
           // ✅ SEGURIDAD: Solo verificar indicadores, NO datos completos
+          // ✅ OPTIMIZADO: Solo forzar sincronización si realmente es necesario (evita llamadas innecesarias)
           if (actualData.policyId && (!actualData.hasPaymentData || !actualData.hasPaymentResult)) {
             this.logger.log('🔄 Detectado policyId sin indicadores de pago, forzando sincronización...', {
               policyId: actualData.policyId,
@@ -235,6 +246,7 @@ export class LpContentComponent implements OnInit {
               hasPaymentResult: actualData.hasPaymentResult || false
             });
             try {
+              // ✅ OPTIMIZADO: forceSync invalida el caché automáticamente
               const syncedData = await this.wizardSessionService.forceSync(existingSessionId).toPromise();
               if (syncedData) {
                 const syncedActualData = (syncedData as any).data || syncedData;
@@ -253,7 +265,13 @@ export class LpContentComponent implements OnInit {
                 });
               }
             } catch (syncError) {
-              this.logger.warning('⚠️ Error forzando sincronización:', syncError);
+              const syncErrorStatus = (syncError as any)?.status;
+              // Si es 429, no hacer nada más (ya se intentó sincronizar)
+              if (syncErrorStatus === 429) {
+                this.logger.warning('⚠️ Rate limit alcanzado al forzar sincronización, usando datos actuales');
+              } else {
+                this.logger.warning('⚠️ Error forzando sincronización:', syncError);
+              }
               // Continuar con los datos originales
             }
           }

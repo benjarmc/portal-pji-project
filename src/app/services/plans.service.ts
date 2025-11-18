@@ -153,48 +153,59 @@ export class PlansService {
    */
   getPlanById(id: string): Observable<ApiResponse<Plan>> {
     return this.apiService.get<Plan>(`${this.endpoint}/${id}`).pipe(
-      switchMap((response: any) => {
+      map((response: any) => {
         this.logger.log('📡 getPlanById respuesta raw:', response);
         
-        // El backend devuelve directamente el Plan, no ApiResponse
+        // El backend devuelve directamente el Plan con complementaryPlans incluidos
         if (response && response.id) {
-          // Es un Plan directo - asegurar arrays válidos y agregar complementos
+          // Es un Plan directo - usar los complementos que ya vienen del backend
           const plan = response as Plan;
           
-          return this.getComplementsFromAPI().pipe(
-            map(complementaryPlans => ({
-              success: true,
-              data: {
-                ...plan,
-                features: Array.isArray(plan.features) ? plan.features : [],
-                coverage: Array.isArray(plan.coverage) ? plan.coverage : [],
-                complementaryPlans: complementaryPlans
-              },
-              message: 'Plan cargado correctamente'
-            }))
-          );
+          this.logger.log('✅ Plan recibido del backend con complementos:', {
+            planName: plan.name,
+            complementaryPlansCount: plan.complementaryPlans?.length || 0,
+            complementaryPlans: plan.complementaryPlans
+          });
+          
+          return {
+            success: true,
+            data: {
+              ...plan,
+              features: Array.isArray(plan.features) ? plan.features : [],
+              coverage: Array.isArray(plan.coverage) ? plan.coverage : [],
+              // Usar los complementos que ya vienen del backend
+              complementaryPlans: Array.isArray(plan.complementaryPlans) ? plan.complementaryPlans : []
+            },
+            message: 'Plan cargado correctamente'
+          };
         } else if (response && response.success && response.data) {
           // Ya viene en formato ApiResponse
           const plan = response.data as Plan;
           
-          return this.getComplementsFromAPI().pipe(
-            map(complementaryPlans => ({
-              ...response,
-              data: {
-                ...plan,
-                features: Array.isArray(plan.features) ? plan.features : [],
-                coverage: Array.isArray(plan.coverage) ? plan.coverage : [],
-                complementaryPlans: complementaryPlans
-              }
-            } as ApiResponse<Plan>))
-          );
+          this.logger.log('✅ Plan recibido del backend (ApiResponse) con complementos:', {
+            planName: plan.name,
+            complementaryPlansCount: plan.complementaryPlans?.length || 0,
+            complementaryPlans: plan.complementaryPlans
+          });
+          
+          return {
+            ...response,
+            data: {
+              ...plan,
+              features: Array.isArray(plan.features) ? plan.features : [],
+              coverage: Array.isArray(plan.coverage) ? plan.coverage : [],
+              // Usar los complementos que ya vienen del backend
+              complementaryPlans: Array.isArray(plan.complementaryPlans) ? plan.complementaryPlans : []
+            }
+          } as ApiResponse<Plan>;
         } else {
           // Respuesta inesperada
-          return of({
+          this.logger.warning('⚠️ Formato de respuesta inesperado:', response);
+          return {
             success: false,
             data: undefined,
             message: 'Formato de respuesta inesperado'
-          });
+          };
         }
       }),
       catchError((error: any) => {

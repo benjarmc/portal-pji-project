@@ -161,12 +161,12 @@ export class WizardStateService {
   
   // ✅ Sistema de cola para sincronización con backend (evita errores 429)
   private syncSubject = new Subject<{ state: WizardState; isCritical: boolean }>();
-  private syncDebounceTime = 5000; // 5 segundos de debounce para sincronización (aumentado para evitar 429)
+  private syncDebounceTime = 7000; // 7 segundos de debounce para sincronización (aumentado para evitar 429)
   private pendingSyncState: WizardState | null = null;
   private pendingSyncIsCritical: boolean = false;
   private syncPromise: Promise<WizardState> | null = null;
   private lastSyncTime: number = 0;
-  private minTimeBetweenSyncs = 10000; // Mínimo 10 segundos entre sincronizaciones (aumentado para evitar 429)
+  private minTimeBetweenSyncs = 12000; // Mínimo 12 segundos entre sincronizaciones (aumentado para evitar 429)
   private syncQueue: Array<{ state: WizardState; isCritical: boolean; resolve: (value: WizardState) => void; reject: (error: any) => void }> = [];
   private isProcessingQueue = false;
   private consecutive429Errors = 0;
