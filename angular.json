@@ -168,7 +168,7 @@
           "options": {
             "outputPath": "dist/portal-pji-project/server",
             "main": "server.ts",
-            "tsConfig": "tsconfig.app.json"
+            "tsConfig": "tsconfig.server.json"
           },
           "configurations": {
             "production": {
