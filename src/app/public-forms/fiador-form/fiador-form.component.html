@@ -1,0 +1,274 @@
+<div class="public-form-container">
+  <div class="form-card">
+    <div class="form-header">
+      <h2>Completa tu Información - Fiador</h2>
+      <p class="text-muted">Por favor, completa todos los campos requeridos para continuar con el proceso</p>
+    </div>
+
+    <!-- Mensajes de estado -->
+    <div *ngIf="errorMessage" class="alert alert-danger" role="alert">
+      <i class="bi bi-exclamation-triangle me-2"></i>
+      {{ errorMessage }}
+    </div>
+
+    <div *ngIf="successMessage" class="alert alert-success" role="alert">
+      <i class="bi bi-check-circle me-2"></i>
+      {{ successMessage }}
+    </div>
+
+    <!-- Loading state -->
+    <div *ngIf="isLoading" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+      <p class="mt-3">Cargando tus datos...</p>
+    </div>
+
+    <!-- Formulario -->
+    <form [formGroup]="fiadorForm" *ngIf="!isLoading" (ngSubmit)="onSubmit()">
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Fecha Alta *</label>
+          <input type="date" class="form-control" formControlName="fechaAlta"
+                 [class.is-invalid]="formControls['fechaAlta'].invalid && formControls['fechaAlta'].touched">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">CURP *</label>
+          <input type="text" class="form-control" formControlName="curp" 
+                 placeholder="ABCD123456HDFABC01" maxlength="18"
+                 [class.is-invalid]="formControls['curp'].invalid && formControls['curp'].touched">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Tipo de Persona *</label>
+          <select class="form-select" formControlName="tipoPersona">
+            <option value="fisica">Persona Física</option>
+            <option value="moral">Persona Moral</option>
+          </select>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Nombre Completo *</label>
+          <input type="text" class="form-control" formControlName="nombre" placeholder="Nombre completo"
+                 [class.is-invalid]="formControls['nombre'].invalid && formControls['nombre'].touched">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Teléfono *</label>
+          <input type="tel" class="form-control" formControlName="telefono" placeholder="(55) 1234-5678">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Celular</label>
+          <input type="tel" class="form-control" formControlName="celular" placeholder="(55) 1234-5678">
+        </div>
+      </div>
+
+      <h5 class="mt-4 mb-3">Domicilio</h5>
+      <div class="row">
+        <div class="col-md-8 mb-3">
+          <label class="form-label">Calle *</label>
+          <input type="text" class="form-control" formControlName="calle" placeholder="Nombre de la calle">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">No. Exterior *</label>
+          <input type="text" class="form-control" formControlName="numeroExterior" placeholder="123">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Edificio</label>
+          <input type="text" class="form-control" formControlName="edificio" placeholder="Edificio">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">CP *</label>
+          <input type="text" class="form-control" formControlName="cp" placeholder="12345" maxlength="5">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Colonia *</label>
+          <input type="text" class="form-control" formControlName="colonia" placeholder="Colonia">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Alcaldía o Municipio *</label>
+          <input type="text" class="form-control" formControlName="alcaldiaMunicipio" placeholder="Alcaldía/Municipio">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Estado *</label>
+          <input type="text" class="form-control" formControlName="estado" placeholder="Estado">
+        </div>
+      </div>
+
+      <h5 class="mt-4 mb-3">Datos Adicionales</h5>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Empresa donde Labora</label>
+          <input type="text" class="form-control" formControlName="empresaLabora">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Relación con Fiador</label>
+          <input type="text" class="form-control" formControlName="relacionFiador">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Estado Civil</label>
+          <select class="form-select" formControlName="estadoCivil">
+            <option value="">Seleccionar...</option>
+            <option value="soltero">Soltero(a)</option>
+            <option value="casado">Casado(a)</option>
+            <option value="divorciado">Divorciado(a)</option>
+            <option value="viudo">Viudo(a)</option>
+            <option value="union_libre">Unión Libre</option>
+          </select>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Régimen Patrimonial</label>
+          <input type="text" class="form-control" formControlName="regimenPatrimonial">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Nombre del Cónyuge</label>
+          <input type="text" class="form-control" formControlName="nombreConyuge">
+        </div>
+      </div>
+
+      <h5 class="mt-4 mb-3">Inmueble en Garantía</h5>
+      <div class="row">
+        <div class="col-md-8 mb-3">
+          <label class="form-label">Calle *</label>
+          <input type="text" class="form-control" formControlName="calleGarantia" placeholder="Nombre de la calle">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">No. Exterior *</label>
+          <input type="text" class="form-control" formControlName="numeroExteriorGarantia" placeholder="123">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Edificio</label>
+          <input type="text" class="form-control" formControlName="edificioGarantia">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">No. Interior</label>
+          <input type="text" class="form-control" formControlName="numeroInteriorGarantia">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">CP *</label>
+          <input type="text" class="form-control" formControlName="cpGarantia" placeholder="12345" maxlength="5">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Colonia *</label>
+          <input type="text" class="form-control" formControlName="coloniaGarantia">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Alcaldía o Municipio *</label>
+          <input type="text" class="form-control" formControlName="alcaldiaMunicipioGarantia">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Estado *</label>
+          <input type="text" class="form-control" formControlName="estadoGarantia">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Entre Calle</label>
+          <input type="text" class="form-control" formControlName="entreCalleGarantia">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Y Calle</label>
+          <input type="text" class="form-control" formControlName="yCalleGarantia">
+        </div>
+      </div>
+
+      <h5 class="mt-4 mb-3">Datos de la Escritura</h5>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Escritura</label>
+          <input type="text" class="form-control" formControlName="escrituraGarantia">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Número de Escritura</label>
+          <input type="text" class="form-control" formControlName="numeroEscrituraGarantia">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Fecha de Escritura</label>
+          <input type="date" class="form-control" formControlName="fechaEscrituraGarantia">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Número de Notario</label>
+          <input type="text" class="form-control" formControlName="notarioNumero">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Ciudad del Notario</label>
+          <input type="text" class="form-control" formControlName="ciudadNotario">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Nombre del Notario</label>
+          <input type="text" class="form-control" formControlName="nombreNotario">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Datos Registrales</label>
+          <input type="text" class="form-control" formControlName="datosRegistrales">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Fecha de Registro</label>
+          <input type="date" class="form-control" formControlName="fechaRegistro">
+        </div>
+      </div>
+
+      <h5 class="mt-4 mb-3">Documentación</h5>
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">INE</label>
+          <input type="file" class="form-control" accept="image/*,application/pdf">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Escrituras</label>
+          <input type="file" class="form-control" accept="image/*,application/pdf">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Acta de Matrimonio</label>
+          <input type="file" class="form-control" accept="image/*,application/pdf">
+        </div>
+      </div>
+
+      <!-- Botón de enviar -->
+      <div class="d-flex justify-content-end mt-4">
+        <button type="submit" class="btn btn-primary btn-lg" 
+                [disabled]="fiadorForm.invalid || isSubmitting">
+          <i class="bi bi-check-circle me-2" *ngIf="!isSubmitting"></i>
+          <i class="bi bi-hourglass-split me-2" *ngIf="isSubmitting"></i>
+          {{ isSubmitting ? 'Guardando...' : 'Guardar Información' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+

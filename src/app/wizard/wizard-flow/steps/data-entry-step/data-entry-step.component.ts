@@ -1,8 +1,10 @@
 import { Component, Output, EventEmitter, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { WizardStateService } from '../../../../services/wizard-state.service';
 import { CaptureDataService } from '../../../../services/capture-data.service';
+import { ValidationService } from '../../../../services/validation.service';
+import { ToastService } from '../../../../services/toast.service';
 import { LoggerService } from '../../../../services/logger.service';
 export interface PropietarioData {
   fechaAlta: string;
@@ -110,7 +112,7 @@ export interface InmuebleData {
 @Component({
   selector: 'app-data-entry-step',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './data-entry-step.component.html',
   styleUrls: ['./data-entry-step.component.scss']
 })
@@ -142,17 +144,32 @@ export class DataEntryStepComponent implements OnInit {
   };
 
   // Array para el ngFor con tipos específicos
-  tabs: ('propietario' | 'inquilino' | 'fiador' | 'inmueble')[] = ['propietario', 'inquilino', 'fiador', 'inmueble'];
+  tabs: ('propietario' | 'inquilino' | 'fiador' | 'inmueble')[] = ['propietario', 'inmueble', 'inquilino', 'fiador'];
   
   propietarioForm!: FormGroup;
   inquilinoForm!: FormGroup;
   fiadorForm!: FormGroup;
   inmuebleForm!: FormGroup;
 
+  // Variables para rastrear si ya existen registros
+  hasExistingInquilino = false;
+  hasExistingFiador = false;
+  isCreatingFromValidations = false; // Flag para evitar múltiples llamadas
+  
+  // Variables para almacenar IDs de registros
+  inquilinoId: string | null = null;
+  fiadorId: string | null = null;
+  
+  // Variables para envío de correos
+  isSendingEmail = false;
+  emailInput: { inquilino: string; fiador: string } = { inquilino: '', fiador: '' };
+
   constructor(
     private fb: FormBuilder,
     private wizardStateService: WizardStateService,
     private captureDataService: CaptureDataService,
+    private validationService: ValidationService,
+    private toastService: ToastService,
     private logger: LoggerService
   ) {
     this.initializeForms();
@@ -330,23 +347,137 @@ export class DataEntryStepComponent implements OnInit {
       }
     }
 
-    // ✅ OPTIMIZADO: Solo cargar desde backend si no hay datos locales completos
+    // ✅ PRIORIDAD: Buscar inquilino y fiador por policyId en la BD
     if (state && state.policyId) {
-      // Verificar si ya tenemos datos locales completos
+      this.logger.log('🚀 Buscando inquilino y fiador por policyId:', state.policyId);
+      this.loadInquilinoAndFiadorByPolicyId(state.policyId);
+      
+      // También cargar otros datos si no hay datos locales completos
       const hasCompleteLocalData = 
         (state.contractData?.propietario?.nombre || state.captureData?.propietario?.nombre) &&
-        (state.contractData?.inquilino?.nombre || state.captureData?.inquilino?.nombre) &&
         (state.contractData?.inmueble?.calle || state.captureData?.inmueble?.calle);
       
-      if (hasCompleteLocalData) {
-        this.logger.log('✅ Ya hay datos locales completos, omitiendo carga desde backend');
-      } else {
-        this.logger.log('🚀 Iniciando carga desde backend con policyId:', state.policyId);
+      if (!hasCompleteLocalData) {
+        this.logger.log('🚀 Iniciando carga de otros datos desde backend con policyId:', state.policyId);
         this.loadDataFromBackendByPolicy(state.policyId);
       }
     } else {
       this.logger.log('⚠️ No hay policyId disponible para cargar desde backend');
     }
+  }
+
+  /**
+   * Buscar y cargar inquilino y fiador por policyId
+   * Si no existen, intentar crearlos desde los datos de validación
+   */
+  private loadInquilinoAndFiadorByPolicyId(policyId: string): void {
+    this.isLoading = true;
+
+    // Buscar inquilino por policyId
+    this.captureDataService.getInquilinoByPolicy(policyId).subscribe({
+      next: (response) => {
+          if (response && response.success && response.data) {
+            this.logger.log('✅ Inquilino encontrado en BD por policyId:', response.data);
+            this.hasExistingInquilino = true;
+            this.inquilinoId = (response.data as any).id || null; // Guardar el ID del inquilino
+            this.inquilinoForm.patchValue(response.data);
+            this.logger.log('✅ Formulario de inquilino pre-llenado desde BD');
+          } else {
+          this.logger.log('⚠️ No se encontró inquilino en BD por policyId, intentando crear desde validaciones...');
+          this.hasExistingInquilino = false;
+          // Intentar crear desde validaciones completadas
+          this.tryCreateRecordsFromValidations(policyId);
+        }
+        this.isLoading = false;
+      },
+      error: (error) => {
+        this.logger.warning('⚠️ Error buscando inquilino por policyId:', error);
+        this.hasExistingInquilino = false;
+        // Intentar crear desde validaciones completadas
+        this.tryCreateRecordsFromValidations(policyId);
+        this.isLoading = false;
+      }
+    });
+
+    // Buscar fiador por policyId
+    this.captureDataService.getFiadorByPolicy(policyId).subscribe({
+      next: (response) => {
+          if (response && response.success && response.data) {
+            this.logger.log('✅ Fiador encontrado en BD por policyId:', response.data);
+            this.hasExistingFiador = true;
+            this.fiadorId = (response.data as any).id || null; // Guardar el ID del fiador
+            this.fiadorForm.patchValue(response.data);
+            this.logger.log('✅ Formulario de fiador pre-llenado desde BD');
+          } else {
+          this.logger.log('⚠️ No se encontró fiador en BD por policyId, intentando crear desde validaciones...');
+          this.hasExistingFiador = false;
+          // Intentar crear desde validaciones completadas
+          this.tryCreateRecordsFromValidations(policyId);
+        }
+        this.isLoading = false;
+      },
+      error: (error) => {
+        this.logger.warning('⚠️ Error buscando fiador por policyId:', error);
+        this.hasExistingFiador = false;
+        // Intentar crear desde validaciones completadas
+        this.tryCreateRecordsFromValidations(policyId);
+        this.isLoading = false;
+      }
+    });
+  }
+
+  /**
+   * Intentar crear registros de inquilino y fiador desde validaciones completadas
+   */
+  private tryCreateRecordsFromValidations(policyId: string): void {
+    // Solo intentar una vez (usar un flag para evitar múltiples llamadas)
+    if (this.isCreatingFromValidations) {
+      return;
+    }
+    this.isCreatingFromValidations = true;
+
+    this.logger.log(`🔄 Intentando crear registros desde validaciones completadas para policyId: ${policyId}`);
+    
+    this.validationService.createRecordsFromCompletedValidations(policyId).subscribe({
+      next: (response) => {
+        if (response && response.success && response.data) {
+          this.logger.log('✅ Registros creados desde validaciones:', response.data);
+          
+          // Si se creó inquilino, recargarlo
+          if (response.data.inquilino && !this.hasExistingInquilino) {
+            this.captureDataService.getInquilinoByPolicy(policyId).subscribe({
+              next: (inquilinoResponse) => {
+                if (inquilinoResponse && inquilinoResponse.success && inquilinoResponse.data) {
+                  this.hasExistingInquilino = true;
+                  this.inquilinoId = (inquilinoResponse.data as any).id || null; // Guardar el ID
+                  this.inquilinoForm.patchValue(inquilinoResponse.data);
+                  this.logger.log('✅ Formulario de inquilino pre-llenado desde registros creados');
+                }
+              }
+            });
+          }
+          
+          // Si se creó fiador, recargarlo
+          if (response.data.fiador && !this.hasExistingFiador) {
+            this.captureDataService.getFiadorByPolicy(policyId).subscribe({
+              next: (fiadorResponse) => {
+                if (fiadorResponse && fiadorResponse.success && fiadorResponse.data) {
+                  this.hasExistingFiador = true;
+                  this.fiadorId = (fiadorResponse.data as any).id || null; // Guardar el ID
+                  this.fiadorForm.patchValue(fiadorResponse.data);
+                  this.logger.log('✅ Formulario de fiador pre-llenado desde registros creados');
+                }
+              }
+            });
+          }
+        }
+        this.isCreatingFromValidations = false;
+      },
+      error: (error) => {
+        this.logger.warning('⚠️ Error creando registros desde validaciones:', error);
+        this.isCreatingFromValidations = false;
+      }
+    });
   }
 
   private loadDataFromBackendByPolicy(policyId: string) {
@@ -688,15 +819,28 @@ export class DataEntryStepComponent implements OnInit {
       
       this.logger.log('🔍 Datos procesados para enviar:', processedData);
 
-      const response = await this.captureDataService.createInquilino(
-        wizardState.userId || this.generateTempUserId(),
-        {
-          ...processedData,
-          policyId: wizardState.policyId || undefined
-        }
-      ).toPromise();
+      // ✅ Si ya existe un inquilino, actualizarlo; si no, crearlo
+      let response;
+      if (this.hasExistingInquilino && wizardState.policyId) {
+        this.logger.log('🔄 Actualizando inquilino existente por policyId:', wizardState.policyId);
+        response = await this.captureDataService.updateInquilinoByPolicyId(
+          wizardState.policyId,
+          processedData
+        ).toPromise();
+      } else {
+        this.logger.log('➕ Creando nuevo inquilino');
+        response = await this.captureDataService.createInquilino(
+          wizardState.userId || this.generateTempUserId(),
+          {
+            ...processedData,
+            policyId: wizardState.policyId || undefined
+          }
+        ).toPromise();
+      }
 
       if (response?.success) {
+        this.hasExistingInquilino = true; // Marcar como existente después de guardar
+        this.inquilinoId = (response.data as any).id || null; // Guardar el ID del inquilino
         this.logger.log('✅ Inquilino guardado exitosamente:', response.data);
         this.saveStatus = 'saved';
         
@@ -755,15 +899,28 @@ export class DataEntryStepComponent implements OnInit {
       
       this.logger.log('🔍 Datos procesados para enviar:', processedData);
 
-      const response = await this.captureDataService.createFiador(
-        wizardState.userId || this.generateTempUserId(),
-        {
-          ...processedData,
-          policyId: wizardState.policyId || undefined
-        }
-      ).toPromise();
+      // ✅ Si ya existe un fiador, actualizarlo; si no, crearlo
+      let response;
+      if (this.hasExistingFiador && wizardState.policyId) {
+        this.logger.log('🔄 Actualizando fiador existente por policyId:', wizardState.policyId);
+        response = await this.captureDataService.updateFiadorByPolicyId(
+          wizardState.policyId,
+          processedData
+        ).toPromise();
+      } else {
+        this.logger.log('➕ Creando nuevo fiador');
+        response = await this.captureDataService.createFiador(
+          wizardState.userId || this.generateTempUserId(),
+          {
+            ...processedData,
+            policyId: wizardState.policyId || undefined
+          }
+        ).toPromise();
+      }
 
       if (response?.success) {
+        this.hasExistingFiador = true; // Marcar como existente después de guardar
+        this.fiadorId = (response.data as any).id || null; // Guardar el ID del fiador
         this.logger.log('✅ Fiador guardado exitosamente:', response.data);
         this.saveStatus = 'saved';
         
@@ -896,6 +1053,90 @@ export class DataEntryStepComponent implements OnInit {
       const v = c === 'x' ? r : (r & 0x3 | 0x8);
       return v.toString(16);
     });
+  }
+
+  /**
+   * Enviar formulario de inquilino por correo
+   */
+  async sendInquilinoFormEmail(): Promise<void> {
+    if (!this.inquilinoId) {
+      this.toastService.error('No se puede enviar el formulario: el inquilino aún no ha sido guardado');
+      this.logger.warning('⚠️ No se puede enviar formulario: inquilinoId no disponible');
+      return;
+    }
+
+    const email = this.emailInput.inquilino.trim();
+    if (!email || !this.isValidEmail(email)) {
+      this.toastService.error('Por favor, ingresa un email válido');
+      return;
+    }
+
+    this.isSendingEmail = true;
+    this.logger.log(`📧 Enviando formulario de inquilino a ${email}...`);
+
+    try {
+      const response = await this.captureDataService.sendInquilinoFormEmail(this.inquilinoId, email).toPromise();
+      
+      if (response?.success) {
+        this.logger.log('✅ Formulario de inquilino enviado exitosamente');
+        this.toastService.success(response.data?.message || 'Formulario enviado exitosamente');
+        this.emailInput.inquilino = ''; // Limpiar el campo de email
+      } else {
+        throw new Error(response?.error || 'Error al enviar el formulario');
+      }
+    } catch (error: any) {
+      this.logger.error('❌ Error enviando formulario de inquilino:', error);
+      const errorMessage = error?.error?.message || error?.message || 'Error al enviar el formulario';
+      this.toastService.error(errorMessage);
+    } finally {
+      this.isSendingEmail = false;
+    }
+  }
+
+  /**
+   * Enviar formulario de fiador por correo
+   */
+  async sendFiadorFormEmail(): Promise<void> {
+    if (!this.fiadorId) {
+      this.toastService.error('No se puede enviar el formulario: el fiador aún no ha sido guardado');
+      this.logger.warning('⚠️ No se puede enviar formulario: fiadorId no disponible');
+      return;
+    }
+
+    const email = this.emailInput.fiador.trim();
+    if (!email || !this.isValidEmail(email)) {
+      this.toastService.error('Por favor, ingresa un email válido');
+      return;
+    }
+
+    this.isSendingEmail = true;
+    this.logger.log(`📧 Enviando formulario de fiador a ${email}...`);
+
+    try {
+      const response = await this.captureDataService.sendFiadorFormEmail(this.fiadorId, email).toPromise();
+      
+      if (response?.success) {
+        this.logger.log('✅ Formulario de fiador enviado exitosamente');
+        this.toastService.success(response.data?.message || 'Formulario enviado exitosamente');
+        this.emailInput.fiador = ''; // Limpiar el campo de email
+      } else {
+        throw new Error(response?.error || 'Error al enviar el formulario');
+      }
+    } catch (error: any) {
+      this.logger.error('❌ Error enviando formulario de fiador:', error);
+      const errorMessage = error?.error?.message || error?.message || 'Error al enviar el formulario';
+      this.toastService.error(errorMessage);
+    } finally {
+      this.isSendingEmail = false;
+    }
+  }
+
+  /**
+   * Validar formato de email
+   */
+  isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   }
 
   // Métodos de validación para botones de guardar (solo campos obligatorios)

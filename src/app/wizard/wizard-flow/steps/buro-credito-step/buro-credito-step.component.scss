@@ -1,0 +1,61 @@
+.buro-credito-step {
+  .step-header {
+    text-align: center;
+    
+    .step-title {
+      font-size: 2rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    
+    .step-description {
+      color: #6c757d;
+      font-size: 1.1rem;
+    }
+  }
+
+  .buro-credito-form {
+    .card {
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      border: 1px solid #dee2e6;
+      
+      .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+      }
+    }
+
+    .form-label {
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      
+      .text-danger {
+        color: #dc3545;
+      }
+    }
+
+    .is-invalid {
+      border-color: #dc3545;
+    }
+  }
+
+  .buro-credito-result {
+    .card {
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .result-data {
+      pre {
+        font-size: 0.875rem;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+    }
+  }
+
+  .btn {
+    min-width: 120px;
+  }
+}
+
+

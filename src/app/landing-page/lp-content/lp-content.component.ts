@@ -4,6 +4,7 @@ import { WizardStateService } from '../../services/wizard-state.service';
 import { WizardSessionService } from '../../services/wizard-session.service';
 import { CommonModule } from '@angular/common';
 import { ContinueWizardModalComponent } from '../../components/continue-wizard-modal/continue-wizard-modal.component';
+import { ConfirmDialogComponent } from '../../components/confirm-dialog/confirm-dialog.component';
 import { LpHeaderComponent } from '../lp-header/lp-header.component';
 import { LpFooterComponent } from '../lp-footer/lp-footer.component';
 import { SeoService } from '../../services/seo.service';
@@ -18,7 +19,8 @@ import { LoggerService } from '../../services/logger.service';
     CommonModule,
     LpHeaderComponent,
     LpFooterComponent,
-    ContinueWizardModalComponent
+    ContinueWizardModalComponent,
+    ConfirmDialogComponent
   ],
   templateUrl: './lp-content.component.html',
   styleUrls: ['./lp-content.component.scss']
@@ -31,6 +33,10 @@ export class LpContentComponent implements OnInit {
   private isLoadingPlans = false; // Flag adicional para evitar llamadas simultáneas
   // Estado del modal de continuar sesión
   showContinueModal = false;
+  showConfirmDialog = false;
+  confirmDialogTitle = '¿Estás seguro?';
+  confirmDialogMessage = '';
+  confirmDialogWarning = '';
   pendingPlanId: string | null = null;
   existingSessionId: string | null = null;
   // Datos mínimos para el modal (podrían venir de restauración en el futuro)
@@ -470,11 +476,24 @@ export class LpContentComponent implements OnInit {
     this.router.navigate(['/cotizador', this.existingSessionId]);
   }
 
-  async onRestartNew() {
+  onRestartNew() {
     if (!this.pendingPlanId) {
       this.showContinueModal = false;
       return;
     }
+    
+    // Mostrar diálogo de confirmación moderno
+    this.confirmDialogTitle = '¿Estás seguro de que deseas empezar de nuevo?';
+    this.confirmDialogMessage = 'Se perderá todo el progreso actual y se iniciará un nuevo proceso de cotización.';
+    this.confirmDialogWarning = 'Esta acción no se puede deshacer.';
+    this.showConfirmDialog = true;
+  }
+
+  /**
+   * Confirma el reinicio del wizard
+   */
+  async onConfirmRestart() {
+    this.showConfirmDialog = false;
     
     // Obtener el nombre del plan
     const selectedPlan = this.plans.find(plan => plan.id === this.pendingPlanId);
@@ -560,6 +579,14 @@ export class LpContentComponent implements OnInit {
     // Usar el id (UUID) si está disponible, sino usar sessionId como fallback
     const sessionIdForUrl = this.wizardStateService.getState().id || newSessionId;
     this.router.navigate(['/cotizador', sessionIdForUrl]);
+  }
+
+  /**
+   * Cancela el reinicio del wizard
+   */
+  onCancelRestart() {
+    this.showConfirmDialog = false;
+    this.logger.log('❌ Usuario canceló el reinicio del wizard');
   }
 
   /**

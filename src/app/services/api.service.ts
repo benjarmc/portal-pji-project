@@ -63,9 +63,20 @@ export class ApiService {
   post<T>(endpoint: string, data: any): Observable<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
     const headers = this.createAuthHeaders();
-    return this.http.post<ApiResponse<T>>(url, data, { headers })
+    return this.http.post<T | ApiResponse<T>>(url, data, { headers })
       .pipe(
         timeout(this.timeout),
+        map((response: T | ApiResponse<T>) => {
+          // Si la respuesta ya es un ApiResponse, retornarla tal cual
+          if (response && typeof response === 'object' && 'success' in response) {
+            return response as ApiResponse<T>;
+          }
+          // Si la respuesta es directamente el objeto T, envolverlo en ApiResponse
+          return {
+            success: true,
+            data: response as T
+          } as ApiResponse<T>;
+        }),
         catchError((error) => this.handleError(error))
       );
   }
@@ -89,9 +100,20 @@ export class ApiService {
   patch<T>(endpoint: string, data: any): Observable<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
     const headers = this.createAuthHeaders();
-    return this.http.patch<ApiResponse<T>>(url, data, { headers })
+    return this.http.patch<T | ApiResponse<T>>(url, data, { headers })
       .pipe(
         timeout(this.timeout),
+        map((response: T | ApiResponse<T>) => {
+          // Si la respuesta ya es un ApiResponse, retornarla tal cual
+          if (response && typeof response === 'object' && 'success' in response) {
+            return response as ApiResponse<T>;
+          }
+          // Si la respuesta es directamente el objeto T, envolverlo en ApiResponse
+          return {
+            success: true,
+            data: response as T
+          } as ApiResponse<T>;
+        }),
         catchError((error) => this.handleError(error))
       );
   }

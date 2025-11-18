@@ -492,10 +492,10 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
     // Primero intentar desde el nivel superior, luego desde stepData.step5
     let validationRequirementsFromState = wizardState.validationRequirements;
     
-    // Si no hay en el nivel superior, intentar desde stepData.step5
+    // Si no hay en el nivel superior, intentar desde stepData.step6
     if (!validationRequirementsFromState || validationRequirementsFromState.length === 0) {
-      validationRequirementsFromState = wizardState.stepData?.step5?.validationRequirements;
-      this.logger.log('📋 validationRequirements no encontrado en nivel superior, buscando en stepData.step5...');
+      validationRequirementsFromState = wizardState.stepData?.step6?.validationRequirements;
+      this.logger.log('📋 validationRequirements no encontrado en nivel superior, buscando en stepData.step6...');
     }
     
     if (validationRequirementsFromState && validationRequirementsFromState.length > 0) {
@@ -523,10 +523,25 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
       
       // ✅ Asegurar que validationRequirementsFromState no sea undefined
       if (validationRequirementsFromState && validationRequirementsFromState.length > 0) {
-        this.validationRequirements = [...validationRequirementsFromState]; // Crear copia para evitar mutaciones
+        // ✅ Filtrar duplicados por tipo, manteniendo solo uno por tipo
+        const uniqueRequirements = new Map<string, ValidationRequirement>();
+        validationRequirementsFromState.forEach((req: ValidationRequirement) => {
+          const existing = uniqueRequirements.get(req.type);
+          if (!existing) {
+            uniqueRequirements.set(req.type, req);
+          } else {
+            // Si ya existe, mantener el que tenga UUID o esté completado
+            if ((req.uuid && !existing.uuid) || (req.completed && !existing.completed)) {
+              uniqueRequirements.set(req.type, req);
+            }
+          }
+        });
+        
+        this.validationRequirements = Array.from(uniqueRequirements.values());
       }
       this.completedValidations = this.validationRequirements.filter(req => req.completed).length;
-      this.logger.log(`✅ Validaciones cargadas: ${this.completedValidations}/${this.validationRequirements.length} completadas`);
+      this.totalValidations = this.validationRequirements.length;
+      this.logger.log(`✅ Validaciones cargadas (duplicados filtrados): ${this.completedValidations}/${this.totalValidations} completadas`);
       this.logger.log(`📋 Detalles de validaciones:`, this.validationRequirements.map(r => ({
         type: r.type,
         name: r.name,
@@ -534,6 +549,15 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
         failed: r.failed,
         hasUuid: !!r.uuid
       })));
+      
+      // ✅ Verificar si todas las validaciones están completadas
+      if (this.completedValidations === this.validationRequirements.length && this.validationRequirements.length > 0) {
+        this.logger.log('🎉 Todas las validaciones completadas (detectado al cargar desde estado)');
+        this.logger.log(`📊 Valores: completedValidations=${this.completedValidations}, totalValidations=${this.totalValidations}, validationRequirements.length=${this.validationRequirements.length}`);
+        this.validationStatus = 'success';
+      } else {
+        this.logger.log(`⏳ Validaciones pendientes: ${this.completedValidations}/${this.totalValidations}`);
+      }
       
       // ✅ Sincronizar al nivel superior si estaba solo en stepData o si se agregaron validaciones faltantes
       if (!wizardState.validationRequirements || wizardState.validationRequirements.length === 0 || missingTypes.length > 0) {
@@ -759,13 +783,41 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
         if (response.success && response.data && response.data.length > 0) {
           this.logger.log(`✅ Encontradas ${response.data.length} validaciones existentes para policyId ${policyId}:`, response.data);
           
-          // ✅ CRÍTICO: Asegurar que TODAS las validaciones requeridas estén presentes
-          // Si una validación no se ha iniciado, no existirá en la BD, pero debe mostrarse
-          // Crear un mapa de validaciones existentes para actualizar
-          const existingValidationsMap = new Map<string, any>();
+          // ✅ CRÍTICO: Filtrar validaciones duplicadas del mismo tipo
+          // Si hay múltiples validaciones del mismo tipo, mantener solo la más reciente o la completada
+          const validationsByType = new Map<string, any>();
           response.data.forEach(existingValidation => {
-            existingValidationsMap.set(existingValidation.type, existingValidation);
+            const existing = validationsByType.get(existingValidation.type);
+            
+            if (!existing) {
+              // Primera validación de este tipo, agregarla
+              validationsByType.set(existingValidation.type, existingValidation);
+            } else {
+              // Ya existe una validación de este tipo, decidir cuál mantener
+              // Prioridad: COMPLETED > más reciente (por completedAt o createdAt)
+              const shouldReplace = 
+                existingValidation.status === 'COMPLETED' && existing.status !== 'COMPLETED' ||
+                (existingValidation.status === existing.status && 
+                 new Date(existingValidation.completedAt || existingValidation.createdAt) > 
+                 new Date(existing.completedAt || existing.createdAt));
+              
+              if (shouldReplace) {
+                this.logger.log(`🔄 Reemplazando validación ${existingValidation.type} (${existing.status}) por una más reciente o completada (${existingValidation.status})`);
+                validationsByType.set(existingValidation.type, existingValidation);
+              } else {
+                this.logger.log(`ℹ️ Manteniendo validación ${existingValidation.type} existente (${existing.status}), descartando duplicada (${existingValidation.status})`);
+              }
+            }
           });
+          
+          // Crear un mapa de validaciones existentes para actualizar (sin duplicados)
+          const existingValidationsMap = new Map<string, any>();
+          validationsByType.forEach((validation, type) => {
+            existingValidationsMap.set(type, validation);
+          });
+          
+          this.logger.log(`📋 Validaciones únicas después de filtrar duplicados: ${existingValidationsMap.size}`, 
+            Array.from(existingValidationsMap.entries()).map(([type, v]) => ({ type, status: v.status, uuid: v.uuid })));
           
           // ✅ CRÍTICO: Verificar que validationRequirements tenga todas las validaciones requeridas antes de actualizar
           if (!this.validationRequirements || this.validationRequirements.length === 0) {
@@ -851,24 +903,35 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
             this.logger.error(`❌ ERROR: Se perdieron validaciones durante la actualización. Total actual: ${this.totalValidations}, se esperan al menos 2`);
           }
           
+          // ✅ Verificar si todas las validaciones están completadas y actualizar validationStatus
+          if (this.completedValidations === this.totalValidations && this.totalValidations > 0) {
+            this.logger.log('🎉 Todas las validaciones completadas (detectado al cargar desde BD)');
+            this.validationStatus = 'success';
+            this.logger.log('🚀 El usuario puede continuar al siguiente paso');
+          }
+          
           // ✅ Actualizar el estado con los validationRequirements actualizados
           this.wizardStateService.saveState({
             validationRequirements: this.validationRequirements
           });
           
-          // ✅ Resumen de validaciones encontradas
-          const completed = response.data.filter(v => v.status === 'COMPLETED').length;
-          const pending = response.data.filter(v => v.status === 'PENDING' || v.status === 'IN_PROGRESS').length;
-          const failed = response.data.filter(v => v.status === 'FAILED').length;
+          // ✅ Resumen de validaciones encontradas (usar validaciones únicas)
+          const uniqueValidations = Array.from(existingValidationsMap.values());
+          const completed = uniqueValidations.filter(v => v.status === 'COMPLETED').length;
+          const pending = uniqueValidations.filter(v => v.status === 'PENDING' || v.status === 'IN_PROGRESS').length;
+          const failed = uniqueValidations.filter(v => v.status === 'FAILED').length;
           
           this.logger.log(`📊 Resumen de validaciones para policyId ${policyId}:`, {
             totalEnBD: response.data.length,
+            totalUnicas: uniqueValidations.length,
+            duplicadosFiltrados: response.data.length - uniqueValidations.length,
             completadas: completed,
             pendientes: pending,
             fallidas: failed,
             totalRequeridas: this.totalValidations,
             completadasEnUI: this.completedValidations,
-            enUI: `${this.completedValidations}/${this.totalValidations}`
+            enUI: `${this.completedValidations}/${this.totalValidations}`,
+            validationStatus: this.validationStatus
           });
         } else {
           // ✅ CRÍTICO: Si no hay validaciones en la BD, asegurar que todas las requeridas estén presentes
@@ -1150,11 +1213,26 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
     // Establecer el tipo de validación actual
     this.currentValidationType = type as 'arrendador' | 'arrendatario' | 'aval';
     
-    // Si ya tenemos un UUID para esta validación, mostrar directamente el modal
+    // Buscar el requerimiento correspondiente
     const requirement = this.validationRequirements.find(req => req.type === type);
+    
+    // Si ya tenemos un UUID para esta validación
     if (requirement && requirement.uuid) {
-      this.logger.log(`🔑 Validación ya iniciada para ${type}, UUID: ${requirement.uuid}`);
-      // Mostrar información de la validación en progreso
+      // Si la validación falló, permitir reiniciar abriendo el modal
+      if (requirement.failed) {
+        this.logger.log(`🔄 Reiniciando validación fallida para ${type}, UUID anterior: ${requirement.uuid}`);
+        // Limpiar el UUID anterior para crear una nueva validación
+        requirement.uuid = undefined;
+        requirement.failed = false;
+        requirement.errorMessage = undefined;
+        requirement.requiresRetry = false;
+        // Abrir el modal para recoger datos y crear una nueva validación
+        this.showValidationModal = true;
+      } else {
+        // Si la validación está en progreso o completada, solo mostrar información
+        this.logger.log(`🔑 Validación ya iniciada para ${type}, UUID: ${requirement.uuid}`);
+        // Mostrar información de la validación en progreso
+      }
     } else {
       // Si no hay UUID, abrir el modal para recoger datos y crear la validación
       this.showValidationModal = true;
@@ -1336,14 +1414,55 @@ export class ValidationStepComponent implements OnInit, OnDestroy {
    * Reenviar correo de confirmación de pago
    */
   resendPaymentEmail(): void {
-    if (!this.paymentResult || !this.paymentResult.paymentId || this.paymentResult.paymentId === 'N/A') {
-      this.logger.error('❌ No se puede reenviar correo de pago: no hay paymentId disponible');
+    // Si no hay paymentResult, no se puede reenviar
+    if (!this.paymentResult) {
+      this.logger.error('❌ No se puede reenviar correo de pago: no hay paymentResult disponible');
       return;
     }
 
-    this.logger.log(`📧 Reenviando correo de confirmación de pago para paymentId: ${this.paymentResult.paymentId}`);
+    // Obtener policyId del paymentResult o del wizardState
+    const policyId = this.paymentResult.policyId || this.wizardStateService.getState().policyId;
+    
+    // Si paymentId es 'N/A' o no está disponible, usar policyId
+    const paymentId = this.paymentResult.paymentId;
+    const hasValidPaymentId = paymentId && paymentId !== 'N/A';
 
-    this.paymentsService.resendPaymentEmail(this.paymentResult.paymentId).subscribe({
+    if (!hasValidPaymentId && !policyId) {
+      this.logger.error('❌ No se puede reenviar correo de pago: no hay paymentId ni policyId disponible');
+      this.toastService.error('No se puede reenviar el correo: faltan datos del pago');
+      return;
+    }
+
+    // Si no hay paymentId válido pero hay policyId, usar el endpoint por policyId
+    if (!hasValidPaymentId && policyId) {
+      this.logger.log(`📧 Reenviando correo de confirmación de pago por policyId: ${policyId}`);
+      this.paymentsService.resendPaymentEmailByPolicyId(policyId).subscribe({
+        next: (response) => {
+          const responseData = response.data || response;
+          const isSuccess = response.success && (responseData?.success !== false);
+          
+          if (isSuccess) {
+            this.logger.log('✅ Correo de confirmación de pago reenviado exitosamente');
+            const message = responseData?.message || response.message || 'Correo de confirmación reenviado exitosamente';
+            this.toastService.success(message);
+          } else {
+            this.logger.error('❌ Error reenviando correo de pago:', responseData?.message || response.message || 'Respuesta inesperada');
+            this.toastService.error('Error al reenviar el correo. Por favor, intenta nuevamente.');
+          }
+        },
+        error: (error) => {
+          this.logger.error('❌ Error en servicio de reenvío de correo de pago:', error);
+          const errorMessage = error?.error?.message || error?.message || 'Error desconocido';
+          this.toastService.error(`Error al reenviar el correo: ${errorMessage}`);
+        }
+      });
+      return;
+    }
+
+    // Si hay paymentId válido, usar el endpoint normal (puede incluir policyId como fallback)
+    this.logger.log(`📧 Reenviando correo de confirmación de pago para paymentId: ${paymentId}${policyId ? ` (con policyId de respaldo: ${policyId})` : ''}`);
+
+    this.paymentsService.resendPaymentEmail(paymentId, policyId).subscribe({
       next: (response) => {
         // El backend devuelve { success: true, message: "..." }
         // Verificar si la respuesta es exitosa (puede estar en response.success o response.data.success)

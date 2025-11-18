@@ -69,6 +69,13 @@ export class ValidationService {
   }
 
   /**
+   * Crear registros de inquilino y fiador desde validaciones completadas
+   */
+  createRecordsFromCompletedValidations(policyId: string): Observable<ApiResponse<{ inquilino: boolean; fiador: boolean }>> {
+    return this.apiService.post<{ inquilino: boolean; fiador: boolean }>(`${this.endpoint}/policy/${policyId}/create-records`, {});
+  }
+
+  /**
    * Obtener todas las validaciones de una cotización
    */
   getValidationsByQuotation(quotationId: string): Observable<ApiResponse<ValidationResponse[]>> {

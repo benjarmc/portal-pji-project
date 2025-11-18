@@ -1,0 +1,291 @@
+<div class="buro-credito-step">
+  <div class="step-header mb-4">
+    <h2 class="step-title">Buro de Crédito</h2>
+    <p class="step-description">Por favor, completa la información requerida para realizar la consulta al Buro de Crédito.</p>
+  </div>
+
+  <!-- Formulario de captura -->
+  <div *ngIf="!showResult" class="buro-credito-form">
+    <form [formGroup]="buroCreditoForm" (ngSubmit)="onSubmit()">
+      <!-- Datos Personales -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">Datos Personales</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Primer Nombre <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" formControlName="primerNombre" [class.is-invalid]="buroCreditoForm.get('primerNombre')?.invalid && buroCreditoForm.get('primerNombre')?.touched">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Segundo Nombre</label>
+              <input type="text" class="form-control" formControlName="segundoNombre">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Apellido Paterno <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" formControlName="apellidoPaterno" [class.is-invalid]="buroCreditoForm.get('apellidoPaterno')?.invalid && buroCreditoForm.get('apellidoPaterno')?.touched">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Apellido Materno <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" formControlName="apellidoMaterno" [class.is-invalid]="buroCreditoForm.get('apellidoMaterno')?.invalid && buroCreditoForm.get('apellidoMaterno')?.touched">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Fecha de Nacimiento <span class="text-danger">*</span></label>
+              <input type="date" class="form-control" formControlName="fechaNacimiento" [class.is-invalid]="buroCreditoForm.get('fechaNacimiento')?.invalid && buroCreditoForm.get('fechaNacimiento')?.touched">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">RFC <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" formControlName="rfc" [class.is-invalid]="buroCreditoForm.get('rfc')?.invalid && buroCreditoForm.get('rfc')?.touched">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Sexo <span class="text-danger">*</span></label>
+              <select class="form-select" formControlName="sexo" [class.is-invalid]="buroCreditoForm.get('sexo')?.invalid && buroCreditoForm.get('sexo')?.touched">
+                <option value="">Seleccione...</option>
+                <option value="1">Masculino</option>
+                <option value="2">Femenino</option>
+              </select>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Estado Civil <span class="text-danger">*</span></label>
+              <select class="form-select" formControlName="estadoCivil" [class.is-invalid]="buroCreditoForm.get('estadoCivil')?.invalid && buroCreditoForm.get('estadoCivil')?.touched">
+                <option value="">Seleccione...</option>
+                <option value="1">Soltero(a)</option>
+                <option value="2">Casado(a)</option>
+                <option value="3">Divorciado(a)</option>
+                <option value="4">Viudo(a)</option>
+                <option value="5">Unión Libre</option>
+              </select>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Residencia <span class="text-danger">*</span></label>
+              <select class="form-select" formControlName="residencia" [class.is-invalid]="buroCreditoForm.get('residencia')?.invalid && buroCreditoForm.get('residencia')?.touched">
+                <option value="">Seleccione...</option>
+                <option value="1">México</option>
+                <option value="2">Extranjero</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Domicilios -->
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">Domicilios</h5>
+          <button type="button" class="btn btn-sm btn-outline-primary" (click)="addDomicilio()">
+            <i class="bi bi-plus-circle me-1"></i>Agregar Domicilio
+          </button>
+        </div>
+        <div class="card-body">
+          <div formArrayName="domicilios">
+            <div *ngFor="let domicilio of domicilios.controls; let i = index" [formGroupName]="i" class="mb-3 p-3 border rounded">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0">Domicilio {{ i + 1 }}</h6>
+                <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeDomicilio(i)" [disabled]="domicilios.length === 1">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+              <div class="row">
+                <div class="col-md-6 mb-2">
+                  <label class="form-label">Dirección 1</label>
+                  <input type="text" class="form-control" formControlName="direccion1">
+                </div>
+                <div class="col-md-6 mb-2">
+                  <label class="form-label">Dirección 2</label>
+                  <input type="text" class="form-control" formControlName="direccion2">
+                </div>
+                <div class="col-md-4 mb-2">
+                  <label class="form-label">Colonia/Población</label>
+                  <input type="text" class="form-control" formControlName="coloniaPoblacion">
+                </div>
+                <div class="col-md-4 mb-2">
+                  <label class="form-label">Delegación/Municipio</label>
+                  <input type="text" class="form-control" formControlName="delegacionMunicipio">
+                </div>
+                <div class="col-md-4 mb-2">
+                  <label class="form-label">Ciudad</label>
+                  <input type="text" class="form-control" formControlName="ciudad">
+                </div>
+                <div class="col-md-4 mb-2">
+                  <label class="form-label">Estado</label>
+                  <input type="text" class="form-control" formControlName="estado">
+                </div>
+                <div class="col-md-4 mb-2">
+                  <label class="form-label">Código Postal</label>
+                  <input type="text" class="form-control" formControlName="cp">
+                </div>
+                <div class="col-md-4 mb-2">
+                  <label class="form-label">Teléfono</label>
+                  <input type="text" class="form-control" formControlName="numeroTelefono">
+                </div>
+                <div class="col-md-4 mb-2">
+                  <label class="form-label">Fecha de Residencia (DDMMYYYY)</label>
+                  <input type="date" class="form-control" formControlName="fechaResidencia">
+                </div>
+                <div class="col-md-4 mb-2">
+                  <label class="form-label">Tipo de Domicilio</label>
+                  <select class="form-select" formControlName="tipoDomicilio">
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="L">L</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empleos -->
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">Empleos</h5>
+          <button type="button" class="btn btn-sm btn-outline-primary" (click)="addEmpleo()">
+            <i class="bi bi-plus-circle me-1"></i>Agregar Empleo
+          </button>
+        </div>
+        <div class="card-body">
+          <div formArrayName="empleos">
+            <div *ngFor="let empleo of empleos.controls; let i = index" [formGroupName]="i" class="mb-3 p-3 border rounded">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0">Empleo {{ i + 1 }}</h6>
+                <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeEmpleo(i)" [disabled]="empleos.length === 1">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+              <div class="row">
+                <div class="col-md-6 mb-2">
+                  <label class="form-label">Nombre de la Empresa</label>
+                  <input type="text" class="form-control" formControlName="nombreEmpresa">
+                </div>
+                <div class="col-md-6 mb-2">
+                  <label class="form-label">Cargo</label>
+                  <input type="text" class="form-control" formControlName="cargo">
+                </div>
+                <div class="col-md-6 mb-2">
+                  <label class="form-label">Salario</label>
+                  <input type="text" class="form-control" formControlName="salario">
+                </div>
+                <div class="col-md-6 mb-2">
+                  <label class="form-label">Fecha de Contratación</label>
+                  <input type="date" class="form-control" formControlName="fechaContratacion">
+                </div>
+                <div class="col-md-6 mb-2">
+                  <label class="form-label">Teléfono</label>
+                  <input type="text" class="form-control" formControlName="numeroTelefono">
+                </div>
+                <div class="col-md-6 mb-2">
+                  <label class="form-label">Dirección</label>
+                  <input type="text" class="form-control" formControlName="direccion1">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cuentas -->
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">Cuentas</h5>
+          <button type="button" class="btn btn-sm btn-outline-primary" (click)="addCuentaC()">
+            <i class="bi bi-plus-circle me-1"></i>Agregar Cuenta
+          </button>
+        </div>
+        <div class="card-body">
+          <div formArrayName="cuentaC">
+            <div *ngFor="let cuenta of cuentaC.controls; let i = index" [formGroupName]="i" class="mb-3 p-3 border rounded">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="mb-0">Cuenta {{ i + 1 }}</h6>
+                <button type="button" class="btn btn-sm btn-outline-danger" (click)="removeCuentaC(i)">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+              <div class="row">
+                <div class="col-md-6 mb-2">
+                  <label class="form-label">Número de Cuenta <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" formControlName="numeroCuenta" [class.is-invalid]="cuenta.get('numeroCuenta')?.invalid && cuenta.get('numeroCuenta')?.touched">
+                </div>
+                <div class="col-md-6 mb-2">
+                  <label class="form-label">Nombre del Otorgante</label>
+                  <input type="text" class="form-control" formControlName="nombreOtorgante">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mensaje de error -->
+      <div *ngIf="errorMessage" class="alert alert-danger" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i>{{ errorMessage }}
+      </div>
+
+      <!-- Botones de acción -->
+      <div class="d-flex justify-content-between mt-4">
+        <button type="button" class="btn btn-outline-secondary" (click)="onPrevious()">
+          <i class="bi bi-arrow-left me-1"></i>Anterior
+        </button>
+        <button type="submit" class="btn btn-primary" [disabled]="isSubmitting || buroCreditoForm.invalid">
+          <span *ngIf="isSubmitting" class="spinner-border spinner-border-sm me-2"></span>
+          <i *ngIf="!isSubmitting" class="bi bi-check-circle me-1"></i>
+          {{ isSubmitting ? 'Consultando...' : 'Consultar Buro de Crédito' }}
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Resultado de la consulta -->
+  <div *ngIf="showResult && buroCreditoResult" class="buro-credito-result">
+    <div class="card mb-4" [ngClass]="{
+      'border-success': buroCreditoResult.status === 'COMPLETED',
+      'border-danger': buroCreditoResult.status === 'FAILED' || buroCreditoResult.status === 'ERROR',
+      'border-warning': buroCreditoResult.status === 'PENDING'
+    }">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="bi me-2" [ngClass]="{
+            'bi-check-circle-fill text-success': buroCreditoResult.status === 'COMPLETED',
+            'bi-x-circle-fill text-danger': buroCreditoResult.status === 'FAILED' || buroCreditoResult.status === 'ERROR',
+            'bi-clock-fill text-warning': buroCreditoResult.status === 'PENDING'
+          }"></i>
+          Resultado de la Consulta
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <strong>Estado:</strong> 
+          <span class="badge" [ngClass]="{
+            'bg-success': buroCreditoResult.status === 'COMPLETED',
+            'bg-danger': buroCreditoResult.status === 'FAILED' || buroCreditoResult.status === 'ERROR',
+            'bg-warning': buroCreditoResult.status === 'PENDING'
+          }">
+            {{ buroCreditoResult.status }}
+          </span>
+        </div>
+
+        <div *ngIf="buroCreditoResult.errorMessage" class="alert alert-danger">
+          <strong>Error:</strong> {{ buroCreditoResult.errorMessage }}
+        </div>
+
+        <div *ngIf="buroCreditoResult.respuestaData" class="result-data">
+          <h6 class="mb-3">Datos de la Respuesta:</h6>
+          <pre class="bg-light p-3 rounded" style="max-height: 500px; overflow-y: auto;">{{ buroCreditoResult.respuestaData | json }}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Botones de acción -->
+    <div class="d-flex justify-content-between mt-4">
+      <button type="button" class="btn btn-outline-secondary" (click)="showResult = false">
+        <i class="bi bi-arrow-left me-1"></i>Volver al Formulario
+      </button>
+      <button type="button" class="btn btn-primary" (click)="onNext()" [disabled]="buroCreditoResult.status !== 'COMPLETED'">
+        <i class="bi bi-arrow-right me-1"></i>Continuar
+      </button>
+    </div>
+  </div>
+</div>
+
+

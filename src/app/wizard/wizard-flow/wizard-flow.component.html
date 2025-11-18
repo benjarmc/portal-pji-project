@@ -67,23 +67,30 @@
       (goToStart)="onValidationGoToStart()"
     ></app-validation-step>
 
+    <!-- Buro de Crédito Step -->
+    <app-buro-credito-step
+      *ngIf="currentStep === 4"
+      (next)="setCurrentStep(5)"
+      (previous)="setCurrentStep(3)">
+    </app-buro-credito-step>
+
     <!-- Data Entry Step -->
     <app-data-entry-step
-      *ngIf="currentStep === 4"
+      *ngIf="currentStep === 5"
       (next)="onDataEntryCompleted()"
-      (previous)="setCurrentStep(3)">
+      (previous)="setCurrentStep(4)">
     </app-data-entry-step>
 
     <!-- Contract Step -->
     <app-contract-step
-      *ngIf="currentStep === 5"
+      *ngIf="currentStep === 6"
       (next)="nextStep()"
       (previous)="prevStep()"
     ></app-contract-step>
 
     <!-- Finish Step -->
     <app-finish-step
-      *ngIf="currentStep === 6"
+      *ngIf="currentStep === 7"
       [quotationSentByEmail]="quotationSentByEmail"
       [quotationNumber]="quotationNumber"
       (goToStart)="onFinishGoToStart()">
@@ -103,4 +110,14 @@
     (continue)="onContinueWizard()"
     (restart)="onRestartWizard()">
   </app-continue-wizard-modal>
+
+  <!-- Diálogo de confirmación para reiniciar -->
+  <app-confirm-dialog
+    [show]="showConfirmDialog"
+    [title]="confirmDialogTitle"
+    [message]="confirmDialogMessage"
+    [warning]="confirmDialogWarning"
+    (confirm)="onConfirmRestart()"
+    (cancel)="onCancelRestart()">
+  </app-confirm-dialog>
 </div>

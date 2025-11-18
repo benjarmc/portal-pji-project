@@ -194,8 +194,16 @@ export class PaymentsService {
   /**
    * Reenviar correo de confirmación de pago
    */
-  resendPaymentEmail(paymentId: string): Observable<ApiResponse<{ success: boolean; message: string }>> {
-    this.logger.log(`📧 Reenviando correo de confirmación de pago para paymentId: ${paymentId}`);
-    return this.apiService.post<{ success: boolean; message: string }>(`${this.endpoint}/${paymentId}/resend-email`, {});
+  resendPaymentEmail(paymentId: string, policyId?: string): Observable<ApiResponse<{ success: boolean; message: string }>> {
+    this.logger.log(`📧 Reenviando correo de confirmación de pago para paymentId: ${paymentId}${policyId ? `, policyId: ${policyId}` : ''}`);
+    return this.apiService.post<{ success: boolean; message: string }>(`${this.endpoint}/${paymentId}/resend-email`, { policyId });
+  }
+
+  /**
+   * Reenviar correo de confirmación de pago por policyId
+   */
+  resendPaymentEmailByPolicyId(policyId: string): Observable<ApiResponse<{ success: boolean; message: string }>> {
+    this.logger.log(`📧 Reenviando correo de confirmación de pago para policyId: ${policyId}`);
+    return this.apiService.post<{ success: boolean; message: string }>(`${this.endpoint}/policy/${policyId}/resend-email`, {});
   }
 }

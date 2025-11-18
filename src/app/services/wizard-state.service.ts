@@ -104,26 +104,35 @@ export interface WizardStepData {
     timestamp?: Date;
   };
   step4?: { 
-    // Inputs del paso de captura de datos
-    propietario: any;
-    inquilino: any;
-    fiador: any;
-    inmueble: any;
+    // Inputs del paso de Buro de Crédito
+    buroCreditoId?: string;
+    consultaData?: any;
+    respuestaData?: any;
+    status?: string;
     timestamp?: Date;
   };
   step5?: { 
-    // Inputs del paso de validación
-    validationRequirements?: ValidationRequirement[];
-    policyNumber?: string;
+    // Inputs del paso de captura de datos
+    propietario?: any;
+    inquilino?: any;
+    fiador?: any;
+    inmueble?: any;
     timestamp?: Date;
   };
   step6?: { 
+    // Inputs del paso de validación
+    validationRequirements?: ValidationRequirement[];
+    policyNumber?: string;
+    validationResult?: any;
+    timestamp?: Date;
+  };
+  step7?: { 
     // Inputs del paso de contrato
     contractTerms?: any;
     signatures?: any;
     timestamp?: Date;
   };
-  step7?: { 
+  step8?: { 
     // Inputs del paso final
     deliveryPreferences?: any;
     timestamp?: Date;
@@ -625,6 +634,23 @@ export class WizardStateService {
     
     // 3. Sincronizar con backend (marcado como crítico para priorización)
     return await this.syncWithBackendCorrected(currentState, isCritical);
+  }
+
+  /**
+   * Actualiza los datos de un paso específico en stepData
+   */
+  updateStepData(stepNumber: number, stepData: any): void {
+    const currentState = this.getState();
+    const updatedStepData = {
+      ...currentState.stepData,
+      [`step${stepNumber}`]: {
+        ...currentState.stepData[`step${stepNumber}` as keyof WizardStepData],
+        ...stepData,
+        timestamp: new Date()
+      }
+    };
+
+    this.saveState({ stepData: updatedStepData }, { sync: true, isCritical: true });
   }
 
 
@@ -1164,14 +1190,14 @@ export class WizardStateService {
           }
         }
         
-        // Sincronizar datos de captura desde stepData.step4
-        if (stepData.step4 && (stepData.step4.propietario || stepData.step4.inquilino || stepData.step4.inmueble) && !state.contractData) {
-          this.logger.log('🔄 Sincronizando datos de captura desde stepData.step4:', stepData.step4);
+        // Sincronizar datos de captura desde stepData.step5
+        if (stepData.step5 && (stepData.step5.propietario || stepData.step5.inquilino || stepData.step5.inmueble) && !state.contractData) {
+          this.logger.log('🔄 Sincronizando datos de captura desde stepData.step5:', stepData.step5);
           state.contractData = {
-            propietario: stepData.step4.propietario,
-            inquilino: stepData.step4.inquilino,
-            fiador: stepData.step4.fiador,
-            inmueble: stepData.step4.inmueble
+            propietario: stepData.step5.propietario,
+            inquilino: stepData.step5.inquilino,
+            fiador: stepData.step5.fiador,
+            inmueble: stepData.step5.inmueble
           };
           if (isPlatformBrowser(this.platformId)) {
             const sanitizedState = this.sanitizeStateForStorage(state);
@@ -1179,13 +1205,13 @@ export class WizardStateService {
           }
         }
         
-        // Sincronizar datos de contrato desde stepData.step6
-        if (stepData.step6 && stepData.step6.contractTerms && !state.contractData?.contractTerms) {
-          this.logger.log('🔄 Sincronizando datos de contrato desde stepData.step6:', stepData.step6);
+        // Sincronizar datos de contrato desde stepData.step7
+        if (stepData.step7 && stepData.step7.contractTerms && !state.contractData?.contractTerms) {
+          this.logger.log('🔄 Sincronizando datos de contrato desde stepData.step7:', stepData.step7);
           state.contractData = {
             ...state.contractData,
-            contractTerms: stepData.step6.contractTerms,
-            signatures: stepData.step6.signatures
+            contractTerms: stepData.step7.contractTerms,
+            signatures: stepData.step7.signatures
           };
           if (isPlatformBrowser(this.platformId)) {
             const sanitizedState = this.sanitizeStateForStorage(state);
@@ -1418,53 +1444,53 @@ export class WizardStateService {
       };
     }
     
-    // Paso 4: Datos de captura (inputs de los formularios de captura)
+    // Paso 5: Datos de captura (inputs de los formularios de captura)
     if (state.contractData && (state.contractData.propietario || state.contractData.inquilino || state.contractData.inmueble)) {
-      stepData.step4 = { 
-        ...stepData.step4,
-        propietario: state.contractData.propietario || stepData.step4?.propietario || null,
-        inquilino: state.contractData.inquilino || stepData.step4?.inquilino || null,
-        fiador: state.contractData.fiador || stepData.step4?.fiador || null,
-        inmueble: state.contractData.inmueble || stepData.step4?.inmueble || null,
-        timestamp: stepData.step4?.timestamp || baseStepData.timestamp
+      stepData.step5 = { 
+        ...stepData.step5,
+        propietario: state.contractData.propietario || stepData.step5?.propietario || null,
+        inquilino: state.contractData.inquilino || stepData.step5?.inquilino || null,
+        fiador: state.contractData.fiador || stepData.step5?.fiador || null,
+        inmueble: state.contractData.inmueble || stepData.step5?.inmueble || null,
+        timestamp: stepData.step5?.timestamp || baseStepData.timestamp
       };
     }
     
-    // Paso 5: Datos de validación (validationRequirements) + policyNumber + validationResult
+    // Paso 6: Datos de validación (validationRequirements) + policyNumber + validationResult
     if (state.validationRequirements && state.validationRequirements.length > 0) {
-      stepData.step5 = { 
-        ...stepData.step5,
+      stepData.step6 = { 
+        ...stepData.step6,
         validationRequirements: state.validationRequirements,
         ...(state.policyNumber ? { policyNumber: state.policyNumber } : {}),
         ...(state.validationResult ? { validationResult: state.validationResult } : {}),
-        timestamp: stepData.step5?.timestamp || baseStepData.timestamp
+        timestamp: stepData.step6?.timestamp || baseStepData.timestamp
       };
     } else if (state.policyNumber || state.validationResult) {
-      // Si solo hay policyNumber o validationResult, crear step5 mínimo
-      stepData.step5 = {
-        ...stepData.step5,
+      // Si solo hay policyNumber o validationResult, crear step6 mínimo
+      stepData.step6 = {
+        ...stepData.step6,
         ...(state.policyNumber ? { policyNumber: state.policyNumber } : {}),
         ...(state.validationResult ? { validationResult: state.validationResult } : {}),
-        timestamp: stepData.step5?.timestamp || baseStepData.timestamp
-      };
-    }
-    
-    // Paso 6: Datos de contrato (inputs del formulario de contrato)
-    if (state.contractData && state.contractData.contractTerms) {
-      stepData.step6 = { 
-        ...stepData.step6,
-        contractTerms: state.contractData.contractTerms,
-        signatures: state.contractData.signatures || stepData.step6?.signatures || null,
         timestamp: stepData.step6?.timestamp || baseStepData.timestamp
       };
     }
     
-    // Paso 7: Datos finales (inputs del formulario final)
-    if (state.userData && state.userData.deliveryPreferences) {
-      stepData.step7 = {
+    // Paso 7: Datos de contrato (inputs del formulario de contrato)
+    if (state.contractData && state.contractData.contractTerms) {
+      stepData.step7 = { 
         ...stepData.step7,
-        deliveryPreferences: state.userData.deliveryPreferences,
+        contractTerms: state.contractData.contractTerms,
+        signatures: state.contractData.signatures || stepData.step7?.signatures || null,
         timestamp: stepData.step7?.timestamp || baseStepData.timestamp
+      };
+    }
+    
+    // Paso 8: Datos finales (inputs del formulario final)
+    if (state.userData && state.userData.deliveryPreferences) {
+      stepData.step8 = {
+        ...stepData.step8,
+        deliveryPreferences: state.userData.deliveryPreferences,
+        timestamp: stepData.step8?.timestamp || baseStepData.timestamp
       };
     }
     

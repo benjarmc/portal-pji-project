@@ -1,0 +1,189 @@
+<div class="public-form-container">
+  <div class="form-card">
+    <div class="form-header">
+      <h2>Completa tu Información - Inquilino</h2>
+      <p class="text-muted">Por favor, completa todos los campos requeridos para continuar con el proceso</p>
+    </div>
+
+    <!-- Mensajes de estado -->
+    <div *ngIf="errorMessage" class="alert alert-danger" role="alert">
+      <i class="bi bi-exclamation-triangle me-2"></i>
+      {{ errorMessage }}
+    </div>
+
+    <div *ngIf="successMessage" class="alert alert-success" role="alert">
+      <i class="bi bi-check-circle me-2"></i>
+      {{ successMessage }}
+    </div>
+
+    <!-- Loading state -->
+    <div *ngIf="isLoading" class="text-center py-5">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+      <p class="mt-3">Cargando tus datos...</p>
+    </div>
+
+    <!-- Formulario -->
+    <form [formGroup]="inquilinoForm" *ngIf="!isLoading" (ngSubmit)="onSubmit()">
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Fecha Alta *</label>
+          <input type="date" class="form-control" formControlName="fechaAlta"
+                 [class.is-invalid]="formControls['fechaAlta'].invalid && formControls['fechaAlta'].touched">
+          <div class="invalid-feedback" *ngIf="formControls['fechaAlta'].invalid && formControls['fechaAlta'].touched">
+            La fecha alta es requerida
+          </div>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">CURP *</label>
+          <input type="text" class="form-control" formControlName="curp" 
+                 placeholder="ABCD123456HDFABC01" maxlength="18"
+                 [class.is-invalid]="formControls['curp'].invalid && formControls['curp'].touched">
+          <div class="invalid-feedback" *ngIf="formControls['curp'].invalid && formControls['curp'].touched">
+            CURP inválido
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Tipo de Persona *</label>
+          <select class="form-select" formControlName="tipoPersona"
+                  [class.is-invalid]="formControls['tipoPersona'].invalid && formControls['tipoPersona'].touched">
+            <option value="fisica">Persona Física</option>
+            <option value="moral">Persona Moral</option>
+          </select>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Nombre Completo *</label>
+          <input type="text" class="form-control" formControlName="nombre" placeholder="Nombre completo"
+                 [class.is-invalid]="formControls['nombre'].invalid && formControls['nombre'].touched">
+          <div class="invalid-feedback" *ngIf="formControls['nombre'].invalid && formControls['nombre'].touched">
+            El nombre es requerido
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Teléfono *</label>
+          <input type="tel" class="form-control" formControlName="telefono" placeholder="(55) 1234-5678"
+                 [class.is-invalid]="formControls['telefono'].invalid && formControls['telefono'].touched">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Celular</label>
+          <input type="tel" class="form-control" formControlName="celular" placeholder="(55) 1234-5678">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Estado Civil</label>
+          <select class="form-select" formControlName="estadoCivil">
+            <option value="">Seleccionar...</option>
+            <option value="soltero">Soltero(a)</option>
+            <option value="casado">Casado(a)</option>
+            <option value="divorciado">Divorciado(a)</option>
+            <option value="viudo">Viudo(a)</option>
+            <option value="union_libre">Unión Libre</option>
+          </select>
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Canal</label>
+          <input type="text" class="form-control" formControlName="canal" placeholder="Canal de contacto">
+        </div>
+      </div>
+
+      <h5 class="mt-4 mb-3">Domicilio</h5>
+      <div class="row">
+        <div class="col-md-8 mb-3">
+          <label class="form-label">Calle *</label>
+          <input type="text" class="form-control" formControlName="calle" placeholder="Nombre de la calle"
+                 [class.is-invalid]="formControls['calle'].invalid && formControls['calle'].touched">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">No. Exterior *</label>
+          <input type="text" class="form-control" formControlName="numeroExterior" placeholder="123"
+                 [class.is-invalid]="formControls['numeroExterior'].invalid && formControls['numeroExterior'].touched">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Edificio</label>
+          <input type="text" class="form-control" formControlName="edificio" placeholder="Edificio">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">CP *</label>
+          <input type="text" class="form-control" formControlName="cp" placeholder="12345" maxlength="5"
+                 [class.is-invalid]="formControls['cp'].invalid && formControls['cp'].touched">
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="form-label">Colonia *</label>
+          <input type="text" class="form-control" formControlName="colonia" placeholder="Colonia"
+                 [class.is-invalid]="formControls['colonia'].invalid && formControls['colonia'].touched">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Alcaldía o Municipio *</label>
+          <input type="text" class="form-control" formControlName="alcaldiaMunicipio" placeholder="Alcaldía/Municipio"
+                 [class.is-invalid]="formControls['alcaldiaMunicipio'].invalid && formControls['alcaldiaMunicipio'].touched">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Estado *</label>
+          <input type="text" class="form-control" formControlName="estado" placeholder="Estado"
+                 [class.is-invalid]="formControls['estado'].invalid && formControls['estado'].touched">
+        </div>
+      </div>
+
+      <h5 class="mt-4 mb-3">Documentación</h5>
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">INE</label>
+          <input type="file" class="form-control" accept="image/*,application/pdf">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Pasaporte</label>
+          <input type="file" class="form-control" accept="image/*,application/pdf">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Comprobante de Domicilio</label>
+          <input type="file" class="form-control" accept="image/*,application/pdf">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Comprobante de Ingresos</label>
+          <input type="file" class="form-control" accept="image/*,application/pdf">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Comprobante de Domicilio (Imagen)</label>
+          <input type="file" class="form-control" accept="image/*">
+        </div>
+        <div class="col-md-6 mb-3">
+          <label class="form-label">Comprobante de Ingresos 2</label>
+          <input type="file" class="form-control" accept="image/*,application/pdf">
+        </div>
+      </div>
+
+      <!-- Botón de enviar -->
+      <div class="d-flex justify-content-end mt-4">
+        <button type="submit" class="btn btn-primary btn-lg" 
+                [disabled]="inquilinoForm.invalid || isSubmitting">
+          <i class="bi bi-check-circle me-2" *ngIf="!isSubmitting"></i>
+          <i class="bi bi-hourglass-split me-2" *ngIf="isSubmitting"></i>
+          {{ isSubmitting ? 'Guardando...' : 'Guardar Información' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+

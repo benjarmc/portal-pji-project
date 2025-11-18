@@ -155,6 +155,10 @@ export class CaptureDataService {
     return this.apiService.patch<InquilinoData>(`${this.endpoint}/inquilino/${userId}`, data);
   }
 
+  updateInquilinoByPolicyId(policyId: string, data: Partial<InquilinoData>): Observable<ApiResponse<InquilinoData>> {
+    return this.apiService.patch<InquilinoData>(`${this.endpoint}/inquilino/policy/${policyId}`, data);
+  }
+
   // Métodos para Fiador
   createFiador(userId: string, data: FiadorData & { policyId?: string }): Observable<ApiResponse<FiadorData>> {
     return this.apiService.post<FiadorData>(`${this.endpoint}/fiador`, {
@@ -169,6 +173,10 @@ export class CaptureDataService {
 
   updateFiador(userId: string, data: Partial<FiadorData>): Observable<ApiResponse<FiadorData>> {
     return this.apiService.patch<FiadorData>(`${this.endpoint}/fiador/${userId}`, data);
+  }
+
+  updateFiadorByPolicyId(policyId: string, data: Partial<FiadorData>): Observable<ApiResponse<FiadorData>> {
+    return this.apiService.patch<FiadorData>(`${this.endpoint}/fiador/policy/${policyId}`, data);
   }
 
   // Métodos para Inmueble
@@ -212,6 +220,26 @@ export class CaptureDataService {
   // Método para obtener todos los datos de captura por policyId
   getAllCaptureDataByPolicy(policyId: string): Observable<ApiResponse<CaptureDataResponse>> {
     return this.apiService.get<CaptureDataResponse>(`${this.endpoint}/all/policy/${policyId}`);
+  }
+
+  // Enviar formulario de inquilino por correo
+  sendInquilinoFormEmail(inquilinoId: string, email: string): Observable<ApiResponse<{ success: boolean; message: string }>> {
+    return this.apiService.post<{ success: boolean; message: string }>(`${this.endpoint}/inquilino/${inquilinoId}/send-form`, { email });
+  }
+
+  // Enviar formulario de fiador por correo
+  sendFiadorFormEmail(fiadorId: string, email: string): Observable<ApiResponse<{ success: boolean; message: string }>> {
+    return this.apiService.post<{ success: boolean; message: string }>(`${this.endpoint}/fiador/${fiadorId}/send-form`, { email });
+  }
+
+  // Obtener inquilino por ID (para formulario público)
+  getInquilinoById(id: string): Observable<ApiResponse<InquilinoData>> {
+    return this.apiService.get<InquilinoData>(`${this.endpoint}/inquilino/public/${id}`);
+  }
+
+  // Obtener fiador por ID (para formulario público)
+  getFiadorById(id: string): Observable<ApiResponse<FiadorData>> {
+    return this.apiService.get<FiadorData>(`${this.endpoint}/fiador/public/${id}`);
   }
 
   // Método para guardar todos los datos de captura de una vez

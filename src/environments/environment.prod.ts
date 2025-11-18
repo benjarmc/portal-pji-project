@@ -1,11 +1,11 @@
 // Environment de PRODUCCIÓN - Este archivo se usa cuando se ejecuta ng build --configuration production
 export const environment = {
     production: true,
-    debug: false, // Deshabilitar logs en producción
+    debug: true,
     api: {
         baseUrl: 'https://backend.pjionline.com.mx/api',
         timeout: 30000,
-        apiKey: 'PROD-FRONTEND-API-KEY-CHANGE-ME', // ⚠️ CAMBIAR EN PRODUCCIÓN
+        apiKey: 'dev-frontend-api-key-12345',
     },
     vdid: {
         publicKey: 'pk_test_Qm3iR9607BpWD/UAP2Til1+5NCHA/yxvcZWtauDNHLE=',
@@ -13,8 +13,8 @@ export const environment = {
         defaultVersion: 'v2'
     },
     openpay: {
-        merchantId: 'moe7p2y5ycpz1jt71dxu',
-        publicKey: 'pk_546e11f542f648a1a116b7d0007c06bf',
+        merchantId: 'maklddlcpad3qzj7n5o5',
+        publicKey: 'pk_7fbdc5d5b1654266af05acc3a3e8dca5',
         sandboxMode: true
     }
 };

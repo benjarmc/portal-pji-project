@@ -26,4 +26,14 @@ export const routes: Routes = [
     loadComponent: () => import('./landing-page/privacy-policy/privacy-policy.component').then(m => m.PrivacyPolicyComponent),
     title: 'Aviso de Privacidad',
   },
+  {
+    path: 'formulario/inquilino/:id',
+    loadComponent: () => import('./public-forms/inquilino-form/inquilino-form.component').then(m => m.InquilinoFormComponent),
+    title: 'Formulario de Inquilino',
+  },
+  {
+    path: 'formulario/fiador/:id',
+    loadComponent: () => import('./public-forms/fiador-form/fiador-form.component').then(m => m.FiadorFormComponent),
+    title: 'Formulario de Fiador',
+  },
 ];

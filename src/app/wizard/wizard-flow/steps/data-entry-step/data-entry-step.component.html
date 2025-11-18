@@ -35,6 +35,16 @@
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link" 
+              [class.active]="activeTab === 'inmueble'"
+              (click)="setActiveTab('inmueble')"
+              type="button">
+        <i class="pi pi-home me-2"></i>
+        <span>Inmueble</span>
+        <i class="pi pi-check-circle ms-2 text-success" *ngIf="completionProgress.inmueble === 100"></i>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" 
               [class.active]="activeTab === 'inquilino'"
               (click)="setActiveTab('inquilino')"
               type="button">
@@ -51,16 +61,6 @@
         <i class="pi pi-shield me-2"></i>
         <span>Fiador</span>
         <i class="pi pi-check-circle ms-2 text-success" *ngIf="completionProgress.fiador === 100"></i>
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link" 
-              [class.active]="activeTab === 'inmueble'"
-              (click)="setActiveTab('inmueble')"
-              type="button">
-        <i class="pi pi-home me-2"></i>
-        <span>Inmueble</span>
-        <i class="pi pi-check-circle ms-2 text-success" *ngIf="completionProgress.inmueble === 100"></i>
       </button>
     </li>
   </ul>
@@ -175,6 +175,100 @@
             <i class="pi pi-save me-2" *ngIf="!isSaving"></i>
             <i class="pi pi-spin pi-spinner me-2" *ngIf="isSaving"></i>
             {{ isSaving ? 'Guardando...' : (hasSavedData('propietario') ? 'Actualizar Propietario' : 'Guardar Propietario') }}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Inmueble Tab -->
+    <div class="tab-pane" [class.active]="activeTab === 'inmueble'">
+      <form [formGroup]="inmuebleForm" *ngIf="activeTab === 'inmueble'">
+        <h5 class="mb-3">Datos del Inmueble</h5>
+        <div class="row">
+          <div class="col-md-8 mb-3">
+            <label class="form-label">Calle *</label>
+            <input type="text" class="form-control" formControlName="calle" placeholder="Nombre de la calle">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">No. Exterior *</label>
+            <input type="text" class="form-control" formControlName="numeroExterior" placeholder="123">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label class="form-label">No. Interior</label>
+            <input type="text" class="form-control" formControlName="numeroInterior" placeholder="A">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">CP *</label>
+            <input type="text" class="form-control" formControlName="cp" placeholder="12345" maxlength="5">
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label">Colonia *</label>
+            <input type="text" class="form-control" formControlName="colonia" placeholder="Colonia">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Alcaldía o Municipio *</label>
+            <input type="text" class="form-control" formControlName="alcaldiaMunicipio" placeholder="Alcaldía/Municipio">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Estado *</label>
+            <input type="text" class="form-control" formControlName="estado" placeholder="Estado">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Tipo de Inmueble *</label>
+            <select class="form-select" formControlName="tipoInmueble">
+              <option value="casa">Casa/Habitación</option>
+              <option value="oficina">Oficinas</option>
+              <option value="bodega">Bodega</option>
+              <option value="comercial">Local Comercial</option>
+            </select>
+          </div>
+          <div class="col-md-6 mb-3" *ngIf="inmuebleForm.get('tipoInmueble')?.value === 'comercial'">
+            <label class="form-label">Giro Comercial</label>
+            <input type="text" class="form-control" formControlName="giroComercial" placeholder="Ej: Restaurante, Tienda, etc.">
+          </div>
+        </div>
+
+        <h5 class="mt-4 mb-3">Datos Económicos</h5>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Renta Mensual (MXN) *</label>
+            <input type="number" class="form-control" formControlName="renta" placeholder="15000" min="1">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Mantenimiento (MXN)</label>
+            <input type="number" class="form-control" formControlName="mantenimiento" placeholder="2000" min="0">
+          </div>
+        </div>
+
+        <h5 class="mt-4 mb-3">Vigencia del Contrato</h5>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Fecha de Inicio *</label>
+            <input type="date" class="form-control" formControlName="vigenciaInicio">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Fecha de Fin *</label>
+            <input type="date" class="form-control" formControlName="vigenciaFin">
+          </div>
+        </div>
+
+        <!-- Botón de guardar para Inmueble -->
+        <div class="d-flex justify-content-end mt-4">
+          <button type="button" class="btn btn-success" 
+                  (click)="saveInmuebleData()"
+                  [disabled]="!isInmuebleFormValid() || isSaving">
+            <i class="pi pi-save me-2" *ngIf="!isSaving"></i>
+            <i class="pi pi-spin pi-spinner me-2" *ngIf="isSaving"></i>
+            {{ isSaving ? 'Guardando...' : (hasSavedData('inmueble') ? 'Actualizar Inmueble' : 'Guardar Inmueble') }}
           </button>
         </div>
       </form>
@@ -394,8 +488,33 @@
           </div>
         </div>
 
-        <!-- Botón de guardar para Inquilino -->
-        <div class="d-flex justify-content-end mt-4">
+        <!-- Botón de guardar y enviar formulario por correo para Inquilino -->
+        <div class="d-flex justify-content-between align-items-center mt-4">
+          <!-- Campo de email y botón para enviar formulario -->
+          <div class="d-flex align-items-center gap-2" *ngIf="hasExistingInquilino && inquilinoId">
+            <input 
+              type="email" 
+              class="form-control" 
+              style="width: 250px;"
+              placeholder="Email del inquilino"
+              [(ngModel)]="emailInput.inquilino"
+              [ngModelOptions]="{standalone: true}"
+              [disabled]="isSendingEmail">
+            <button 
+              type="button" 
+              class="btn btn-primary btn-sm"
+              (click)="sendInquilinoFormEmail()"
+              [disabled]="isSendingEmail || !emailInput.inquilino || !isValidEmail(emailInput.inquilino)">
+              <i class="bi bi-envelope me-1" *ngIf="!isSendingEmail"></i>
+              <i class="bi bi-hourglass-split me-1" *ngIf="isSendingEmail"></i>
+              {{ isSendingEmail ? 'Enviando...' : 'Enviar Formulario' }}
+            </button>
+          </div>
+          <div *ngIf="!hasExistingInquilino || !inquilinoId" class="text-muted small">
+            Guarda primero el registro para poder enviar el formulario
+          </div>
+          
+          <!-- Botón de guardar -->
           <button type="button" class="btn btn-success" 
                   (click)="saveInquilinoData()"
                   [disabled]="!isInquilinoFormValid() || isSaving">
@@ -676,108 +795,39 @@
           </div>
         </div>
 
-        <!-- Botón de guardar para Fiador -->
-        <div class="d-flex justify-content-end mt-4">
+        <!-- Botón de guardar y enviar formulario por correo para Fiador -->
+        <div class="d-flex justify-content-between align-items-center mt-4">
+          <!-- Campo de email y botón para enviar formulario -->
+          <div class="d-flex align-items-center gap-2" *ngIf="hasExistingFiador && fiadorId">
+            <input 
+              type="email" 
+              class="form-control" 
+              style="width: 250px;"
+              placeholder="Email del fiador"
+              [(ngModel)]="emailInput.fiador"
+              [ngModelOptions]="{standalone: true}"
+              [disabled]="isSendingEmail">
+            <button 
+              type="button" 
+              class="btn btn-primary btn-sm"
+              (click)="sendFiadorFormEmail()"
+              [disabled]="isSendingEmail || !emailInput.fiador || !isValidEmail(emailInput.fiador)">
+              <i class="bi bi-envelope me-1" *ngIf="!isSendingEmail"></i>
+              <i class="bi bi-hourglass-split me-1" *ngIf="isSendingEmail"></i>
+              {{ isSendingEmail ? 'Enviando...' : 'Enviar Formulario' }}
+            </button>
+          </div>
+          <div *ngIf="!hasExistingFiador || !fiadorId" class="text-muted small">
+            Guarda primero el registro para poder enviar el formulario
+          </div>
+          
+          <!-- Botón de guardar -->
           <button type="button" class="btn btn-success" 
                   (click)="saveFiadorData()"
                   [disabled]="!isFiadorFormValid() || isSaving">
             <i class="pi pi-save me-2" *ngIf="!isSaving"></i>
             <i class="pi pi-spin pi-spinner me-2" *ngIf="isSaving"></i>
             {{ isSaving ? 'Guardando...' : (hasSavedData('fiador') ? 'Actualizar Fiador' : 'Guardar Fiador') }}
-          </button>
-        </div>
-      </form>
-    </div>
-
-    <!-- Inmueble Tab -->
-    <div class="tab-pane" [class.active]="activeTab === 'inmueble'">
-      <form [formGroup]="inmuebleForm" *ngIf="activeTab === 'inmueble'">
-        <h5 class="mb-3">Datos del Inmueble</h5>
-        <div class="row">
-          <div class="col-md-8 mb-3">
-            <label class="form-label">Calle *</label>
-            <input type="text" class="form-control" formControlName="calle" placeholder="Nombre de la calle">
-          </div>
-          <div class="col-md-4 mb-3">
-            <label class="form-label">No. Exterior *</label>
-            <input type="text" class="form-control" formControlName="numeroExterior" placeholder="123">
-          </div>
-        </div>
-
-        <div class="row">
-          <div class="col-md-4 mb-3">
-            <label class="form-label">No. Interior</label>
-            <input type="text" class="form-control" formControlName="numeroInterior" placeholder="A">
-          </div>
-          <div class="col-md-4 mb-3">
-            <label class="form-label">CP *</label>
-            <input type="text" class="form-control" formControlName="cp" placeholder="12345" maxlength="5">
-          </div>
-          <div class="col-md-4 mb-3">
-            <label class="form-label">Colonia *</label>
-            <input type="text" class="form-control" formControlName="colonia" placeholder="Colonia">
-          </div>
-        </div>
-
-        <div class="row">
-          <div class="col-md-6 mb-3">
-            <label class="form-label">Alcaldía o Municipio *</label>
-            <input type="text" class="form-control" formControlName="alcaldiaMunicipio" placeholder="Alcaldía/Municipio">
-          </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label">Estado *</label>
-            <input type="text" class="form-control" formControlName="estado" placeholder="Estado">
-          </div>
-        </div>
-
-        <div class="row">
-          <div class="col-md-6 mb-3">
-            <label class="form-label">Tipo de Inmueble *</label>
-            <select class="form-select" formControlName="tipoInmueble">
-              <option value="casa">Casa/Habitación</option>
-              <option value="oficina">Oficinas</option>
-              <option value="bodega">Bodega</option>
-              <option value="comercial">Local Comercial</option>
-            </select>
-          </div>
-          <div class="col-md-6 mb-3" *ngIf="inmuebleForm.get('tipoInmueble')?.value === 'comercial'">
-            <label class="form-label">Giro Comercial</label>
-            <input type="text" class="form-control" formControlName="giroComercial" placeholder="Ej: Restaurante, Tienda, etc.">
-          </div>
-        </div>
-
-        <h5 class="mt-4 mb-3">Datos Económicos</h5>
-        <div class="row">
-          <div class="col-md-6 mb-3">
-            <label class="form-label">Renta Mensual (MXN) *</label>
-            <input type="number" class="form-control" formControlName="renta" placeholder="15000" min="1">
-          </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label">Mantenimiento (MXN)</label>
-            <input type="number" class="form-control" formControlName="mantenimiento" placeholder="2000" min="0">
-          </div>
-        </div>
-
-        <h5 class="mt-4 mb-3">Vigencia del Contrato</h5>
-        <div class="row">
-          <div class="col-md-6 mb-3">
-            <label class="form-label">Fecha de Inicio *</label>
-            <input type="date" class="form-control" formControlName="vigenciaInicio">
-          </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label">Fecha de Fin *</label>
-            <input type="date" class="form-control" formControlName="vigenciaFin">
-          </div>
-        </div>
-
-        <!-- Botón de guardar para Inmueble -->
-        <div class="d-flex justify-content-end mt-4">
-          <button type="button" class="btn btn-success" 
-                  (click)="saveInmuebleData()"
-                  [disabled]="!isInmuebleFormValid() || isSaving">
-            <i class="pi pi-save me-2" *ngIf="!isSaving"></i>
-            <i class="pi pi-spin pi-spinner me-2" *ngIf="isSaving"></i>
-            {{ isSaving ? 'Guardando...' : (hasSavedData('inmueble') ? 'Actualizar Inmueble' : 'Guardar Inmueble') }}
           </button>
         </div>
       </form>

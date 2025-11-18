@@ -31,7 +31,7 @@
           <button 
             class="btn btn-outline-success btn-sm"
             (click)="resendPaymentEmail()"
-            [disabled]="!paymentResult || !paymentResult.paymentId || paymentResult.paymentId === 'N/A'">
+            [disabled]="!paymentResult || ((!paymentResult.paymentId || paymentResult.paymentId === 'N/A') && !paymentResult.policyId)">
             <i class="bi bi-envelope-arrow-up me-1"></i>
             Reenviar correo de confirmación
           </button>
@@ -191,6 +191,11 @@
             La validación es completamente segura y cumple con los estándares de protección de datos.
           </small>
         </div>
+      </div>
+      
+      <!-- Botón para continuar cuando todas las validaciones estén completadas -->
+      <div *ngIf="completedValidations === totalValidations && totalValidations > 0" class="text-center mt-4">
+        <button class="btn btn-accent mt-3" (click)="onNext()">Siguiente paso</button>
       </div>
     </div>
 

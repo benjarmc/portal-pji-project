@@ -7,15 +7,18 @@ import { MainDataStepComponent } from './steps/main-data-step/main-data-step.com
 import { DataEntryStepComponent } from './steps/data-entry-step/data-entry-step.component';
 import { PaymentStepComponent } from './steps/payment-step/payment-step.component';
 import { ValidationStepComponent } from './steps/validation-step/validation-step.component';
+import { BuroCreditoStepComponent } from './steps/buro-credito-step/buro-credito-step.component';
 import { ContractStepComponent } from './steps/contract-step/contract-step.component';
 import { FinishStepComponent } from './steps/finish-step/finish-step.component';
 import { SeoService } from '../../services/seo.service';
 import { WizardStateService, WizardState } from '../../services/wizard-state.service';
 import { WizardSessionService } from '../../services/wizard-session.service';
 import { ContinueWizardModalComponent } from '../../components/continue-wizard-modal/continue-wizard-modal.component';
+import { ConfirmDialogComponent } from '../../components/confirm-dialog/confirm-dialog.component';
 import { LoggerService } from '../../services/logger.service';
 import { QuotationsService } from '../../services/quotations.service';
 import { PaymentsService } from '../../services/payments.service';
+import { environment } from '../../../environments/environment';
 @Component({
   selector: 'app-wizard-flow',
   standalone: true,
@@ -26,9 +29,11 @@ import { PaymentsService } from '../../services/payments.service';
     DataEntryStepComponent,
     PaymentStepComponent,
     ValidationStepComponent,
+    BuroCreditoStepComponent,
     ContractStepComponent,
     FinishStepComponent,
-    ContinueWizardModalComponent
+    ContinueWizardModalComponent,
+    ConfirmDialogComponent
   ],
   templateUrl: './wizard-flow.component.html',
   styleUrls: ['./wizard-flow.component.scss']
@@ -63,6 +68,10 @@ export class WizardFlowComponent implements OnInit {
   quotationSentByEmail = false;
   isStateRestored = false;
   showContinueModal = false;
+  showConfirmDialog = false;
+  confirmDialogTitle = '¿Estás seguro?';
+  confirmDialogMessage = '';
+  confirmDialogWarning = '';
   
   // Variables específicas para el modal (como en lp-content.component.ts)
   modalCurrentStep = 0;
@@ -84,6 +93,7 @@ export class WizardFlowComponent implements OnInit {
     { key: 'main-data', label: 'Datos principales' },
     { key: 'payment', label: 'Pago' },
     { key: 'validation', label: 'Validación' },
+    { key: 'buro-credito', label: 'Buro de Crédito' },
     { key: 'data-entry', label: 'Captura de datos' },
     { key: 'contract', label: 'Contrato' },
     { key: 'finish', label: 'Final' }
@@ -1311,7 +1321,7 @@ export class WizardFlowComponent implements OnInit {
 
   onDataEntryCompleted() {
     this.logger.log('📝 Captura de datos completada, navegando al contrato');
-    this.setCurrentStep(5); // Ir al paso 5 (CONTRACT)
+    this.setCurrentStep(6); // Ir al paso 6 (CONTRACT)
   }
 
   // Nuevo método para cuando se completa el pago
@@ -1388,7 +1398,7 @@ export class WizardFlowComponent implements OnInit {
     }, 3000);
   }
 
-  nextStep() {
+  nextStep(): void {
     if (this.currentStep < this.steps.length - 1) {
       // Marcar paso actual como completado
       this.wizardStateService.completeStep(this.currentStep);
@@ -1406,8 +1416,27 @@ export class WizardFlowComponent implements OnInit {
   }
 
   goToStep(index: number) {
+    // En desarrollo, permitir navegación libre entre pasos
+    // En producción, solo permitir navegación secuencial
+    const isDevelopment = !environment.production;
+    
     if (index >= 0 && index < this.steps.length) {
-      this.setCurrentStep(index);
+      if (isDevelopment) {
+        // Modo desarrollo: permitir navegación libre
+        this.logger.log(`🔧 [DEV] Navegación libre al paso ${index}`);
+        this.setCurrentStep(index);
+      } else {
+        // Modo producción: solo permitir navegación secuencial o a pasos completados
+        const currentState = this.wizardStateService.getState();
+        const isCompleted = currentState.completedSteps.includes(index);
+        const isNext = index === this.currentStep + 1;
+        
+        if (isNext || isCompleted || index < this.currentStep) {
+          this.setCurrentStep(index);
+        } else {
+          this.logger.log(`⚠️ No se puede navegar al paso ${index} - no está completado y no es el siguiente`);
+        }
+      }
     }
   }
 
@@ -1504,7 +1533,19 @@ export class WizardFlowComponent implements OnInit {
   /**
    * Maneja la decisión de reiniciar el wizard
    */
-  async onRestartWizard() {
+  onRestartWizard() {
+    // Mostrar diálogo de confirmación moderno
+    this.confirmDialogTitle = '¿Estás seguro de que deseas empezar de nuevo?';
+    this.confirmDialogMessage = 'Se perderá todo el progreso actual y se iniciará un nuevo proceso de cotización.';
+    this.confirmDialogWarning = 'Esta acción no se puede deshacer.';
+    this.showConfirmDialog = true;
+  }
+
+  /**
+   * Confirma el reinicio del wizard
+   */
+  async onConfirmRestart() {
+    this.showConfirmDialog = false;
     this.logger.log('🔄 Reiniciando wizard...');
     
     // 1) Eliminar sesión actual de la BD
@@ -1574,7 +1615,15 @@ export class WizardFlowComponent implements OnInit {
       replaceUrl: true // Reemplazar la URL actual
     });
     
-    this.logger.log('✅ Wizard reiniciado con nueva sesión');
+    this.logger.log('✅ Wizard reiniciado exitosamente');
+  }
+
+  /**
+   * Cancela el reinicio del wizard
+   */
+  onCancelRestart() {
+    this.showConfirmDialog = false;
+    this.logger.log('❌ Usuario canceló el reinicio del wizard');
   }
 
   /**
