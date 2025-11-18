@@ -8,20 +8,14 @@ import { SeoService } from './services/seo.service';
 import { errorInterceptor } from './interceptors/error.interceptor';
 import { tokenRefreshInterceptor } from './interceptors/token-refresh.interceptor';
 
-// Configuración base compartida (sin hidratación del cliente)
-const baseConfig: ApplicationConfig = {
+export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
-    provideHttpClient(withInterceptors([tokenRefreshInterceptor, errorInterceptor])),
-    SeoService
-  ]
-};
-
-// Configuración del cliente (con hidratación)
-export const appConfig: ApplicationConfig = {
-  providers: [
-    ...baseConfig.providers,
+    provideHttpClient(
+      withInterceptors([tokenRefreshInterceptor, errorInterceptor])
+    ),
     provideClientHydration(),
+    SeoService
   ]
 };

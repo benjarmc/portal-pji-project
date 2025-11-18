@@ -353,7 +353,9 @@ export class LpContentComponent implements OnInit {
       }
       
       // Marcar en sessionStorage que se navegó desde la selección de plan
-      sessionStorage.setItem('navigatedFromPlan', 'true');
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('navigatedFromPlan', 'true');
+      }
       
       // Usar el id (UUID) si está disponible, sino usar sessionId como fallback
       const sessionIdForUrl = this.wizardStateService.getState().id || newSessionId;

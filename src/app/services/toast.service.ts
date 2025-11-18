@@ -1,4 +1,5 @@
-import { Injectable, ComponentRef, ApplicationRef, Injector, createComponent, EnvironmentInjector } from '@angular/core';
+import { Injectable, ComponentRef, ApplicationRef, Injector, createComponent, EnvironmentInjector, Inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { ToastComponent, ToastConfig } from '../components/toast/toast.component';
 
 @Injectable({
@@ -11,12 +12,18 @@ export class ToastService {
   constructor(
     private appRef: ApplicationRef,
     private injector: Injector,
-    private environmentInjector: EnvironmentInjector
+    private environmentInjector: EnvironmentInjector,
+    @Inject(PLATFORM_ID) private platformId: Object
   ) {
-    this.createToastContainer();
+    if (isPlatformBrowser(this.platformId)) {
+      this.createToastContainer();
+    }
   }
 
   private createToastContainer(): void {
+    if (!isPlatformBrowser(this.platformId) || typeof document === 'undefined') {
+      return;
+    }
     this.toastContainer = document.createElement('div');
     this.toastContainer.id = 'toast-container';
     this.toastContainer.style.position = 'fixed';
@@ -31,8 +38,16 @@ export class ToastService {
   }
 
   show(config: ToastConfig): void {
+    if (!isPlatformBrowser(this.platformId) || typeof document === 'undefined') {
+      return;
+    }
+
     if (!this.toastContainer) {
       this.createToastContainer();
+    }
+
+    if (!this.toastContainer) {
+      return;
     }
 
     // Crear el componente usando createComponent (Angular moderno)
@@ -54,7 +69,7 @@ export class ToastService {
     container.appendChild(componentRef.location.nativeElement);
     
     // Agregar al contenedor principal
-    this.toastContainer!.appendChild(container);
+    this.toastContainer.appendChild(container);
 
     // Guardar referencia
     this.toasts.push({ componentRef, container });

@@ -1,10 +1,8 @@
-import { isPlatformBrowser, CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import {
   Component,
   HostListener,
-  Inject,
   OnInit,
-  PLATFORM_ID,
 } from '@angular/core';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
@@ -23,15 +21,12 @@ export class LpHeaderComponent implements OnInit {
   isPrivacyPage: boolean = false;
 
   constructor(
-    @Inject(PLATFORM_ID) private platformId: Object,
     private router: Router,
     private logger: LoggerService
   ) { }
 
   ngOnInit(): void {
-    if (isPlatformBrowser(this.platformId)) {
-      this.navbarScroll();
-    }
+    this.navbarScroll();
     
     // Detectar la ruta actual al inicializar
     this.checkCurrentRoute();
@@ -46,17 +41,13 @@ export class LpHeaderComponent implements OnInit {
   }
 
   private checkCurrentRoute(): void {
-    if (isPlatformBrowser(this.platformId)) {
-      this.isPrivacyPage = this.router.url.includes('/aviso-privacidad');
-      this.logger.log('Ruta actual:', this.router.url, 'Es página de privacidad:', this.isPrivacyPage);
-    }
+    this.isPrivacyPage = this.router.url.includes('/aviso-privacidad');
+    this.logger.log('Ruta actual:', this.router.url, 'Es página de privacidad:', this.isPrivacyPage);
   }
 
   @HostListener('window:scroll', [])
   onWindowScroll() {
-    if (isPlatformBrowser(this.platformId)) {
-      this.navbarScroll();
-    }
+    this.navbarScroll();
   }
 
   private navbarScroll() {
@@ -79,14 +70,12 @@ export class LpHeaderComponent implements OnInit {
   }
 
   scrollToSection(sectionId: string): void {
-    if (isPlatformBrowser(this.platformId)) {
-      const element = document.getElementById(sectionId);
-      if (element) {
-        element.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start' 
-        });
-      }
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
     }
   }
 }

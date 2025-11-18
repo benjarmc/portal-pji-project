@@ -436,10 +436,6 @@ export class WizardStateService {
    * Obtiene el estado del wizard
    */
   getState(): WizardState {
-    if (!isPlatformBrowser(this.platformId)) {
-      return this.getDefaultState();
-    }
-
     try {
       const sessionState = sessionStorage.getItem(this.SESSION_KEY);
       if (sessionState) {
@@ -559,8 +555,6 @@ export class WizardStateService {
    * ✅ SEGURIDAD: Sanitiza datos sensibles antes de guardar en sessionStorage
    */
   async saveState(state: Partial<WizardState>, options?: { sync?: boolean; isCritical?: boolean }): Promise<void> {
-    if (!isPlatformBrowser(this.platformId)) return;
-
     const currentState = this.getState();
     const now = Date.now();
     
@@ -1076,16 +1070,22 @@ export class WizardStateService {
       // Crear sesión si no existe
       if (!sessionId || state.currentStep === 0) {
         const publicIp = await this.getPublicIp();
+        const userAgent = typeof navigator !== 'undefined' 
+          ? navigator.userAgent 
+          : 'Unknown-User-Agent';
+        const platform = typeof navigator !== 'undefined'
+          ? navigator.platform
+          : 'Unknown-Platform';
         const createSessionResponse = await this.apiService.post(this.API_ENDPOINT, {
           sessionId: sessionId || state.sessionId,
           userId: state.userId || undefined, // No enviar string vacío
           publicIp,
-          userAgent: navigator.userAgent,
+          userAgent,
           createOnly: false, // Permitir reutilización por IP
           metadata: {
             timestamp: new Date().toISOString(),
-            browser: navigator.userAgent,
-            platform: navigator.platform
+            browser: userAgent,
+            platform
           }
         }).toPromise();
         
@@ -2065,12 +2065,15 @@ export class WizardStateService {
         
         // Crear sesión en backend
         const publicIp = await this.getPublicIp();
+        const userAgent = typeof navigator !== 'undefined' 
+          ? navigator.userAgent 
+          : 'Unknown-User-Agent';
         await this.apiService.post(this.API_ENDPOINT, {
           sessionId: newSessionId,
           userId: quotation.userId || undefined, // No enviar string vacío
           quotationId: quotation.id || '',
           publicIp,
-          userAgent: navigator.userAgent,
+          userAgent,
           createOnly: true // Crear nueva sesión sin reutilizar por IP
         }).toPromise();
         
@@ -2267,16 +2270,23 @@ export class WizardStateService {
     }
 
     // Usar wizardSessionService que maneja tokens automáticamente
+    const userAgent = typeof navigator !== 'undefined' 
+      ? navigator.userAgent 
+      : 'Unknown-User-Agent';
+    const platform = typeof navigator !== 'undefined'
+      ? navigator.platform
+      : 'Unknown-Platform';
+      
     const createSessionResponse = await this.wizardSessionService.createSession({
       sessionId: newSessionId,
       userId: currentState.userId || undefined, // No enviar string vacío
       publicIp,
-      userAgent: navigator.userAgent,
+      userAgent,
       createOnly: true, // Crear nueva sesión sin reutilizar por IP
       metadata: {
         timestamp: new Date().toISOString(),
-        browser: navigator.userAgent,
-        platform: navigator.platform
+        browser: userAgent,
+        platform
       }
     }).toPromise();
 
