@@ -541,7 +541,7 @@ export class LpContentComponent implements OnInit {
     
     // 4) Actualizar estado local con el selectedPlan de la sesión previa
     await this.wizardStateService.saveState({ 
-      selectedPlan: selectedPlanToUse, 
+      selectedPlan: selectedPlanToUse ?? undefined, 
       selectedPlanName: planName,
       currentStep: 0,
       status: 'ACTIVE'
@@ -551,7 +551,7 @@ export class LpContentComponent implements OnInit {
     try {
       this.logger.log('📡 Actualizando nueva sesión en BD con selectedPlan de sesión previa:', selectedPlanToUse);
       const updatedState = await this.wizardStateService.saveAndSync({
-        selectedPlan: selectedPlanToUse,
+        selectedPlan: selectedPlanToUse ?? undefined,
         selectedPlanName: planName,
         currentStep: 0,
         stepData: {
