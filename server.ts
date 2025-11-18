@@ -20,7 +20,14 @@ if (!existsSync(browserDistFolder)) {
   }
 }
 
-const indexHtml = join(browserDistFolder, 'index.html');
+// Intentar index.html primero, luego index.csr.html como fallback (cuando prerender: false)
+let indexHtml = join(browserDistFolder, 'index.html');
+if (!existsSync(indexHtml)) {
+  const csrHtml = join(browserDistFolder, 'index.csr.html');
+  if (existsSync(csrHtml)) {
+    indexHtml = csrHtml;
+  }
+}
 
 const app = express();
 const commonEngine = new CommonEngine();
