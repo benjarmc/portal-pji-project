@@ -1,4 +1,4 @@
-# Etapa 1: Build de Angular Universal
+# Etapa 1: Build de Angular (sin SSR)
 FROM node:18-alpine AS builder
 WORKDIR /app
 
@@ -6,39 +6,27 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
 
-# Copiar el resto del código y construir la app SSR
+# Copiar el resto del código y construir la app
 COPY . .
-RUN npm run build:ssr:production
+RUN npm run build:prod
 
-# Etapa 2: Imagen final para producción SSR
-FROM node:18-alpine
-WORKDIR /app
+# Etapa 2: Imagen final con Nginx
+FROM nginx:alpine
 
-# Crear usuario no-root para seguridad
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+# Copiar la configuración de nginx
+COPY nginx.conf /etc/nginx/nginx.conf
 
-# Copiar solo los archivos necesarios para producción
-COPY --from=builder --chown=nodejs:nodejs /app/dist/portal-pji-project /app/dist/portal-pji-project
-COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
+# Copiar los archivos compilados del build
+COPY --from=builder /app/dist/portal-pji-project/browser /usr/share/nginx/html
 
-# Instalar solo dependencias de producción (sin devDependencies)
-RUN npm install --only=production --legacy-peer-deps && \
-    npm cache clean --force
+# Exponer el puerto 80
+EXPOSE 80
 
-# Cambiar al usuario no-root
-USER nodejs
+# Healthcheck para verificar que nginx está funcionando
+# Instalar wget para el healthcheck
+RUN apk add --no-cache wget
 
-# Exponer el puerto (configurable via variable de entorno)
-EXPOSE 4000
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1
 
-# Variable de entorno para el puerto
-ENV PORT=4000
-ENV NODE_ENV=production
-
-# Healthcheck para verificar que el servidor está funcionando
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:4000/', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
-
-# Comando por defecto para iniciar el servidor SSR
-CMD ["node", "dist/portal-pji-project/server/main.js"]
+# Nginx se inicia automáticamente
