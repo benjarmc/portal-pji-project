@@ -62,12 +62,18 @@
   <button 
     class="start-button" 
     (click)="onNext()"
-    [disabled]="welcomeForm.invalid"
+    [disabled]="welcomeForm.invalid || loadingUserType"
   >
-    Continuar
-    <svg class="arrow-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <line x1="5" y1="12" x2="19" y2="12"></line>
-      <polyline points="12,5 19,12 12,19"></polyline>
-    </svg>
+    <span *ngIf="loadingUserType" class="d-flex align-items-center justify-content-center">
+      <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+      Procesando...
+    </span>
+    <span *ngIf="!loadingUserType" class="d-flex align-items-center">
+      Continuar
+      <svg class="arrow-icon ms-2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+        <polyline points="12,5 19,12 12,19"></polyline>
+      </svg>
+    </span>
   </button>
 </div> 

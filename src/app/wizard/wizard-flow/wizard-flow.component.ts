@@ -67,6 +67,8 @@ export class WizardFlowComponent implements OnInit {
   currentQuotation: any = null;
   quotationSentByEmail = false;
   isStateRestored = false;
+  // ✅ Estado de carga para reiniciar el proceso
+  loadingRestart = false;
   showContinueModal = false;
   showConfirmDialog = false;
   confirmDialogTitle = '¿Estás seguro?';
@@ -1469,11 +1471,36 @@ export class WizardFlowComponent implements OnInit {
   }
 
   onValidationGoToStart() {
-    this.goToStep(0);
-    this.validationStatus = 'pending';
+    // ✅ Evitar múltiples clics mientras se procesa
+    if (this.loadingRestart) {
+      this.logger.log('⚠️ Ya hay un reinicio en progreso, ignorando clic');
+      return;
+    }
+
+    // ✅ Activar estado de carga
+    this.loadingRestart = true;
+
+    try {
+      this.goToStep(0);
+      this.validationStatus = 'pending';
+    } finally {
+      // ✅ Desactivar estado de carga después de un breve delay para que se vea el cambio
+      setTimeout(() => {
+        this.loadingRestart = false;
+      }, 500);
+    }
   }
 
   onFinishGoToStart() {
+    // ✅ Evitar múltiples clics mientras se procesa
+    if (this.loadingRestart) {
+      this.logger.log('⚠️ Ya hay un reinicio en progreso, ignorando clic');
+      return;
+    }
+
+    // ✅ Activar estado de carga
+    this.loadingRestart = true;
+
     // Limpiar estado del wizard
     this.wizardStateService.clearState();
     
@@ -1491,6 +1518,15 @@ export class WizardFlowComponent implements OnInit {
   }
 
   closeWizard() {
+    // ✅ Evitar múltiples clics mientras se procesa
+    if (this.loadingRestart) {
+      this.logger.log('⚠️ Ya hay un cierre en progreso, ignorando clic');
+      return;
+    }
+
+    // ✅ Activar estado de carga
+    this.loadingRestart = true;
+
     // Limpiar estado al cerrar el wizard
     this.wizardStateService.clearState();
     // Navegar a la página principal usando window.location para asegurar que funcione en todos los ambientes

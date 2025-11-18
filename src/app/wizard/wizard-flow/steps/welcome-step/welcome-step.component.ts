@@ -18,6 +18,8 @@ export class WelcomeStepComponent implements OnInit {
   welcomeForm: FormGroup;
   tipoUsuario: string | null = null;
   hasUserType = false;
+  // ✅ Estado de carga para la selección de tipo de usuario
+  loadingUserType = false;
   
   // Debounce para cambios en el formulario
   private formChangesSubject = new Subject<string>();
@@ -94,9 +96,18 @@ export class WelcomeStepComponent implements OnInit {
   }
 
   onNext() {
+    // ✅ Evitar múltiples clics mientras se procesa
+    if (this.loadingUserType) {
+      this.logger.log('⚠️ Ya hay una selección de tipo de usuario en progreso, ignorando clic');
+      return;
+    }
+
     if (this.welcomeForm.valid) {
       const tipoUsuario = this.welcomeForm.get('tipoUsuario')?.value;
       if (tipoUsuario) {
+        // ✅ Activar estado de carga
+        this.loadingUserType = true;
+
         // ✅ CAMBIO CRÍTICO: Completar paso → Usar saveAndSync() para persistir en BD
         this.wizardStateService.saveAndSync({
           stepData: {
@@ -109,9 +120,13 @@ export class WelcomeStepComponent implements OnInit {
           currentStep: 1 // Avanzar al siguiente paso
         }).then(() => {
           this.logger.log('🚀 Continuando con tipo de usuario:', tipoUsuario);
+          // ✅ Desactivar estado de carga antes de emitir
+          this.loadingUserType = false;
           this.next.emit();
         }).catch(error => {
           this.logger.error('❌ Error guardando tipo de usuario:', error);
+          // ✅ Desactivar estado de carga incluso si hay error
+          this.loadingUserType = false;
           // Aún así permitir continuar, los datos están guardados localmente
           this.next.emit();
         });

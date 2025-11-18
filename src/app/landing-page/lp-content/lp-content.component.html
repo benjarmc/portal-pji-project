@@ -1,5 +1,16 @@
 <app-lp-header />
 
+<!-- Overlay de carga global -->
+<div *ngIf="loadingPlanSelection" class="loading-overlay d-flex align-items-center justify-content-center">
+  <div class="loading-content text-center">
+    <div class="spinner-border text-accent mb-3" role="status" style="width: 3rem; height: 3rem;">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <p class="text-white mb-0">Procesando tu selección...</p>
+    <small class="text-white-50">Por favor espera un momento</small>
+  </div>
+</div>
+
 <!-- Modal continuar sesión -->
 <app-continue-wizard-modal
   [show]="showContinueModal"
@@ -163,13 +174,20 @@
           </div>
           
           <!-- Botón de acción -->
-          <div class="d-flex justify-content-center">
+          <div class="d-flex justify-content-center position-relative">
             <button 
               class="lp-plans-cto-button btn btn-accent mt-auto d-flex align-items-center justify-content-center"
               [class.lp-plans-cto-button-secondary]="plan.name.toLowerCase().includes('premium')"
               [class.lp-plans-cto-button-primary]="!plan.name.toLowerCase().includes('premium')"
+              [disabled]="loadingPlanSelection"
               (click)="startWizard(plan.id)">
-              Seleccionar plan <i class="bi bi-arrow-right ms-2"></i>
+              <span *ngIf="loadingPlanSelection && loadingPlanId === plan.id" class="d-flex align-items-center">
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Procesando...
+              </span>
+              <span *ngIf="!loadingPlanSelection || loadingPlanId !== plan.id" class="d-flex align-items-center">
+                Seleccionar plan <i class="bi bi-arrow-right ms-2"></i>
+              </span>
             </button>
           </div>
         </div>
