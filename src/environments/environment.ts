@@ -1,16 +1,11 @@
 // Environment de DESARROLLO - Este archivo se usa por defecto
 export const environment = {
     production: false,
-    debug: true, // Habilitar logs en desarrollo
+    debug: true,
     api: {
         baseUrl: 'http://127.0.0.1:3000/api',
         timeout: 30000,
-        apiKey: 'dev-frontend-api-key-12345', // Cambiar en producción
-    },
-    vdid: {
-        publicKey: 'pk_test_Qm3iR9607BpWD/UAP2Til1+5NCHA/yxvcZWtauDNHLE=',
-        privateKey: 'sk_test_SWFRrKNc1vsPzvVuTe1zX3968L+Kg+N1HYpfmrXn164=',
-        defaultVersion: 'v2'
+        apiKey: 'dev-frontend-api-key-12345',
     },
     openpay: {
         merchantId: 'moe7p2y5ycpz1jt71dxu',

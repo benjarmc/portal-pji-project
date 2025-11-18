@@ -7,11 +7,6 @@ export const environment = {
         timeout: 30000,
         apiKey: 'dev-frontend-api-key-12345',
     },
-    vdid: {
-        publicKey: 'pk_test_Qm3iR9607BpWD/UAP2Til1+5NCHA/yxvcZWtauDNHLE=',
-        privateKey: 'sk_test_SWFRrKOc1vsPzvVuTe1zX3968L+Kg+N1HYpfmrXn164=',
-        defaultVersion: 'v2'
-    },
     openpay: {
         merchantId: 'maklddlcpad3qzj7n5o5',
         publicKey: 'pk_7fbdc5d5b1654266af05acc3a3e8dca5',

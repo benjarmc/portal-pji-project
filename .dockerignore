@@ -1,16 +1,55 @@
+# Dependencias
 node_modules
 npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist
+.angular
+.cache
+
+# Git
 .git
 .gitignore
-README.md
-.env
-.nyc_output
-coverage
-.coverage
-.cache
-.angular
-dist
-.DS_Store
-*.log
+.gitattributes
+
+# IDE
 .vscode
 .idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs
+*.log.*
+
+# Testing
+coverage
+.nyc_output
+.angular/cache
+
+# Environment files (se configuran en Dokploy)
+.env
+.env.local
+.env.*.local
+
+# Documentation
+README.md
+*.md
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Misc
+.vercel
+.netlify
