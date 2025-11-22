@@ -8,8 +8,8 @@ export const environment = {
         apiKey: 'dev-frontend-api-key-12345',
     },
     openpay: {
-        merchantId: 'maklddlcpad3qzj7n5o5',
-        publicKey: 'pk_7fbdc5d5b1654266af05acc3a3e8dca5',
+        merchantId: 'moe7p2y5ycpz1jt71dxu',
+        publicKey: 'pk_546e11f542f648a1a116b7d0007c06bf',
         sandboxMode: true
     }
 };
