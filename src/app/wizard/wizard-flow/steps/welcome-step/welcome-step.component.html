@@ -39,7 +39,7 @@
             </div>
           </button>
           
-          <button 
+         <!-- <button 
             type="button"
             class="user-type-btn"
             [class.selected]="welcomeForm.get('tipoUsuario')?.value === 'asesor'"
@@ -50,7 +50,7 @@
               <div class="btn-title">Asesor Inmobiliario</div>
               <div class="btn-subtitle">Profesional del sector</div>
             </div>
-          </button>
+          </button> -->
         </div>
         <div class="error-message" *ngIf="welcomeForm.get('tipoUsuario')?.invalid && welcomeForm.get('tipoUsuario')?.touched">
           Debes seleccionar tu tipo de usuario

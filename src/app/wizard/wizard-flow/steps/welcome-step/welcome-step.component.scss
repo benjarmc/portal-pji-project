@@ -137,7 +137,7 @@ $black: #000000;
 // Responsive para los botones
 @media (min-width: 768px) {
   .user-type-buttons {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 1.5rem;
   }
   

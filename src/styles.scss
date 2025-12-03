@@ -225,12 +225,12 @@ body {
   align-items: center;
   
   .hero-logo-img {
-    height: 100px;
-    width: 100px;
+    height: 120px;
+    width: 120px;
     object-fit: contain;
     background-color: rgba(255, 255, 255, 0.95);
     border-radius: 50%;
-    padding: 10px;
+    padding: 0;
   }
 }
 
@@ -504,15 +504,26 @@ body {
   
   .navbar-logo {
     @include logo-style(60px, transparent, 0, 0);
-    max-width: 200px;
-    filter: brightness(0) invert(1);
-    transition: filter 0.3s ease-in-out;
+    max-width: 250px;
+    filter: none;
+    transition: all 0.3s ease-in-out;
     box-shadow: none !important;
   }
 }
 
+// Cuando el navbar está arriba (transparente), agregar fondo circular al logo para visibilidad
+.navbar:not(.navbar-shrink) .navbar-brand .navbar-logo {
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  padding: 1px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
 .navbar-shrink .navbar-brand .navbar-logo {
-  filter: brightness(0) invert(0);
+  filter: none;
+  background-color: transparent;
+  padding: 0;
+  box-shadow: none;
 }
 
 // ============================================
@@ -588,8 +599,8 @@ body {
     margin-bottom: $spacing-sm;
     
     .footer-logo-img {
-      @include logo-style(90px, rgba(255, 255, 255, 0.9), 10px, 10px);
-      max-width: 220px;
+      @include logo-style(110px, rgba(255, 255, 255, 0.9), 10px, 10px);
+      max-width: 260px;
       box-shadow: none !important;
     }
   }
@@ -1004,7 +1015,7 @@ body {
     margin-right: auto;
     
     .footer-logo-img {
-      height: 70px;
+      height: 90px;
       padding: 8px;
     }
   }
